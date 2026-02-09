@@ -1,0 +1,54 @@
+{
+    "years": {
+        "2026": [
+            {
+                "issue": 5,
+                "date": "15 януари 2026 г.",
+                "file": "issues/2026/05/5.md",
+                "readMinutes": 6
+            },
+            {
+                "issue": 6,
+                "date": "16 януари 2026 г.",
+                "file": "issues/2026/06/6.md",
+                "readMinutes": 4
+            },
+            {
+                "issue": 7,
+                "date": "20 януари 2026 г.",
+                "file": "issues/2026/07/7.md",
+                "readMinutes": 4
+            },
+            {
+                "issue": 8,
+                "date": "21 януари 2026 г.",
+                "file": "issues/2026/08/8.md",
+                "readMinutes": 5
+            },
+            {
+                "issue": 9,
+                "date": "23 януари 2026 г.",
+                "file": "issues/2026/09/9.md",
+                "readMinutes": 2
+            },
+            {
+                "issue": 10,
+                "date": "27 януари 2026 г.",
+                "file": "issues/2026/10/10.md",
+                "readMinutes": 3
+            },
+            {
+                "issue": 11,
+                "date": "29 януари 2026 г.",
+                "file": "issues/2026/11/11.md",
+                "readMinutes": 6
+            },
+            {
+                "issue": 12,
+                "date": "30 януари 2026 г.",
+                "file": "issues/2026/12/12.md",
+                "readMinutes": 7
+            }
+        ]
+    }
+}

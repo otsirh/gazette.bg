@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="bg">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link rel="icon" href="favicon.svg" type="image/svg+xml" />
+    <title>AI синтез на Български Държавен вестник</title>
+    <link rel="stylesheet" href="node_modules/@fontsource/nunito/300.css" />
+    <link rel="stylesheet" href="node_modules/@fontsource/nunito/400.css" />
+    <link rel="stylesheet" href="node_modules/@fontsource/nunito/600.css" />
+    <link rel="stylesheet" href="node_modules/@fontsource/nunito/700.css" />
+    <link rel="stylesheet" href="node_modules/@fontsource/nunito/400-italic.css" />
+    <link rel="stylesheet" href="css/styles.css" />
+</head>
+<body>
+    <header class="masthead">
+        <img src="favicon.svg" alt="" class="masthead-logo" width="56" height="56" />
+        <h1>AI синтез на Български Държавен вестник</h1>
+        <p class="masthead-description">Кратко обобщение на всеки брой. Изберете година и брой.</p>
+        <p class="tagline">Официално издание: <a href="https://dv.parliament.bg/DVWeb/index.faces" target="_blank" rel="noopener">dv.parliament.bg</a></p>
+    </header>
+    <div class="layout">
+        <main id="main">
+            <div id="home-view" class="home-section">
+                <div id="home-content"></div>
+            </div>
+            <div id="issue-view" style="display:none;">
+                <div class="read-progress-bar" id="read-progress-bar" role="progressbar" aria-label="Прогрес при четене" aria-valuemin="0" aria-valuemax="100">
+                    <div class="read-progress-fill" id="read-progress-fill"></div>
+                </div>
+                <div class="back-bar">
+                    <button type="button" class="back-btn" id="back-btn" aria-label="Обратно към началната страница">← Обратно към началната страница</button>
+                </div>
+                <div class="issue-header" id="issue-header"></div>
+                <div class="content" id="content"></div>
+                <div id="issue-nav" class="issue-nav issue-nav-bottom" aria-label="Навигация между броеве"></div>
+            </div>
+            <div class="loading" id="loading" style="display:none;">Зареждане…</div>
+        </main>
+    </div>
+    <button type="button" class="scroll-to-top" id="scroll-to-top" aria-label="Обратно нагоре" title="Обратно нагоре">↑</button>
+    <script src="node_modules/marked/lib/marked.umd.js"></script>
+    <script src="js/app.js"></script>
+</body>
+</html>
