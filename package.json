@@ -3,6 +3,7 @@
     "version": "1.0.0",
     "description": "",
     "scripts": {
+        "build": "node scripts/build-gazette-catalog.js",
         "download-latest-gazette": "node scripts/download-latest-gazette.js",
         "summarize-gazette": "node scripts/summarize-gazette.js",
         "build-gazette": "node scripts/build-gazette-catalog.js",
@@ -15,7 +16,6 @@
     "license": "ISC",
     "type": "commonjs",
     "dependencies": {
-        "@fontsource/nunito": "^5.2.7",
         "dotenv": "^16.4.5",
         "marked": "^17.0.1",
         "pdf-lib": "^1.17.1",

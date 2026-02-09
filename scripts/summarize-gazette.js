@@ -6,10 +6,11 @@
 // sent back to Claude once (no PDF) for a final refinement and structured output
 // (issue number, date, summary).
 //
-// Usage: node summarize-gazette.js [year] [issue]
+// Usage: node summarize-gazette.js [year] [issue] [customPdfPath]
 //   No args: process all PDFs in official-gazettes/
 //   year only: process all PDFs in official-gazettes/year/
 //   year and issue: process only official-gazettes/year/issue.pdf
+//   year, issue, customPdfPath: use customPdfPath as PDF (e.g. from download script); do not delete PDF or copy json.
 const path = require('path');
 const fs = require('fs');
 require('dotenv').config({ path: path.join(__dirname, '..', '.env') });
@@ -243,12 +244,19 @@ async function main() {
     log('Run started', 'INFO');
     if (!apiKey) fail('Missing ANTHROPIC_API_KEY in .env');
 
-    let entries = listOfficialPdfs();
     const yearArg = process.argv[2];
     const issueArg = process.argv[3];
-    if (yearArg) {
-        entries = entries.filter((e) => e.year === yearArg);
-        if (issueArg) entries = entries.filter((e) => e.issue === issueArg);
+    const customPdfPath = process.argv[4] ? path.resolve(process.cwd(), process.argv[4]) : null;
+
+    let entries;
+    if (customPdfPath && yearArg && issueArg) {
+        entries = [{ year: yearArg, issue: issueArg }];
+    } else {
+        entries = listOfficialPdfs();
+        if (yearArg) {
+            entries = entries.filter((e) => e.year === yearArg);
+            if (issueArg) entries = entries.filter((e) => e.issue === issueArg);
+        }
     }
 
     if (entries.length === 0) {
@@ -257,10 +265,13 @@ async function main() {
     }
 
     for (const { year, issue } of entries) {
-        const pdf = pdfPath(year, issue);
+        const pdf = customPdfPath || pdfPath(year, issue);
         const outPath = summaryPath(year, issue);
         if (!fs.existsSync(pdf)) {
             log(`PDF missing: ${pdf}`, 'WARN');
+            if (customPdfPath) {
+                fail('Custom PDF path not found: ' + pdf);
+            }
             continue;
         }
         if (fs.existsSync(outPath)) {
@@ -275,15 +286,17 @@ async function main() {
             fs.mkdirSync(issueDir, { recursive: true });
             const markdown = await summarizePdf(pdf, year, issue);
             fs.writeFileSync(outPath, markdown, 'utf8');
-            const metaPath = path.join(OFFICIAL_GAZETTES_DIR, String(year), `${issue}.json`);
-            const metaDest = path.join(issueDir, `${issue}.json`);
-            if (fs.existsSync(metaPath)) {
-                fs.copyFileSync(metaPath, metaDest);
-                fs.unlinkSync(metaPath);
-            }
-            if (fs.existsSync(pdf)) {
-                fs.unlinkSync(pdf);
-                log(`Deleted PDF ${pdf}`, 'INFO');
+            if (!customPdfPath) {
+                const metaPath = path.join(OFFICIAL_GAZETTES_DIR, String(year), `${issue}.json`);
+                const metaDest = path.join(issueDir, `${issue}.json`);
+                if (fs.existsSync(metaPath)) {
+                    fs.copyFileSync(metaPath, metaDest);
+                    fs.unlinkSync(metaPath);
+                }
+                if (fs.existsSync(pdf)) {
+                    fs.unlinkSync(pdf);
+                    log(`Deleted PDF ${pdf}`, 'INFO');
+                }
             }
             log(`Wrote ${outPath}`, 'OK');
             console.log(`✓ Wrote ${path.relative(ROOT, outPath)}`);

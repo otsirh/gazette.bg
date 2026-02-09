@@ -37,7 +37,7 @@ async function main() {
         process.exit(code);
     }
 
-    console.log('\n[update-gazette] 2. Summarize new PDFs (writes to issues/, deletes PDF after)');
+    console.log('\n[update-gazette] 2. Summarize any remaining PDFs in official-gazettes/ (optional)');
     code = run('Summarize gazette', path.join(SCRIPTS_DIR, 'summarize-gazette.js'));
     if (code !== 0) {
         await flushAlertEmail();

@@ -1,8 +1,6 @@
-// Downloads the first issue PDF from DV (https://dv.parliament.bg) to ./official-gazettes.
-// For cron/server: runs headless by default. Set HEADLESS=false to show the browser locally.
-// Skips download if the file already exists.
-// On failure exits with code 1 and prints a clear error (so cron can email you).
-// All runs (success and failure) are appended to logs/yyyy-MM-dd.log (one file per date).
+// Downloads the latest issue PDF from DV (https://dv.parliament.bg), summarizes it, and writes
+// only JSON + MD under issues/YEAR/issueNumber/. No PDF is kept. On any failure the new issue
+// folder is removed (revert). For cron/server: runs headless by default. Set HEADLESS=false for local.
 //
 // Email on failure (pick one or both):
 //   - Cron: add MAILTO=your@email.com to crontab; cron emails when the job exits non-zero.
@@ -13,16 +11,17 @@
 //   (optional) npx playwright install-deps chromium
 const path = require('path');
 const fs = require('fs');
+const { spawnSync } = require('child_process');
 const { chromium } = require('playwright');
 
 const { appendLog } = require('./logger');
 
 const ROOT = path.join(__dirname, '..');
-const DOWNLOAD_DIR = path.join(ROOT, 'official-gazettes');
 const ISSUES_DIR = path.join(ROOT, 'issues');
 const SCRIPT_NAME = 'download-latest-gazette';
 const HEADLESS = process.env.HEADLESS !== 'false';
 const STEP_TIMEOUT_MS = 30000;
+const TEMP_PDF_NAME = '.tmp.pdf';
 
 function log(message, level = 'INFO') {
     appendLog(SCRIPT_NAME, message, level);
@@ -46,22 +45,32 @@ function parseDvFilename(filename) {
     return { issue, year };
 }
 
-// Build path: official-gazettes/YEAR/issue.pdf (e.g. official-gazettes/2026/12.pdf)
-function getSavePath(issue, year) {
-    const yearDir = path.join(DOWNLOAD_DIR, String(year));
-    return path.join(yearDir, `${issue}.pdf`);
+// issues/YEAR/XX/ (XX = zero-padded issue, e.g. issues/2026/13/)
+function getIssueDir(issue, year) {
+    const pad = String(issue).padStart(2, '0');
+    return path.join(ISSUES_DIR, String(year), pad);
 }
 
-// Metadata path: official-gazettes/YEAR/issue.json stores { date: "30.1.2026 г." }
+// Temp PDF path inside the issue folder (deleted after successful summarize)
+function getTempPdfPath(issue, year) {
+    return path.join(getIssueDir(issue, year), TEMP_PDF_NAME);
+}
+
+// Metadata path: issues/YEAR/XX/issue.json
 function getMetadataPath(issue, year) {
-    const yearDir = path.join(DOWNLOAD_DIR, String(year));
-    return path.join(yearDir, `${issue}.json`);
+    return path.join(getIssueDir(issue, year), `${issue}.json`);
+}
+
+function revertIssueDir(issueDir) {
+    if (fs.existsSync(issueDir)) {
+        fs.rmSync(issueDir, { recursive: true });
+        log('Reverted (removed) ' + issueDir, 'WARN');
+    }
 }
 
 // True if we already have this issue in issues/YEAR/XX/ (summary or metadata).
 function alreadyHaveIssue(issue, year) {
-    const pad = String(issue).padStart(2, '0');
-    const issueDir = path.join(ISSUES_DIR, String(year), pad);
+    const issueDir = getIssueDir(issue, year);
     return (
         fs.existsSync(path.join(issueDir, `${issue}.md`)) ||
         fs.existsSync(path.join(issueDir, `${issue}.json`))
@@ -105,8 +114,6 @@ function writeIssueMetadata(issue, year, date) {
     log('Run started', 'INFO');
 
     try {
-        fs.mkdirSync(DOWNLOAD_DIR, { recursive: true });
-
         browser = await chromium.launch({ headless: HEADLESS });
         const page = await browser.newPage();
 
@@ -124,8 +131,11 @@ function writeIssueMetadata(issue, year, date) {
             fail("'Изтегли броя' link not found – page layout may have changed.");
         });
 
-        const firstRowText = await page.locator('.td_tabResult0').first().textContent().catch(() => null);
-        const firstRowDate = parseDateFromRowText(firstRowText || '');
+        // Date must come from the same row as the download link (the issue we actually download),
+        // not from the first row (which may be a not-yet-available issue like 16).
+        const downloadRowDateCell = firstDownloadLink.locator('xpath=../..').locator('.td_tabResult0').first();
+        const downloadRowText = await downloadRowDateCell.textContent().catch(() => null);
+        const downloadRowDate = parseDateFromRowText(downloadRowText || '');
 
         await firstDownloadLink.click();
 
@@ -146,43 +156,59 @@ function writeIssueMetadata(issue, year, date) {
         }
 
         const { issue, year } = parsed;
-        const savePath = getSavePath(issue, year);
 
         if (alreadyHaveIssue(issue, year)) {
-            const msg = `Already have issue ${year}/${issue} in issues/ – skipping download`;
+            const msg = `Already have issue ${year}/${issue} in issues/ – skipping`;
             log(msg, 'OK');
             console.log(msg);
             await browser.close();
             return;
         }
-        if (fs.existsSync(savePath)) {
-            const metaPath = getMetadataPath(issue, year);
-            if (!fs.existsSync(metaPath) && firstRowDate) {
-                writeIssueMetadata(issue, year, toBulgarianDateFormat(firstRowDate));
-                console.log('Wrote missing metadata:', metaPath);
+
+        const issueDir = getIssueDir(issue, year);
+        const tempPdfPath = getTempPdfPath(issue, year);
+        fs.mkdirSync(issueDir, { recursive: true });
+
+        try {
+            const [pdfDownload] = await Promise.all([
+                page.waitForEvent('download', { timeout: STEP_TIMEOUT_MS }),
+                firstPdfLink.click(),
+            ]).catch(async (e) => {
+                if (browser) await browser.close().catch(() => {});
+                throw new Error('PDF download did not start or timed out – link or server may have changed. ' + (e && e.message));
+            });
+
+            await pdfDownload.saveAs(tempPdfPath);
+            await browser.close();
+            log('PDF downloaded to temp', 'INFO');
+
+            if (downloadRowDate) {
+                writeIssueMetadata(issue, year, toBulgarianDateFormat(downloadRowDate));
             }
-            const msg = `Already have ${year}/${issue}.pdf – skipping download`;
-            log(msg, 'OK');
-            console.log(msg);
-            await browser.close();
-            return;
+
+            const summarizeScript = path.join(__dirname, 'summarize-gazette.js');
+            const result = spawnSync('node', [summarizeScript, String(year), String(issue), tempPdfPath], {
+                cwd: ROOT,
+                stdio: 'inherit',
+                shell: false,
+            });
+
+            if (result.status !== 0) {
+                revertIssueDir(issueDir);
+                fail('Summarize failed (exit ' + result.status + '). Issue folder reverted.');
+            }
+
+            if (fs.existsSync(tempPdfPath)) {
+                fs.unlinkSync(tempPdfPath);
+                log('Removed temp PDF', 'INFO');
+            }
+            log('Issue ' + year + '/' + issue + ' saved (JSON + MD only)', 'OK');
+            console.log('Issue ' + year + '/' + issue + ' saved to issues/ (JSON + MD only).');
+        } catch (e) {
+            await browser.close().catch(() => {});
+            revertIssueDir(issueDir);
+            fail(e.message || 'Unexpected error.', e);
         }
-
-        fs.mkdirSync(path.join(DOWNLOAD_DIR, String(year)), { recursive: true });
-
-        const [pdfDownload] = await Promise.all([
-            page.waitForEvent('download', { timeout: STEP_TIMEOUT_MS }),
-            firstPdfLink.click(),
-        ]).catch(async (e) => {
-            if (browser) await browser.close().catch(() => {});
-            fail('PDF download did not start or timed out – link or server may have changed.', e.message);
-        });
-
-        await pdfDownload.saveAs(savePath);
-        if (firstRowDate) writeIssueMetadata(issue, year, toBulgarianDateFormat(firstRowDate));
-        log('PDF saved to ' + savePath, 'OK');
-        console.log('PDF saved to:', savePath);
-        await browser.close();
     } catch (e) {
         if (browser) await browser.close().catch(() => {});
         fail('Unexpected error.', e.message || e);
