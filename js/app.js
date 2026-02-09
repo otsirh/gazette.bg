@@ -392,7 +392,7 @@
         }
         const catalogItem = year && issueNum ? findIssueByYearAndNumber(year, issueNum) : null;
         const readMinutesForHeader = catalogItem?.readMinutes ?? null;
-        const contentDisclaimer = '<p class="content-disclaimer">Синтезът по-долу е генериран с AI и може да съдържа грешки. За официалния текст прегледайте PDF-а по-горе.</p>';
+        const contentDisclaimer = '<p class="content-disclaimer"><strong>Важно:</strong> Целият текст по-долу е генериран с изкуствен интелект (AI) и не е официален — може да съдържа грешки или неточности. Ако не сте сигурни в нещо, винаги преглеждайте официалния брой на Държавен вестник на <a href="https://dv.parliament.bg" target="_blank" rel="noopener">dv.parliament.bg</a>.</p>';
         try {
             const r = await fetch(file);
             if (!r.ok) throw new Error(r.statusText);
