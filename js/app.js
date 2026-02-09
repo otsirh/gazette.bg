@@ -6,6 +6,7 @@
     const homeView = document.getElementById('home-view');
     const homeContent = document.getElementById('home-content');
     const issueView = document.getElementById('issue-view');
+    const backBtns = document.querySelectorAll('.back-btn');
     const backBtn = document.getElementById('back-btn');
     const mainLoading = document.getElementById('loading');
     const issueHeaderEl = document.getElementById('issue-header');
@@ -444,7 +445,7 @@
     }
 
     async function init() {
-        backBtn.addEventListener('click', showHome);
+        backBtns.forEach(function (btn) { btn.addEventListener('click', showHome); });
         mainEl.addEventListener('click', onMainClick);
         window.addEventListener('hashchange', applyRoute);
         function onScroll() {
