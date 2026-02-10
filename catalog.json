@@ -54,6 +54,12 @@
                 "date": "6 февруари 2026 г.",
                 "file": "issues/2026/15/15.md",
                 "readMinutes": 5
+            },
+            {
+                "issue": 16,
+                "date": "10 февруари 2026 г.",
+                "file": "issues/2026/16/16.md",
+                "readMinutes": 11
             }
         ]
     }
