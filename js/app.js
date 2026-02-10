@@ -117,32 +117,11 @@
     }
 
     function buildTocHtml(tocItems) {
-        if (!tocItems.length) return '';
-        const firstLevel = tocItems[0].level;
-        const offset = firstLevel - 1;
-        const normalized = offset > 0
-            ? tocItems.map((item) => ({ ...item, level: Math.max(1, item.level - offset) }))
-            : tocItems;
+        const mainItems = tocItems.filter((item) => item.level <= 2);
+        if (!mainItems.length) return '';
         let html = '<nav class="issue-toc" aria-label="Съдържание на броя"><div class="issue-toc-title">Съдържание</div><ul class="issue-toc-list">';
-        const stack = [1];
-        let first = true;
-        for (const item of normalized) {
-            if (!first) html += '</li>';
-            first = false;
-            while (stack.length > 1 && stack[stack.length - 1] > item.level) {
-                html += '</ul></li>';
-                stack.pop();
-            }
-            while (stack.length < item.level) {
-                html += '<ul class="issue-toc-sublist">';
-                stack.push(stack.length + 1);
-            }
-            html += `<li class="issue-toc-item issue-toc-level-${item.level}"><a href="#${escapeAttr(item.id)}">${escapeHtml(item.text)}</a>`;
-        }
-        html += '</li>';
-        while (stack.length > 1) {
-            html += '</ul></li>';
-            stack.pop();
+        for (const item of mainItems) {
+            html += `<li class="issue-toc-item"><a href="#${escapeAttr(item.id)}">${escapeHtml(item.text)}</a></li>`;
         }
         html += '</ul></nav>';
         return html;
