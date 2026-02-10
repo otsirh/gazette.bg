@@ -47,6 +47,16 @@
         return s;
     }
 
+    /** Lowercase month name in a Bulgarian date string (e.g. "6 Януари 2026" → "6 януари 2026"). */
+    function lowercaseMonthInDate(str) {
+        if (!str || typeof str !== 'string') return str;
+        let s = str;
+        for (let i = 0; i < BG_MONTHS_CAP.length; i++) {
+            s = s.replace(BG_MONTHS_CAP[i], BG_MONTHS[i]);
+        }
+        return s;
+    }
+
     function formatDateBulgarian(str) {
         if (!str || typeof str !== 'string') return str;
         const m = str.match(/^(\d{1,2})\.(\d{1,2})\.(\d{4})\s*г\.?$/);
@@ -58,11 +68,11 @@
         return day + ' ' + BG_MONTHS_CAP[month - 1] + ' ' + year;
     }
 
-    /** Date for homepage cards: day + month only (no year). */
+    /** Date for homepage cards: day + month only (no year), lowercase month. */
     function formatDateForHomepage(str) {
         if (!str || typeof str !== 'string') return str;
         const s = stripDateSuffix(str);
-        return capitalizeMonthInDate(s.replace(/\s+\d{4}\s*$/, '').trim());
+        return lowercaseMonthInDate(s.replace(/\s+\d{4}\s*$/, '').trim());
     }
 
     function stripMarkdownInline(s) {
