@@ -503,10 +503,10 @@ main .empty, main .loading {
     scroll-margin-top: 1.5rem;
 }
 
-.content h1 { font-family: var(--display); font-size: 1.65rem; margin-top: 0; margin-bottom: var(--issue-gap-sm); font-weight: 700; }
-.content h2 { font-family: var(--display); font-size: 1.35rem; margin-top: var(--issue-gap-lg); margin-bottom: var(--issue-gap-sm); font-weight: 700; }
-.content h3 { font-size: 1.15rem; margin-top: var(--issue-gap-md); margin-bottom: var(--issue-gap-sm); font-weight: 700; }
-.content h1, .content h2, .content h3 { color: var(--text); }
+.content h1 { font-family: var(--display); font-size: 1.65rem; margin-top: 0; margin-bottom: 0.4rem; font-weight: 700; }
+.content h2 { font-family: var(--display); font-size: 1.35rem; margin-top: var(--issue-gap-xl); margin-bottom: 0.4rem; font-weight: 700; color: var(--accent); }
+.content h3 { font-size: 1.15rem; margin-top: var(--issue-gap-sm); margin-bottom: 0.4rem; font-weight: 700; }
+.content h1, .content h3 { color: var(--text); }
 .content p { margin: 0 0 var(--issue-gap-sm); color: var(--text-soft); }
 .content ul, .content ol { margin: 0 0 var(--issue-gap-sm); padding-left: 1.5rem; color: var(--text-soft); }
 .content li { margin: 0.35rem 0; }
