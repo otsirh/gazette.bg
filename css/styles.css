@@ -430,35 +430,40 @@ main .empty, main .loading {
     font-family: var(--sans);
 }
 
-.issue-toc-list {
+.issue-toc .issue-toc-list {
     list-style: decimal;
     margin: 0 0 0 1.25rem;
+    margin-bottom: 0;
     padding: 0;
 }
 
-.issue-toc-list .issue-toc-item {
-    margin: 0.4rem 0;
+.issue-toc .issue-toc-list .issue-toc-item {
+    margin: 0.4rem 0 0 0;
     line-height: 1.5;
     padding-left: 0.35rem;
 }
 
-.issue-toc-sublist {
+.issue-toc .issue-toc-sublist {
     list-style: disc;
     margin: 0.25rem 0 0 1rem;
-    padding-left: 0.5rem;
+    margin-bottom: 0;
+    padding: 0 0 0 0.5rem;
 }
 
-.issue-toc-sublist .issue-toc-item {
-    margin: 0.3rem 0;
+.issue-toc .issue-toc-sublist .issue-toc-item {
+    margin: 0.3rem 0 0 0;
 }
 
-.issue-toc-sublist .issue-toc-sublist {
+.issue-toc .issue-toc-sublist .issue-toc-sublist {
     list-style: circle;
-    margin-left: 1rem;
+    margin: 0.25rem 0 0 1rem;
+    margin-bottom: 0;
 }
 
-.issue-toc-sublist .issue-toc-sublist .issue-toc-sublist {
+.issue-toc .issue-toc-sublist .issue-toc-sublist .issue-toc-sublist {
     list-style: square;
+    margin: 0.25rem 0 0 1rem;
+    margin-bottom: 0;
 }
 
 .issue-toc-item a {
