@@ -29,15 +29,40 @@
     }
 
     const BG_MONTHS = ['януари', 'февруари', 'март', 'април', 'май', 'юни', 'юли', 'август', 'септември', 'октомври', 'ноември', 'декември'];
+    const BG_MONTHS_CAP = ['Януари', 'Февруари', 'Март', 'Април', 'Май', 'Юни', 'Юли', 'Август', 'Септември', 'Октомври', 'Ноември', 'Декември'];
+
+    /** Remove trailing " г." from date string. */
+    function stripDateSuffix(str) {
+        if (!str || typeof str !== 'string') return str;
+        return str.replace(/\s*г\.\s*$/, '').trim();
+    }
+
+    /** Capitalize month name in a Bulgarian date string (e.g. "6 януари 2026" → "6 Януари 2026"). */
+    function capitalizeMonthInDate(str) {
+        if (!str || typeof str !== 'string') return str;
+        let s = str;
+        for (let i = 0; i < BG_MONTHS.length; i++) {
+            s = s.replace(BG_MONTHS[i], BG_MONTHS_CAP[i]);
+        }
+        return s;
+    }
+
     function formatDateBulgarian(str) {
         if (!str || typeof str !== 'string') return str;
-        const m = str.match(/^(\d{1,2})\.(\d{1,2})\.(\d{4})\s*г\.$/);
-        if (!m) return str;
+        const m = str.match(/^(\d{1,2})\.(\d{1,2})\.(\d{4})\s*г\.?$/);
+        if (!m) return capitalizeMonthInDate(stripDateSuffix(str));
         const day = parseInt(m[1], 10);
         const month = parseInt(m[2], 10);
         const year = m[3];
-        if (month < 1 || month > 12) return str;
-        return day + ' ' + BG_MONTHS[month - 1] + ' ' + year + ' г.';
+        if (month < 1 || month > 12) return capitalizeMonthInDate(stripDateSuffix(str));
+        return day + ' ' + BG_MONTHS_CAP[month - 1] + ' ' + year;
+    }
+
+    /** Date for homepage cards: day + month only (no year). */
+    function formatDateForHomepage(str) {
+        if (!str || typeof str !== 'string') return str;
+        const s = stripDateSuffix(str);
+        return capitalizeMonthInDate(s.replace(/\s+\d{4}\s*$/, '').trim());
     }
 
     function stripMarkdownInline(s) {
@@ -169,9 +194,10 @@
     function renderIssueCard(item, isCurrent) {
         const readTime = item.readMinutes != null ? `<span class="read-time">${formatReadTime(item.readMinutes)}</span>` : '';
         const currentClass = isCurrent ? ' issue-card-current' : '';
+        const displayDate = formatDateForHomepage(formatDateBulgarian(item.date));
         return `<button type="button" class="issue-card${currentClass}" data-file="${escapeAttr(item.file)}" data-issue="${item.issue}" data-date="${escapeAttr(item.date)}" data-year="${escapeAttr(item.year)}">
             <span class="num">Брой ${item.issue}</span>
-            <span class="date">${escapeHtml(formatDateBulgarian(item.date))}</span>
+            <span class="date">${escapeHtml(displayDate)}</span>
             ${readTime}
         </button>`;
     }
@@ -384,9 +410,10 @@
         }
         if (issueNum && date) {
             const formattedDate = formatDateBulgarian(date);
-            document.title = `Брой ${issueNum} · ${formattedDate} — AI анализ на Български Държавен вестник`;
+            const titleDate = stripDateSuffix(formattedDate);
+            document.title = `Брой ${issueNum} · ${titleDate} — AI анализ на Български Държавен вестник`;
             const readTimePlaceholder = '<span class="issue-read-time" id="issue-read-time"></span>';
-            issueHeaderEl.innerHTML = `<div class="meta">Брой ${escapeHtml(issueNum)}${readTimePlaceholder}</div><div class="title">${escapeHtml(formattedDate)}</div>`;
+            issueHeaderEl.innerHTML = `<div class="meta">Брой ${escapeHtml(issueNum)}${readTimePlaceholder}</div><div class="title">${escapeHtml(stripDateSuffix(formattedDate))}</div>`;
         } else {
             document.title = PAGE_TITLE_BASE;
             issueHeaderEl.innerHTML = '';

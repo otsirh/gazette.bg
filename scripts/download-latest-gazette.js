@@ -84,18 +84,18 @@ function parseDateFromRowText(text) {
     return m ? m[1].trim() : null;
 }
 
-const BG_MONTHS = ['януари', 'февруари', 'март', 'април', 'май', 'юни', 'юли', 'август', 'септември', 'октомври', 'ноември', 'декември'];
+const BG_MONTHS_CAP = ['Януари', 'Февруари', 'Март', 'Април', 'Май', 'Юни', 'Юли', 'Август', 'Септември', 'Октомври', 'Ноември', 'Декември'];
 
-// Convert "30.1.2026 г." to "30 януари 2026 г."
+// Convert "30.1.2026 г." to "30 Януари 2026"
 function toBulgarianDateFormat(str) {
     if (!str || typeof str !== 'string') return str;
-    const m = str.match(/^(\d{1,2})\.(\d{1,2})\.(\d{4})\s*г\.$/);
+    const m = str.match(/^(\d{1,2})\.(\d{1,2})\.(\d{4})\s*г\.?$/);
     if (!m) return str;
     const day = parseInt(m[1], 10);
     const month = parseInt(m[2], 10);
     const year = m[3];
     if (month < 1 || month > 12) return str;
-    return `${day} ${BG_MONTHS[month - 1]} ${year} г.`;
+    return `${day} ${BG_MONTHS_CAP[month - 1]} ${year}`;
 }
 
 function writeIssueMetadata(issue, year, date) {

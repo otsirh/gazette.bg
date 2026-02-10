@@ -15,13 +15,27 @@ const CATALOG_PATH = path.join(ROOT, 'catalog.json');
 
 const issueHeadingRe = /# State Gazette[^\n]*Issue (\d+),\s*([^\n#]+?)(?:\s*$|\s*#)/m;
 
+const BG_MONTHS = ['януари', 'февруари', 'март', 'април', 'май', 'юни', 'юли', 'август', 'септември', 'октомври', 'ноември', 'декември'];
+const BG_MONTHS_CAP = ['Януари', 'Февруари', 'Март', 'Април', 'Май', 'Юни', 'Юли', 'Август', 'Септември', 'Октомври', 'Ноември', 'Декември'];
+
+/** Remove trailing " г." and capitalize month name. */
+function normalizeDate(str) {
+    if (!str || typeof str !== 'string') return str;
+    let s = str.replace(/\s*г\.\s*$/, '').trim();
+    for (let i = 0; i < BG_MONTHS.length; i++) {
+        s = s.replace(BG_MONTHS[i], BG_MONTHS_CAP[i]);
+    }
+    return s;
+}
+
 /** Read date from issues/YEAR/XX/issue.json if it exists. */
 function getIssueDateFromJson(issueDirPath, issueNum) {
     const metaPath = path.join(issueDirPath, `${issueNum}.json`);
     try {
         if (fs.existsSync(metaPath)) {
             const data = JSON.parse(fs.readFileSync(metaPath, 'utf8'));
-            return data.date && String(data.date).trim() ? data.date.trim() : null;
+            const raw = data.date && String(data.date).trim() ? data.date.trim() : null;
+            return raw ? normalizeDate(raw) : null;
         }
     } catch (_) {}
     return null;
@@ -73,7 +87,7 @@ function buildCatalog() {
             const readMinutes = Math.max(1, Math.round(countWords(content) / WORDS_PER_MINUTE));
             const effectiveIssue = info ? info.issue : issueNum;
             const dateFromJson = getIssueDateFromJson(issueDirPath, issueNum);
-            const dateFromMarkdown = info ? info.date : '';
+            const dateFromMarkdown = info ? normalizeDate(info.date) : '';
             catalog.years[year].push({
                 issue: effectiveIssue,
                 date: dateFromJson || dateFromMarkdown || '',
