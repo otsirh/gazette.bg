@@ -2,6 +2,30 @@
     "years": {
         "2026": [
             {
+                "issue": 1,
+                "date": "6 януари 2026 г.",
+                "file": "issues/2026/01/1.md",
+                "readMinutes": 6
+            },
+            {
+                "issue": 2,
+                "date": "8 януари 2026 г.",
+                "file": "issues/2026/02/2.md",
+                "readMinutes": 4
+            },
+            {
+                "issue": 3,
+                "date": "9 януари 2026 г.",
+                "file": "issues/2026/03/3.md",
+                "readMinutes": 7
+            },
+            {
+                "issue": 4,
+                "date": "13 януари 2026 г.",
+                "file": "issues/2026/04/4.md",
+                "readMinutes": 12
+            },
+            {
                 "issue": 5,
                 "date": "15 януари 2026 г.",
                 "file": "issues/2026/05/5.md",

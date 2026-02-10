@@ -18,7 +18,7 @@
 
     let catalog = null;
 
-    const PAGE_TITLE_BASE = 'Държавен вестник — AI обобщения';
+    const PAGE_TITLE_BASE = 'Държавен вестник — AI анализ';
 
     function escapeAttr(s) {
         return String(s).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
@@ -384,7 +384,7 @@
         }
         if (issueNum && date) {
             const formattedDate = formatDateBulgarian(date);
-            document.title = `Брой ${issueNum} · ${formattedDate} — Държавен вестник`;
+            document.title = `Брой ${issueNum} · ${formattedDate} — AI анализ на Български Държавен вестник`;
             const readTimePlaceholder = '<span class="issue-read-time" id="issue-read-time"></span>';
             issueHeaderEl.innerHTML = `<div class="meta">Брой ${escapeHtml(issueNum)}${readTimePlaceholder}</div><div class="title">${escapeHtml(formattedDate)}</div>`;
         } else {

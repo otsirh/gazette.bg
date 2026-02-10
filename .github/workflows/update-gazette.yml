@@ -45,6 +45,7 @@ jobs:
           if git diff --staged --quiet; then
             echo "No files to commit."
           else
-            git commit -m "chore: update gazette (new issues and catalog)"
+            COMMIT_DATE=$(date +"%Y-%m-%d")
+            git commit -m "Update gazette: new issues and catalog ($COMMIT_DATE)"
             git push
           fi

@@ -1,28 +1,36 @@
 {
-    "name": "playwright-experiment",
+    "name": "gazette-bg",
     "version": "1.0.0",
-    "description": "",
+    "private": true,
+    "description": "AI-powered summaries and catalog for the Bulgarian State Gazette (Държавен вестник)",
     "scripts": {
         "build": "node scripts/build-gazette-catalog.js",
         "download-latest-gazette": "node scripts/download-latest-gazette.js",
         "summarize-gazette": "node scripts/summarize-gazette.js",
+        "process-issue-pdf": "node scripts/process-issue-pdf.js",
         "build-gazette": "node scripts/build-gazette-catalog.js",
         "update-gazette": "node scripts/update-gazette.js",
         "gazette": "node scripts/build-gazette-catalog.js && npx --yes serve -p 3000",
         "test-alert-email": "node scripts/test-alert-email.js"
     },
-    "keywords": [],
+    "keywords": [
+        "bulgarian",
+        "gazette",
+        "darzhaven-vestnik",
+        "parliament",
+        "ai",
+        "summaries"
+    ],
     "author": "",
-    "license": "ISC",
+    "license": "GPL-3.0-or-later",
     "type": "commonjs",
     "dependencies": {
         "dotenv": "^16.4.5",
-        "marked": "^17.0.1",
         "pdf-lib": "^1.17.1",
         "resend": "^6.9.1"
     },
     "devDependencies": {
-        "@playwright/test": "^1.58.1",
-        "@types/node": "^25.1.0"
+        "@types/node": "^25.1.0",
+        "playwright": "^1.58.1"
     }
 }

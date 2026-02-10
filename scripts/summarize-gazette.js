@@ -80,7 +80,7 @@ function issueFolderName(issue) {
 }
 
 function summaryPath(year, issue) {
-    return path.join(ISSUES_DIR, String(year), issueFolderName(issue), `${issue}.md`);
+    return path.join(ISSUES_DIR, String(year), issueFolderName(issue), `${Number(issue)}.md`);
 }
 
 function issueDirPath(year, issue) {
@@ -288,7 +288,7 @@ async function main() {
             fs.writeFileSync(outPath, markdown, 'utf8');
             if (!customPdfPath) {
                 const metaPath = path.join(OFFICIAL_GAZETTES_DIR, String(year), `${issue}.json`);
-                const metaDest = path.join(issueDir, `${issue}.json`);
+                const metaDest = path.join(issueDir, `${Number(issue)}.json`);
                 if (fs.existsSync(metaPath)) {
                     fs.copyFileSync(metaPath, metaDest);
                     fs.unlinkSync(metaPath);
