@@ -80,6 +80,12 @@
                 "readMinutes": 8
             },
             {
+                "issue": 14,
+                "date": "4 Февруари 2026",
+                "file": "issues/2026/14/14.md",
+                "readMinutes": 3
+            },
+            {
                 "issue": 15,
                 "date": "6 Февруари 2026",
                 "file": "issues/2026/15/15.md",
