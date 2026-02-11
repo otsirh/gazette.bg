@@ -491,7 +491,13 @@
         const initial = getIssueFromPath();
         if (initial) {
             const item = findIssueByYearAndNumber(initial.year, initial.issueNum);
-            if (item) openIssue(item.file, item.issue, item.date, item.year);
+            if (item) {
+                openIssue(item.file, item.issue, item.date, item.year);
+            } else {
+                showHome(); // invalid issue: show home and replace URL with /
+            }
+        } else if (location.pathname !== '/') {
+            showHome(); // unknown path: show home and replace URL with /
         }
     }
 
