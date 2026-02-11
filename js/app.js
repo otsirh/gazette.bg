@@ -156,14 +156,14 @@
         return issue ? { ...issue, year } : null;
     }
 
-    function getIssueFromHash() {
-        const m = /^#?issue\/(\d+)\/(\d+)$/i.exec(location.hash || '');
+    function getIssueFromPath() {
+        const m = /\/issue\/(\d+)\/(\d+)\/?$/i.exec(location.pathname);
         return m ? { year: m[1], issueNum: m[2] } : null;
     }
 
-    function setIssueHash(year, issueNum) {
-        const hash = 'issue/' + year + '/' + issueNum;
-        if (location.hash !== '#' + hash) location.hash = hash;
+    function setIssuePath(year, issueNum) {
+        const path = '/issue/' + year + '/' + issueNum;
+        if (location.pathname !== path) history.pushState(null, '', path);
     }
 
     let currentIssue = null; // { year, issueNum } when viewing an issue
@@ -238,8 +238,8 @@
             tocObserver.disconnect();
             tocObserver = null;
         }
-        if (location.hash) {
-            history.replaceState(null, '', location.pathname + location.search);
+        if (location.pathname !== '/') {
+            history.pushState(null, '', '/');
         }
         if (lastFocusedCard && typeof lastFocusedCard.focus === 'function') {
             lastFocusedCard.focus();
@@ -385,7 +385,7 @@
     async function openIssue(file, issueNum, date, year) {
         if (year && issueNum) {
             currentIssue = { year: String(year), issueNum: String(issueNum) };
-            setIssueHash(year, issueNum);
+            setIssuePath(year, issueNum);
         } else {
             currentIssue = null;
         }
@@ -437,10 +437,10 @@
     }
 
     function applyRoute() {
-        const fromHash = getIssueFromHash();
-        if (fromHash && currentIssue && currentIssue.year === fromHash.year && currentIssue.issueNum === fromHash.issueNum) return;
-        if (fromHash) {
-            const item = findIssueByYearAndNumber(fromHash.year, fromHash.issueNum);
+        const fromPath = getIssueFromPath();
+        if (fromPath && currentIssue && currentIssue.year === fromPath.year && currentIssue.issueNum === fromPath.issueNum) return;
+        if (fromPath) {
+            const item = findIssueByYearAndNumber(fromPath.year, fromPath.issueNum);
             if (item) openIssue(item.file, item.issue, item.date, item.year);
             else showHome();
         } else {
@@ -463,7 +463,7 @@
     async function init() {
         backBtns.forEach(function (btn) { btn.addEventListener('click', showHome); });
         mainEl.addEventListener('click', onMainClick);
-        window.addEventListener('hashchange', applyRoute);
+        window.addEventListener('popstate', applyRoute);
         function onScroll() {
             updateReadProgress();
             updateScrollToTopVisibility();
@@ -481,7 +481,7 @@
             return;
         }
         renderHome();
-        const initial = getIssueFromHash();
+        const initial = getIssueFromPath();
         if (initial) {
             const item = findIssueByYearAndNumber(initial.year, initial.issueNum);
             if (item) openIssue(item.file, item.issue, item.date, item.year);

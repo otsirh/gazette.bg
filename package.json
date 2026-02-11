@@ -10,7 +10,7 @@
         "process-issue-pdf": "node scripts/process-issue-pdf.js",
         "build-gazette": "node scripts/build-gazette-catalog.js",
         "update-gazette": "node scripts/update-gazette.js",
-        "gazette": "node scripts/build-gazette-catalog.js && npx --yes serve -p 3000",
+        "gazette": "node scripts/build-gazette-catalog.js && npx --yes serve -s -p 3000",
         "test-alert-email": "node scripts/test-alert-email.js"
     },
     "keywords": [
