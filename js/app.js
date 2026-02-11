@@ -18,7 +18,7 @@
 
     let catalog = null;
 
-    const PAGE_TITLE_BASE = 'Държавен вестник — AI обобщения';
+    const PAGE_TITLE_BASE = 'Обобщения на Държавен вестник';
 
     function escapeAttr(s) {
         return String(s).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
@@ -195,7 +195,7 @@
         if (!catalog || !catalog.years) return;
         const all = getAllIssuesNewestFirst();
         if (all.length === 0) {
-            homeContent.innerHTML = '<p class="empty">Няма намерени броеве.</p>';
+            homeContent.innerHTML = '<p class="empty">В момента няма налични броеве. Опитайте отново по-късно.</p>';
             return;
         }
         const latest = all[0];
@@ -400,7 +400,7 @@
         if (issueNum && date) {
             const formattedDate = formatDateBulgarian(date);
             const titleDate = stripDateSuffix(formattedDate);
-            document.title = `Брой ${issueNum} · ${titleDate} — AI обобщения на Български Държавен вестник`;
+            document.title = `Брой ${issueNum} · ${titleDate} — Обобщения на Държавен вестник`;
             const readTimePlaceholder = '<span class="issue-read-time" id="issue-read-time"></span>';
             issueHeaderEl.innerHTML = `<div class="meta">Брой ${escapeHtml(issueNum)}${readTimePlaceholder}</div><div class="title">${escapeHtml(stripDateSuffix(formattedDate))}</div>`;
         } else {
@@ -409,7 +409,7 @@
         }
         const catalogItem = year && issueNum ? findIssueByYearAndNumber(year, issueNum) : null;
         const readMinutesForHeader = catalogItem?.readMinutes ?? null;
-        const contentDisclaimer = '<p class="content-disclaimer"><strong>Важно:</strong> Целият текст по-долу е генериран с изкуствен интелект (AI) и не е официален — може да съдържа грешки или неточности. Ако не сте сигурни в нещо, винаги преглеждайте официалния брой на Държавен вестник на <a href="https://dv.parliament.bg" target="_blank" rel="noopener">dv.parliament.bg</a>.</p>';
+        const contentDisclaimer = '<p class="content-disclaimer">Текстът по-долу е неофициално обобщение, генерирано с AI, и може да съдържа грешки. За официален текст и правни цели използвайте <a href="https://dv.parliament.bg" target="_blank" rel="noopener">dv.parliament.bg</a>.</p>';
         try {
             const fileUrl = file.startsWith('/') ? file : '/' + file;
             const r = await fetch(fileUrl);
@@ -428,7 +428,7 @@
             updateReadProgress();
             if (backBtn) backBtn.focus();
         } catch (e) {
-            mainContent.innerHTML = `<p>Неуспешно зареждане на броя: ${escapeHtml(e.message)}.</p><p>Стартирайте от локален сървър (напр. <code>npm run gazette</code>), за да се заредят файловете.</p>`;
+            mainContent.innerHTML = '<p>Този брой не може да бъде зареден в момента. Моля, опитайте отново или изберете друг брой от началната страница.</p><p><a href="/" class="back-btn">← Обратно към началната страница</a></p>';
         }
         renderIssueNav();
         mainLoading.style.display = 'none';
@@ -450,6 +450,12 @@
     }
 
     function onMainClick(e) {
+        const homeLink = e.target.closest('a[href="/"]');
+        if (homeLink) {
+            e.preventDefault();
+            showHome();
+            return;
+        }
         const link = e.target.closest('.issue-toc a[href^="#"]');
         if (!link) return;
         const id = link.getAttribute('href').slice(1);
@@ -478,7 +484,7 @@
             if (!r.ok) throw new Error(r.statusText);
             catalog = await r.json();
         } catch (e) {
-            homeContent.innerHTML = `<p class="empty">Каталогът не може да се зареди. Стартирайте <code>node build-gazette-catalog.js</code> и обслужвайте тази папка.</p>`;
+            homeContent.innerHTML = '<p class="empty">Каталогът временно не е наличен. Моля, опитайте да презаредите страницата или да се върнете по-късно.</p>';
             return;
         }
         renderHome();
