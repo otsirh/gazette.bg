@@ -18,7 +18,7 @@
 
     let catalog = null;
 
-    const PAGE_TITLE_BASE = 'Държавен вестник — AI анализ';
+    const PAGE_TITLE_BASE = 'Държавен вестник — AI обобщения';
 
     function escapeAttr(s) {
         return String(s).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
@@ -400,7 +400,7 @@
         if (issueNum && date) {
             const formattedDate = formatDateBulgarian(date);
             const titleDate = stripDateSuffix(formattedDate);
-            document.title = `Брой ${issueNum} · ${titleDate} — AI анализ на Български Държавен вестник`;
+            document.title = `Брой ${issueNum} · ${titleDate} — AI обобщения на Български Държавен вестник`;
             const readTimePlaceholder = '<span class="issue-read-time" id="issue-read-time"></span>';
             issueHeaderEl.innerHTML = `<div class="meta">Брой ${escapeHtml(issueNum)}${readTimePlaceholder}</div><div class="title">${escapeHtml(stripDateSuffix(formattedDate))}</div>`;
         } else {
