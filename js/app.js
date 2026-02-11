@@ -1,7 +1,7 @@
 (function () {
     'use strict';
 
-    const catalogUrl = 'catalog.json';
+    const catalogUrl = '/catalog.json';
 
     const homeView = document.getElementById('home-view');
     const homeContent = document.getElementById('home-content');
@@ -411,7 +411,8 @@
         const readMinutesForHeader = catalogItem?.readMinutes ?? null;
         const contentDisclaimer = '<p class="content-disclaimer"><strong>Важно:</strong> Целият текст по-долу е генериран с изкуствен интелект (AI) и не е официален — може да съдържа грешки или неточности. Ако не сте сигурни в нещо, винаги преглеждайте официалния брой на Държавен вестник на <a href="https://dv.parliament.bg" target="_blank" rel="noopener">dv.parliament.bg</a>.</p>';
         try {
-            const r = await fetch(file);
+            const fileUrl = file.startsWith('/') ? file : '/' + file;
+            const r = await fetch(fileUrl);
             if (!r.ok) throw new Error(r.statusText);
             const md = await r.text();
             const readMinutes = readMinutesForHeader != null ? readMinutesForHeader : Math.max(1, Math.round((md.replace(/\[([^\]]+)\]\([^)]+\)/g, '$1').replace(/[#*_`~]/g, '').split(/\s+/).filter(Boolean).length) / 200));
@@ -432,8 +433,8 @@
         renderIssueNav();
         mainLoading.style.display = 'none';
         const { prev, next } = getAdjacentIssues();
-        if (prev && prev.file) fetch(prev.file).catch(() => {});
-        if (next && next.file) fetch(next.file).catch(() => {});
+        if (prev && prev.file) fetch(prev.file.startsWith('/') ? prev.file : '/' + prev.file).catch(() => {});
+        if (next && next.file) fetch(next.file.startsWith('/') ? next.file : '/' + next.file).catch(() => {});
     }
 
     function applyRoute() {
