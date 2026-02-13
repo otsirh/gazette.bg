@@ -435,7 +435,18 @@
         const audioWrap = document.getElementById('issue-audio-wrap');
         if (audioWrap && hasAudio) {
             if (catalogItem.audioNativeSnippet) {
-                audioWrap.innerHTML = catalogItem.audioNativeSnippet;
+                var temp = document.createElement('div');
+                temp.innerHTML = catalogItem.audioNativeSnippet;
+                var widgetDiv = temp.querySelector('#elevenlabs-audionative-widget') || temp.firstElementChild;
+                var scriptTag = temp.querySelector('script[src]');
+                audioWrap.innerHTML = '';
+                if (widgetDiv) audioWrap.appendChild(widgetDiv);
+                if (scriptTag && scriptTag.src) {
+                    var s = document.createElement('script');
+                    s.src = scriptTag.src;
+                    s.type = 'text/javascript';
+                    audioWrap.appendChild(s);
+                }
             } else if (catalogItem.audio) {
                 const audioUrl = catalogItem.audio.startsWith('/') ? catalogItem.audio : '/' + catalogItem.audio;
                 audioWrap.innerHTML = '<audio class="issue-audio" controls preload="metadata" aria-label="Слушай обобщението"><source src="' + escapeAttr(audioUrl) + '" type="audio/mpeg">Твоят браузър не поддържа възпроизвеждане на аудио.</audio>';
