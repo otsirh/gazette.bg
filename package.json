@@ -7,6 +7,7 @@
         "build": "node scripts/build-gazette-catalog.js",
         "download-latest-gazette": "node scripts/download-latest-gazette.js",
         "generate-issue-audio": "node scripts/generate-issue-audio.js",
+        "create-audio-native": "node scripts/create-audio-native.js",
         "summarize-gazette": "node scripts/summarize-gazette.js",
         "process-issue-pdf": "node scripts/process-issue-pdf.js",
         "build-gazette": "node scripts/build-gazette-catalog.js",
