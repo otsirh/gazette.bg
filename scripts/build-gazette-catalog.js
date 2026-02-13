@@ -88,8 +88,6 @@ function buildCatalog() {
             const effectiveIssue = info ? info.issue : issueNum;
             const dateFromJson = getIssueDateFromJson(issueDirPath, issueNum);
             const dateFromMarkdown = info ? normalizeDate(info.date) : '';
-            const audioName = `${issueNum}.mp3`;
-            const audioPath = path.join(issueDirPath, audioName);
             const audioNativeMetaName = `${issueNum}.audio-native.json`;
             const audioNativeMetaPath = path.join(issueDirPath, audioNativeMetaName);
             const entry = {
@@ -98,15 +96,10 @@ function buildCatalog() {
                 file: `issues/${year}/${folderName}/${mdName}`,
                 readMinutes,
             };
-            if (fs.existsSync(audioPath)) {
-                entry.audio = `issues/${year}/${folderName}/${audioName}`;
-            }
             if (fs.existsSync(audioNativeMetaPath)) {
                 try {
                     const audioNativeMeta = JSON.parse(fs.readFileSync(audioNativeMetaPath, 'utf8'));
-                    if (audioNativeMeta.html_snippet) {
-                        entry.audioNativeSnippet = audioNativeMeta.html_snippet;
-                    }
+                    if (audioNativeMeta.project_id) entry.audioNative = audioNativeMeta.project_id;
                 } catch (_) {}
             }
             catalog.years[year].push(entry);

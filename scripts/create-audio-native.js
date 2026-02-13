@@ -17,6 +17,25 @@ const ROOT = path.join(__dirname, '..');
 const ISSUES_DIR = path.join(ROOT, 'issues');
 const ELEVENLABS_AUDIO_NATIVE_URL = 'https://api.elevenlabs.io/v1/audio-native';
 
+/** Public user id from ElevenLabs (same for all our Audio Native embeds). */
+const ELEVENLABS_PUBLIC_USER_ID = '16012b2e988d6a3824659ec8bfd6b4722cbe1806d6ad8fb70c537eda29e5015f';
+
+/**
+ * Build the embed snippet for the Audio Native player. Only project_id varies per issue.
+ * @param {string} projectId - ElevenLabs Audio Native project id
+ * @returns {string} html_snippet for the catalog / app
+ */
+function buildAudioNativeSnippet(projectId) {
+    if (!projectId) return '';
+    return (
+        '<div id="elevenlabs-audionative-widget" data-height="90" data-width="100%" data-frameborder="no" data-scrolling="no" data-publicuserid="' +
+        ELEVENLABS_PUBLIC_USER_ID +
+        '" data-playerurl="https://elevenlabs.io/player/index.html" data-projectid="' +
+        projectId +
+        '">Зареждане…</div><script src="https://elevenlabs.io/player/audioNativeHelper.js" type="text/javascript"></script>'
+    );
+}
+
 function issueFolderName(issue) {
     return String(issue).padStart(2, '0');
 }
@@ -155,7 +174,6 @@ async function createIssueAudioNative(year, issue) {
     const meta = {
         project_id: result.project_id,
         converting: result.converting,
-        html_snippet: result.html_snippet,
     };
     fs.writeFileSync(metaPath, JSON.stringify(meta, null, 2), 'utf8');
     return { metaPath, ...result };
@@ -188,4 +206,5 @@ module.exports = {
     createAudioNativeProject,
     audioNativeMetaPath,
     markdownToAudioNativeHtml,
+    buildAudioNativeSnippet,
 };

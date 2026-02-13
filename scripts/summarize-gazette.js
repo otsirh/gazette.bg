@@ -300,15 +300,15 @@ async function main() {
             }
             log(`Wrote ${outPath}`, 'OK');
             console.log(`✓ Wrote ${path.relative(ROOT, outPath)}`);
-            const { generateIssueAudio, isElevenLabsEnabled } = require('./generate-issue-audio');
-            if (isElevenLabsEnabled()) {
+            if (process.env.ELEVENLABS_API_KEY) {
                 try {
-                    const audioOut = await generateIssueAudio(year, issue);
-                    log(`Wrote audio ${audioOut}`, 'OK');
-                    console.log(`✓ Wrote audio ${path.relative(ROOT, audioOut)}`);
-                } catch (audioErr) {
-                    log(`Audio generation failed: ${audioErr.message}`, 'WARN');
-                    console.warn(`  [audio] ${audioErr.message}`);
+                    const { createIssueAudioNative } = require('./create-audio-native');
+                    const { metaPath } = await createIssueAudioNative(year, issue);
+                    log(`Wrote Audio Native ${metaPath}`, 'OK');
+                    console.log(`✓ Audio Native ${path.relative(ROOT, metaPath)}`);
+                } catch (audioNativeErr) {
+                    log(`Audio Native failed: ${audioNativeErr.message}`, 'WARN');
+                    console.warn(`  [audio-native] ${audioNativeErr.message}`);
                 }
             }
         } catch (e) {
