@@ -300,6 +300,17 @@ async function main() {
             }
             log(`Wrote ${outPath}`, 'OK');
             console.log(`✓ Wrote ${path.relative(ROOT, outPath)}`);
+            const { generateIssueAudio, isElevenLabsEnabled } = require('./generate-issue-audio');
+            if (isElevenLabsEnabled()) {
+                try {
+                    const audioOut = await generateIssueAudio(year, issue);
+                    log(`Wrote audio ${audioOut}`, 'OK');
+                    console.log(`✓ Wrote audio ${path.relative(ROOT, audioOut)}`);
+                } catch (audioErr) {
+                    log(`Audio generation failed: ${audioErr.message}`, 'WARN');
+                    console.warn(`  [audio] ${audioErr.message}`);
+                }
+            }
         } catch (e) {
             log(`Failed ${pdf}: ${e.message}`, 'ERROR');
             console.error(`✗ Failed ${year}/${issue}:`, e.message);

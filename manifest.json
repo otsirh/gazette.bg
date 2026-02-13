@@ -1,6 +1,6 @@
 {
   "name": "Обобщения на Държавен вестник",
-  "short_name": "Gazzete.bg",
+  "short_name": "Gazette.bg",
   "description": "Неофициални обобщения на броеве на Държавен вестник, генерирани с AI.",
   "start_url": "/",
   "scope": "/",

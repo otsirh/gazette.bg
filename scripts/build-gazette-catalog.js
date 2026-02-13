@@ -88,12 +88,18 @@ function buildCatalog() {
             const effectiveIssue = info ? info.issue : issueNum;
             const dateFromJson = getIssueDateFromJson(issueDirPath, issueNum);
             const dateFromMarkdown = info ? normalizeDate(info.date) : '';
-            catalog.years[year].push({
+            const audioName = `${issueNum}.mp3`;
+            const audioPath = path.join(issueDirPath, audioName);
+            const entry = {
                 issue: effectiveIssue,
                 date: dateFromJson || dateFromMarkdown || '',
                 file: `issues/${year}/${folderName}/${mdName}`,
                 readMinutes,
-            });
+            };
+            if (fs.existsSync(audioPath)) {
+                entry.audio = `issues/${year}/${folderName}/${audioName}`;
+            }
+            catalog.years[year].push(entry);
         }
     }
 

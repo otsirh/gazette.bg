@@ -342,6 +342,18 @@ main .loading {
     margin: 0;
 }
 
+.issue-audio-wrap {
+    margin-top: var(--gap-md);
+}
+
+.issue-audio-wrap .issue-audio {
+    width: 100%;
+    max-width: 32rem;
+    height: 2.5rem;
+    border-radius: 6px;
+    accent-color: var(--accent);
+}
+
 .issue-header .issue-pdf-link {
     margin-top: var(--gap-md);
     font-size: 0.9375rem;

@@ -397,17 +397,18 @@
             issueNavEl.innerHTML = '';
             issueNavEl.style.display = 'none';
         }
+        const catalogItem = year && issueNum ? findIssueByYearAndNumber(year, issueNum) : null;
         if (issueNum && date) {
             const formattedDate = formatDateBulgarian(date);
             const titleDate = stripDateSuffix(formattedDate);
             document.title = `Брой ${issueNum} · ${titleDate} — Обобщения на Държавен вестник`;
             const readTimePlaceholder = '<span class="issue-read-time" id="issue-read-time"></span>';
-            issueHeaderEl.innerHTML = `<div class="meta">Брой ${escapeHtml(issueNum)}${readTimePlaceholder}</div><div class="title">${escapeHtml(stripDateSuffix(formattedDate))}</div>`;
+            const audioWrapHtml = catalogItem?.audio ? '<div id="issue-audio-wrap" class="issue-audio-wrap"></div>' : '';
+            issueHeaderEl.innerHTML = `<div class="meta">Брой ${escapeHtml(issueNum)}${readTimePlaceholder}</div><div class="title">${escapeHtml(stripDateSuffix(formattedDate))}</div>${audioWrapHtml}`;
         } else {
             document.title = PAGE_TITLE_BASE;
             issueHeaderEl.innerHTML = '';
         }
-        const catalogItem = year && issueNum ? findIssueByYearAndNumber(year, issueNum) : null;
         const readMinutesForHeader = catalogItem?.readMinutes ?? null;
         const contentDisclaimer = '<p class="content-disclaimer">Текстът по-долу е неофициално обобщение, генерирано с AI, и може да съдържа грешки. За официален текст и правни цели използвайте <a href="https://dv.parliament.bg" target="_blank" rel="noopener">dv.parliament.bg</a>.</p>';
         try {
@@ -429,6 +430,11 @@
             if (backBtn) backBtn.focus();
         } catch (e) {
             mainContent.innerHTML = '<p>Този брой не може да бъде зареден в момента. Моля, опитайте отново или изберете друг брой от началната страница.</p><p><a href="/" class="back-btn">← Обратно към началната страница</a></p>';
+        }
+        const audioWrap = document.getElementById('issue-audio-wrap');
+        if (audioWrap && catalogItem?.audio) {
+            const audioUrl = catalogItem.audio.startsWith('/') ? catalogItem.audio : '/' + catalogItem.audio;
+            audioWrap.innerHTML = '<audio class="issue-audio" controls preload="metadata" aria-label="Слушай обобщението"><source src="' + escapeAttr(audioUrl) + '" type="audio/mpeg">Твоят браузър не поддържа възпроизвеждане на аудио.</audio>';
         }
         renderIssueNav();
         mainLoading.style.display = 'none';
