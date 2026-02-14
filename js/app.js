@@ -30,7 +30,7 @@
             ELEVENLABS_AUDIO_NATIVE_PUBLIC_USER_ID +
             '" data-playerurl="https://elevenlabs.io/player/index.html" data-projectid="' +
             projectId +
-            '">Зареждане…</div><script src="https://elevenlabs.io/player/audioNativeHelper.js" type="text/javascript"></script>'
+            '"></div><script src="https://elevenlabs.io/player/audioNativeHelper.js" type="text/javascript"></script>'
         );
     }
 
@@ -538,16 +538,9 @@
         }
     }
 
-    function registerServiceWorker() {
-        if ('serviceWorker' in navigator) {
-            navigator.serviceWorker.register('/sw.js').catch(function () {});
-        }
-    }
-
     if (document.readyState === 'loading') {
         document.addEventListener('DOMContentLoaded', init);
     } else {
         init();
     }
-    registerServiceWorker();
 })();
