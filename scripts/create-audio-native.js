@@ -135,14 +135,15 @@ async function createIssueAudioNative(year, issue) {
     }
 
     const issueNum = Number(issue);
-    const projectName = `ДВ брой ${issueNum}`;
-    const projectTitle = `Обобщение на Държавен вестник, брой ${issueNum}`;
+    const projectName = `Issue #${issueNum}`;
+    const projectTitle = `Аудио четене, брой ${issueNum}`;
+    const author = '';
 
     const result = await createAudioNativeProject({
         apiKey,
         name: projectName,
         title: projectTitle,
-        author: 'Държавен вестник',
+        author,
         htmlContent,
         voiceId,
         modelId,
