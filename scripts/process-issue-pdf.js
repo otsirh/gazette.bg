@@ -1,16 +1,4 @@
 #!/usr/bin/env node
-/**
- * Process a manually added PDF for one issue only.
- *
- * Place a PDF in the issue folder as: issues/YEAR/NN/.tmp.pdf
- * (same name as the download script uses). Then run this script with
- * year and issue to summarize it (same as download flow: summarize → remove PDF).
- * Existing .md is preserved (skip); delete .md if you want to re-summarize.
- *
- * Usage:
- *   node process-issue-pdf.js <year> <issue>
- *   e.g. node process-issue-pdf.js 2026 15   — process issues/2026/15/.tmp.pdf
- */
 import path from 'path';
 import fs from 'fs';
 import { spawnSync } from 'child_process';
@@ -101,7 +89,6 @@ async function main() {
         log(`Created minimal ${path.basename(jsonPath)}`, 'INFO');
     }
 
-    // Rebuild catalog so the new issue appears on the site
     const buildCatalogScript = path.join(__dirname, 'build-gazette-catalog.js');
     const catalogResult = spawnSync('node', [buildCatalogScript], { cwd: ROOT, stdio: 'inherit', shell: false });
     if (catalogResult.status !== 0) {

@@ -1,8 +1,4 @@
 #!/usr/bin/env node
-/**
- * Scans issues/ folder (years → issue folders 05, 06, …) and builds a JSON catalog.
- * Each issue folder has issue.json and issue.md. Date comes from .json or from # heading in .md.
- */
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -19,7 +15,6 @@ const issueHeadingRe = /# State Gazette[^\n]*Issue (\d+),\s*([^\n#]+?)(?:\s*$|\s
 const BG_MONTHS = ['януари', 'февруари', 'март', 'април', 'май', 'юни', 'юли', 'август', 'септември', 'октомври', 'ноември', 'декември'];
 const BG_MONTHS_CAP = ['Януари', 'Февруари', 'Март', 'Април', 'Май', 'Юни', 'Юли', 'Август', 'Септември', 'Октомври', 'Ноември', 'Декември'];
 
-/** Remove trailing " г." and capitalize month name. */
 function normalizeDate(str) {
     if (!str || typeof str !== 'string') return str;
     let s = str.replace(/\s*г\.\s*$/, '').trim();
@@ -29,7 +24,6 @@ function normalizeDate(str) {
     return s;
 }
 
-/** Read date from issues/YEAR/XX/issue.json if it exists. */
 function getIssueDateFromJson(issueDirPath, issueNum) {
     const metaPath = path.join(issueDirPath, `${issueNum}.json`);
     try {

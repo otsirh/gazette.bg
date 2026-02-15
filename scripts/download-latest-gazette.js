@@ -1,12 +1,3 @@
-// Downloads the latest issue PDF from DV (https://dv.parliament.bg), summarizes it, and writes
-// only JSON + MD under issues/YEAR/issueNumber/. No PDF is kept. On any failure the new issue
-// folder is removed (revert). For cron/server: runs headless by default. Set HEADLESS=false for local.
-//
-// Email on failure: set ALERT_EMAIL and RESEND_API_KEY in .env; see scripts/logger.js and .env.example.
-//
-// Server/cron setup:
-//   npx playwright install chromium
-//   (optional) npx playwright install-deps chromium
 import path from 'path';
 import fs from 'fs';
 import { spawnSync } from 'child_process';
@@ -34,7 +25,6 @@ function fail(message, cause) {
     flushAlertEmail().then(() => process.exit(1));
 }
 
-// Parse "12_26.pdf" (issue 12, year 2026) → { issue: 12, year: 2026 }
 function parseDvFilename(filename) {
     const match = (filename || '').match(/^(\d+)_(\d{2})\.pdf$/i);
     if (!match) return null;
@@ -44,18 +34,15 @@ function parseDvFilename(filename) {
     return { issue, year };
 }
 
-// issues/YEAR/XX/ (XX = zero-padded issue, e.g. issues/2026/13/)
 function getIssueDir(issue, year) {
     const pad = String(issue).padStart(2, '0');
     return path.join(ISSUES_DIR, String(year), pad);
 }
 
-// Temp PDF path inside the issue folder (deleted after successful summarize)
 function getTempPdfPath(issue, year) {
     return path.join(getIssueDir(issue, year), TEMP_PDF_NAME);
 }
 
-// Metadata path: issues/YEAR/XX/issue.json
 function getMetadataPath(issue, year) {
     return path.join(getIssueDir(issue, year), `${issue}.json`);
 }
@@ -67,7 +54,6 @@ function revertIssueDir(issueDir) {
     }
 }
 
-// True if we already have this issue in issues/YEAR/XX/ (summary or metadata).
 function alreadyHaveIssue(issue, year) {
     const issueDir = getIssueDir(issue, year);
     return (
@@ -76,7 +62,6 @@ function alreadyHaveIssue(issue, year) {
     );
 }
 
-// Parse date from first row .td_tabResult0 text, e.g. "Брой 12, 30.1.2026 г." -> "30.1.2026 г."
 function parseDateFromRowText(text) {
     if (!text || typeof text !== 'string') return null;
     const m = text.match(/Брой\s*\d+,\s*([\d.]+\s*г\.)/);
@@ -85,7 +70,6 @@ function parseDateFromRowText(text) {
 
 const BG_MONTHS_CAP = ['Януари', 'Февруари', 'Март', 'Април', 'Май', 'Юни', 'Юли', 'Август', 'Септември', 'Октомври', 'Ноември', 'Декември'];
 
-// Convert "30.1.2026 г." to "30 Януари 2026"
 function toBulgarianDateFormat(str) {
     if (!str || typeof str !== 'string') return str;
     const m = str.match(/^(\d{1,2})\.(\d{1,2})\.(\d{4})\s*г\.?$/);
@@ -130,8 +114,6 @@ function writeIssueMetadata(issue, year, date) {
             fail("'Изтегли броя' link not found – page layout may have changed.");
         });
 
-        // Date must come from the same row as the download link (the issue we actually download),
-        // not from the first row (which may be a not-yet-available issue like 16).
         const downloadRowDateCell = firstDownloadLink.locator('xpath=../..').locator('.td_tabResult0').first();
         const downloadRowText = await downloadRowDateCell.textContent().catch(() => null);
         const downloadRowDate = parseDateFromRowText(downloadRowText || '');

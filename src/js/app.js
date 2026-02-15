@@ -31,13 +31,11 @@
     const BG_MONTHS = ['януари', 'февруари', 'март', 'април', 'май', 'юни', 'юли', 'август', 'септември', 'октомври', 'ноември', 'декември'];
     const BG_MONTHS_CAP = ['Януари', 'Февруари', 'Март', 'Април', 'Май', 'Юни', 'Юли', 'Август', 'Септември', 'Октомври', 'Ноември', 'Декември'];
 
-    /** Remove trailing " г." from date string. */
     function stripDateSuffix(str) {
         if (!str || typeof str !== 'string') return str;
         return str.replace(/\s*г\.\s*$/, '').trim();
     }
 
-    /** Capitalize month name in a Bulgarian date string (e.g. "6 януари 2026" → "6 Януари 2026"). */
     function capitalizeMonthInDate(str) {
         if (!str || typeof str !== 'string') return str;
         let s = str;
@@ -47,7 +45,6 @@
         return s;
     }
 
-    /** Lowercase month name in a Bulgarian date string (e.g. "6 Януари 2026" → "6 януари 2026"). */
     function lowercaseMonthInDate(str) {
         if (!str || typeof str !== 'string') return str;
         let s = str;
@@ -68,7 +65,6 @@
         return day + ' ' + BG_MONTHS_CAP[month - 1] + ' ' + year;
     }
 
-    /** Date for homepage cards: day + month only (no year), lowercase month. */
     function formatDateForHomepage(str) {
         if (!str || typeof str !== 'string') return str;
         const s = stripDateSuffix(str);
@@ -166,9 +162,9 @@
         if (location.pathname !== path) history.pushState(null, '', path);
     }
 
-    let currentIssue = null; // { year, issueNum } when viewing an issue
-    let lastFocusedCard = null; // element to focus when going back from issue
-    let tocObserver = null; // IntersectionObserver for TOC current section
+    let currentIssue = null;
+    let lastFocusedCard = null;
+    let tocObserver = null;
 
     function formatReadTime(minutes) {
         if (minutes < 1) return 'по-малко от 1 мин';
@@ -494,10 +490,10 @@
             if (item) {
                 openIssue(item.file, item.issue, item.date, item.year);
             } else {
-                showHome(); // invalid issue: show home and replace URL with /
+                showHome();
             }
         } else if (location.pathname !== '/') {
-            showHome(); // unknown path: show home and replace URL with /
+            showHome();
         }
     }
 

@@ -1,8 +1,4 @@
 #!/usr/bin/env node
-/**
- * Full flow: download latest gazette → summarize new PDFs → rebuild gazette catalog (add new issue to website).
- * Each step runs only if the previous one succeeded (exit code 0).
- */
 import { spawnSync } from 'child_process';
 import path from 'path';
 import { fileURLToPath } from 'url';

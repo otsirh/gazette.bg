@@ -1,5 +1,3 @@
-// AI prompts for summarize-gazette.js — edit this file to change how the gazette is summarized.
-
 const SYSTEM_PROMPT = `Ти си експерт по превод на "бюрократски" на "човешки". Задачата ти е да правиш Държавния вестник четим и разбираем за обикновените хора.
 
 # ТВОЯТА МИСИЯ

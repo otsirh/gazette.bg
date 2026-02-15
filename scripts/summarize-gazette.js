@@ -1,16 +1,3 @@
-// Reads PDFs from official-gazettes/{year}/{issue}.pdf, sends each to the Claude API for summarization,
-// and writes markdown to issues/{year}/{XX}/{issue}.md (XX = zero-padded issue). Deletes the PDF after success.
-// Skips PDFs that already have a summary. Requires ANTHROPIC_API_KEY in .env.
-// Note: Claude API accepts at most 100 pages per PDF. Longer PDFs are split into
-// chunks of 100 pages, each chunk is summarized, then the full combined text is
-// sent back to Claude once (no PDF) for a final refinement and structured output
-// (issue number, date, summary).
-//
-// Usage: node summarize-gazette.js [year] [issue] [customPdfPath]
-//   No args: process all PDFs in official-gazettes/
-//   year only: process all PDFs in official-gazettes/year/
-//   year and issue: process only official-gazettes/year/issue.pdf
-//   year, issue, customPdfPath: use customPdfPath as PDF (e.g. from download script); do not delete PDF or copy json.
 import path from 'path';
 import fs from 'fs';
 import { fileURLToPath } from 'url';
@@ -27,9 +14,7 @@ import { appendLog, flushAlertEmail } from './logger.js';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 dotenv.config({ path: path.join(__dirname, '..', '.env') });
 
-// API: max 100 pages/PDF, ~200k tokens/request, ~30k input tokens/min. Use small chunks to stay under both.
 const PAGES_PER_CHUNK = 12;
-// One chunk per minute keeps us under 30k input tokens/min for dense PDFs.
 const DELAY_BETWEEN_CHUNKS_MS = 60 * 1000;
 
 function delay(ms) {
@@ -58,7 +43,6 @@ function fail(message, cause) {
     flushAlertEmail().then(() => process.exit(1));
 }
 
-// List all official-gazettes/{year}/{issue}.pdf as { year, issue } (issue is the base name, e.g. "12")
 function listOfficialPdfs() {
     if (!fs.existsSync(OFFICIAL_GAZETTES_DIR)) return [];
     const entries = [];
@@ -90,7 +74,6 @@ function issueDirPath(year, issue) {
     return path.join(ISSUES_DIR, String(year), issueFolderName(issue));
 }
 
-/** Split a PDF buffer into chunks of at most PAGES_PER_CHUNK pages. Returns array of PDF buffers. */
 async function splitPdfIntoChunks(pdfBytes) {
     const sourceDoc = await PDFDocument.load(pdfBytes);
     const pageCount = sourceDoc.getPageCount();
@@ -107,7 +90,6 @@ async function splitPdfIntoChunks(pdfBytes) {
     return { chunks, pageCount };
 }
 
-/** Call Claude with text only (no PDF). Used for final refinement of combined chunk summaries. */
 async function refineSummaryWithClaude(fullMarkdown, year, issue, retried = false) {
     const userPrompt = getRefineUserPrompt(fullMarkdown, year, issue);
     const body = {
@@ -149,7 +131,6 @@ async function refineSummaryWithClaude(fullMarkdown, year, issue, retried = fals
     return textBlock.text;
 }
 
-/** Call Claude with one PDF (base64). Returns markdown. Retries once on 429. */
 async function summarizePdfBase64(base64, userPrompt, retried = false) {
     const body = {
         model: MODEL,
@@ -233,7 +214,6 @@ async function summarizePdf(pdfPath, year, issue) {
         parts.push(md.trim());
     }
 
-    // Combined text from all chunks
     const combined = parts.join('\n\n');
     console.log(`  Sending full summary to Claude for final pass...`);
     if (DELAY_BETWEEN_CHUNKS_MS > 0) {
