@@ -2,6 +2,7 @@
   "name": "gazette-bg",
   "version": "1.0.0",
   "private": true,
+  "type": "module",
   "scripts": {
     "build": "node scripts/build-gazette-catalog.js",
     "download-latest-gazette": "node scripts/download-latest-gazette.js",

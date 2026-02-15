@@ -11,12 +11,13 @@
  *   node process-issue-pdf.js <year> <issue>
  *   e.g. node process-issue-pdf.js 2026 15   — process issues/2026/15/.tmp.pdf
  */
-const path = require('path');
-const fs = require('fs');
-const { spawnSync } = require('child_process');
+import path from 'path';
+import fs from 'fs';
+import { spawnSync } from 'child_process';
+import { fileURLToPath } from 'url';
+import { appendLog, flushAlertEmail } from './logger.js';
 
-const { appendLog, flushAlertEmail } = require('./logger');
-
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.join(__dirname, '..');
 const ISSUES_DIR = path.join(ROOT, 'issues');
 const TEMP_PDF_NAME = '.tmp.pdf';

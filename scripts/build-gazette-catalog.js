@@ -3,11 +3,12 @@
  * Scans issues/ folder (years → issue folders 05, 06, …) and builds a JSON catalog.
  * Each issue folder has issue.json and issue.md. Date comes from .json or from # heading in .md.
  */
+import fs from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
+import { appendLog, flushAlertEmail } from './logger.js';
 
-const fs = require('fs');
-const path = require('path');
-const { appendLog, flushAlertEmail } = require('./logger');
-
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const SCRIPT_NAME = 'build-gazette-catalog';
 const ROOT = path.join(__dirname, '..');
 const ISSUES_DIR = path.join(ROOT, 'issues');

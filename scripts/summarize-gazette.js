@@ -11,16 +11,21 @@
 //   year only: process all PDFs in official-gazettes/year/
 //   year and issue: process only official-gazettes/year/issue.pdf
 //   year, issue, customPdfPath: use customPdfPath as PDF (e.g. from download script); do not delete PDF or copy json.
-const path = require('path');
-const fs = require('fs');
-require('dotenv').config({ path: path.join(__dirname, '..', '.env') });
-const { PDFDocument } = require('pdf-lib');
-const {
+import path from 'path';
+import fs from 'fs';
+import { fileURLToPath } from 'url';
+import dotenv from 'dotenv';
+import { PDFDocument } from 'pdf-lib';
+import {
     SYSTEM_PROMPT,
     getSummarizePrompt,
     getSummarizeChunkPrompt,
     getRefineUserPrompt,
-} = require('./ai-prompts');
+} from './ai-prompts.js';
+import { appendLog, flushAlertEmail } from './logger.js';
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+dotenv.config({ path: path.join(__dirname, '..', '.env') });
 
 // API: max 100 pages/PDF, ~200k tokens/request, ~30k input tokens/min. Use small chunks to stay under both.
 const PAGES_PER_CHUNK = 12;
@@ -30,8 +35,6 @@ const DELAY_BETWEEN_CHUNKS_MS = 60 * 1000;
 function delay(ms) {
     return new Promise((resolve) => setTimeout(resolve, ms));
 }
-
-const { appendLog, flushAlertEmail } = require('./logger');
 
 const ROOT = path.join(__dirname, '..');
 const OFFICIAL_GAZETTES_DIR = path.join(ROOT, 'official-gazettes');

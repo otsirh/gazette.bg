@@ -3,9 +3,13 @@
  * when any script logs an ERROR. Set RESEND_API_KEY + ALERT_EMAIL. From address defaults to
  * onboarding@resend.dev; set ALERT_FROM for a verified domain.
  */
-const path = require('path');
-require('dotenv').config({ path: path.join(__dirname, '..', '.env') });
-const { Resend } = require('resend');
+import path from 'path';
+import { fileURLToPath } from 'url';
+import dotenv from 'dotenv';
+import { Resend } from 'resend';
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+dotenv.config({ path: path.join(__dirname, '..', '.env') });
 
 const MAX_BUFFER_LINES = 30;
 const logBuffer = [];
@@ -70,7 +74,4 @@ function appendLog(scriptName, message, level = 'INFO') {
     if (level === 'ERROR') sendAlertOnce(scriptName, message);
 }
 
-module.exports = {
-    appendLog,
-    flushAlertEmail,
-};
+export { appendLog, flushAlertEmail };

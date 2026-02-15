@@ -7,13 +7,14 @@
 // Server/cron setup:
 //   npx playwright install chromium
 //   (optional) npx playwright install-deps chromium
-const path = require('path');
-const fs = require('fs');
-const { spawnSync } = require('child_process');
-const { chromium } = require('playwright');
+import path from 'path';
+import fs from 'fs';
+import { spawnSync } from 'child_process';
+import { chromium } from 'playwright';
+import { fileURLToPath } from 'url';
+import { appendLog, flushAlertEmail } from './logger.js';
 
-const { appendLog, flushAlertEmail } = require('./logger');
-
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.join(__dirname, '..');
 const ISSUES_DIR = path.join(ROOT, 'issues');
 const SCRIPT_NAME = 'download-latest-gazette';

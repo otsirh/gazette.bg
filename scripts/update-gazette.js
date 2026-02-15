@@ -3,10 +3,12 @@
  * Full flow: download latest gazette → summarize new PDFs → rebuild gazette catalog (add new issue to website).
  * Each step runs only if the previous one succeeded (exit code 0).
  */
-const { spawnSync } = require('child_process');
-const path = require('path');
-const { appendLog, flushAlertEmail } = require('./logger');
+import { spawnSync } from 'child_process';
+import path from 'path';
+import { fileURLToPath } from 'url';
+import { appendLog, flushAlertEmail } from './logger.js';
 
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const SCRIPT_NAME = 'update-gazette';
 const ROOT = path.join(__dirname, '..');
 const SCRIPTS_DIR = path.join(ROOT, 'scripts');
