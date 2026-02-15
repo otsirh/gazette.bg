@@ -6,7 +6,7 @@
 
 const fs = require('fs');
 const path = require('path');
-const { appendLog } = require('./logger');
+const { appendLog, flushAlertEmail } = require('./logger');
 
 const SCRIPT_NAME = 'build-gazette-catalog';
 const ROOT = path.join(__dirname, '..');
@@ -88,20 +88,12 @@ function buildCatalog() {
             const effectiveIssue = info ? info.issue : issueNum;
             const dateFromJson = getIssueDateFromJson(issueDirPath, issueNum);
             const dateFromMarkdown = info ? normalizeDate(info.date) : '';
-            const audioNativeMetaName = `${issueNum}.audio-native.json`;
-            const audioNativeMetaPath = path.join(issueDirPath, audioNativeMetaName);
             const entry = {
                 issue: effectiveIssue,
                 date: dateFromJson || dateFromMarkdown || '',
                 file: `issues/${year}/${folderName}/${mdName}`,
                 readMinutes,
             };
-            if (fs.existsSync(audioNativeMetaPath)) {
-                try {
-                    const audioNativeMeta = JSON.parse(fs.readFileSync(audioNativeMetaPath, 'utf8'));
-                    if (audioNativeMeta.project_id) entry.audioNative = audioNativeMeta.project_id;
-                } catch (_) {}
-            }
             catalog.years[year].push(entry);
         }
     }
@@ -111,12 +103,15 @@ function buildCatalog() {
     return catalog;
 }
 
-try {
-    appendLog(SCRIPT_NAME, 'Starting catalog build', 'INFO');
-    buildCatalog();
-    appendLog(SCRIPT_NAME, 'Catalog written to ' + CATALOG_PATH, 'OK');
-} catch (e) {
-    appendLog(SCRIPT_NAME, 'Failed: ' + (e && (e.message || String(e))), 'ERROR');
-    console.error('[build-gazette-catalog]', e.message || e);
-    process.exit(1);
-}
+(async () => {
+    try {
+        appendLog(SCRIPT_NAME, 'Starting catalog build', 'INFO');
+        buildCatalog();
+        appendLog(SCRIPT_NAME, 'Catalog written to ' + CATALOG_PATH, 'OK');
+    } catch (e) {
+        appendLog(SCRIPT_NAME, 'Failed: ' + (e && (e.message || String(e))), 'ERROR');
+        console.error('[build-gazette-catalog]', e.message || e);
+        await flushAlertEmail();
+        process.exit(1);
+    }
+})();

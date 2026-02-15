@@ -6,13 +6,11 @@
     "scripts": {
         "build": "node scripts/build-gazette-catalog.js",
         "download-latest-gazette": "node scripts/download-latest-gazette.js",
-        "create-audio-native": "node scripts/create-audio-native.js",
         "summarize-gazette": "node scripts/summarize-gazette.js",
         "process-issue-pdf": "node scripts/process-issue-pdf.js",
         "build-gazette": "node scripts/build-gazette-catalog.js",
         "update-gazette": "node scripts/update-gazette.js",
-        "gazette": "node scripts/build-gazette-catalog.js && npx --yes serve -s -p 3000",
-        "test-alert-email": "node scripts/test-alert-email.js"
+        "gazette": "node scripts/build-gazette-catalog.js && npx --yes serve -s -p 3000"
     },
     "keywords": [
         "bulgarian",

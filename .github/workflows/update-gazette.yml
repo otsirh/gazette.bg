@@ -33,7 +33,6 @@ jobs:
         env:
           HEADLESS: 'true'
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
-          ELEVENLABS_API_KEY: ${{ secrets.ELEVENLABS_API_KEY }}
           RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
           ALERT_EMAIL: ${{ secrets.ALERT_EMAIL }}
           SEND_ALERT_EMAILS: ${{ secrets.SEND_ALERT_EMAILS }}

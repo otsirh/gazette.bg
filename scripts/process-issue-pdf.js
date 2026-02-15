@@ -15,7 +15,7 @@ const path = require('path');
 const fs = require('fs');
 const { spawnSync } = require('child_process');
 
-const { appendLog } = require('./logger');
+const { appendLog, flushAlertEmail } = require('./logger');
 
 const ROOT = path.join(__dirname, '..');
 const ISSUES_DIR = path.join(ROOT, 'issues');
@@ -43,7 +43,7 @@ function getJsonPath(year, issue) {
     return path.join(getIssueDir(year, issue), `${issue}.json`);
 }
 
-function main() {
+async function main() {
     const yearArg = process.argv[2];
     const issueArg = process.argv[3];
 
@@ -84,6 +84,7 @@ function main() {
     if (result.status !== 0) {
         log(`Summarize failed for ${year}/${issue} (exit ${result.status})`, 'ERROR');
         console.error(`[process-issue-pdf] Summarize failed (exit ${result.status}). PDF left in place.`);
+        await flushAlertEmail();
         process.exit(1);
     }
 
@@ -114,4 +115,9 @@ function main() {
     console.log(`Issue ${year}/${issue} saved.`);
 }
 
-main();
+main().catch(async (e) => {
+    log((e && (e.message || String(e))) || 'Unhandled error', 'ERROR');
+    console.error('[process-issue-pdf]', e);
+    await flushAlertEmail();
+    process.exit(1);
+});

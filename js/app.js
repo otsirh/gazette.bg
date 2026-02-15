@@ -20,20 +20,6 @@
 
     const PAGE_TITLE_BASE = 'Обобщения на Държавен вестник';
 
-    /** ElevenLabs Audio Native: build embed HTML from project id (single source for the snippet markup). */
-    const ELEVENLABS_AUDIO_NATIVE_PUBLIC_USER_ID =
-        '16012b2e988d6a3824659ec8bfd6b4722cbe1806d6ad8fb70c537eda29e5015f';
-    function buildAudioNativeSnippet(projectId) {
-        if (!projectId) return '';
-        return (
-            '<div id="elevenlabs-audionative-widget" data-height="90" data-width="100%" data-frameborder="no" data-scrolling="no" data-publicuserid="' +
-            ELEVENLABS_AUDIO_NATIVE_PUBLIC_USER_ID +
-            '" data-playerurl="https://elevenlabs.io/player/index.html" data-projectid="' +
-            projectId +
-            '"></div><script src="https://elevenlabs.io/player/audioNativeHelper.js" type="text/javascript"></script>'
-        );
-    }
-
     function escapeAttr(s) {
         return String(s).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
     }
@@ -412,15 +398,12 @@
             issueNavEl.style.display = 'none';
         }
         const catalogItem = year && issueNum ? findIssueByYearAndNumber(year, issueNum) : null;
-        const hasAudio =
-            catalogItem?.audioNativeSnippet || catalogItem?.audioNative;
         if (issueNum && date) {
             const formattedDate = formatDateBulgarian(date);
             const titleDate = stripDateSuffix(formattedDate);
             document.title = `Брой ${issueNum} · ${titleDate} — Обобщения на Държавен вестник`;
             const readTimePlaceholder = '<span class="issue-read-time" id="issue-read-time"></span>';
-            const audioWrapHtml = hasAudio ? '<div id="issue-audio-wrap" class="issue-audio-wrap"></div>' : '';
-            issueHeaderEl.innerHTML = `<div class="meta">Брой ${escapeHtml(issueNum)}${readTimePlaceholder}</div><div class="title">${escapeHtml(stripDateSuffix(formattedDate))}</div>${audioWrapHtml}`;
+            issueHeaderEl.innerHTML = `<div class="meta">Брой ${escapeHtml(issueNum)}${readTimePlaceholder}</div><div class="title">${escapeHtml(stripDateSuffix(formattedDate))}</div>`;
         } else {
             document.title = PAGE_TITLE_BASE;
             issueHeaderEl.innerHTML = '';
@@ -446,26 +429,6 @@
             if (backBtn) backBtn.focus();
         } catch (e) {
             mainContent.innerHTML = '<p>Този брой не може да бъде зареден в момента. Моля, опитайте отново или изберете друг брой от началната страница.</p><p><a href="/" class="back-btn">← Обратно към началната страница</a></p>';
-        }
-        const audioWrap = document.getElementById('issue-audio-wrap');
-        if (audioWrap && hasAudio) {
-            if (catalogItem.audioNativeSnippet || catalogItem.audioNative) {
-                var snippet =
-                    catalogItem.audioNativeSnippet ||
-                    buildAudioNativeSnippet(catalogItem.audioNative);
-                var temp = document.createElement('div');
-                temp.innerHTML = snippet;
-                var widgetDiv = temp.querySelector('#elevenlabs-audionative-widget') || temp.firstElementChild;
-                var scriptTag = temp.querySelector('script[src]');
-                audioWrap.innerHTML = '';
-                if (widgetDiv) audioWrap.appendChild(widgetDiv);
-                if (scriptTag && scriptTag.src) {
-                    var s = document.createElement('script');
-                    s.src = scriptTag.src + (scriptTag.src.indexOf('?') === -1 ? '?' : '&') + 't=' + Date.now();
-                    s.type = 'text/javascript';
-                    audioWrap.appendChild(s);
-                }
-            }
         }
         renderIssueNav();
         mainLoading.style.display = 'none';

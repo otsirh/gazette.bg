@@ -52,7 +52,7 @@ function fail(message, cause) {
     if (cause) log(String(cause), 'ERROR');
     console.error('[summarize-gazette]', message);
     if (cause) console.error(cause);
-    process.exit(1);
+    flushAlertEmail().then(() => process.exit(1));
 }
 
 // List all official-gazettes/{year}/{issue}.pdf as { year, issue } (issue is the base name, e.g. "12")
@@ -300,17 +300,6 @@ async function main() {
             }
             log(`Wrote ${outPath}`, 'OK');
             console.log(`✓ Wrote ${path.relative(ROOT, outPath)}`);
-            if (process.env.ELEVENLABS_API_KEY) {
-                try {
-                    const { createIssueAudioNative } = require('./create-audio-native');
-                    const { metaPath } = await createIssueAudioNative(year, issue);
-                    log(`Wrote Audio Native ${metaPath}`, 'OK');
-                    console.log(`✓ Audio Native ${path.relative(ROOT, metaPath)}`);
-                } catch (audioNativeErr) {
-                    log(`Audio Native failed: ${audioNativeErr.message}`, 'WARN');
-                    console.warn(`  [audio-native] ${audioNativeErr.message}`);
-                }
-            }
         } catch (e) {
             log(`Failed ${pdf}: ${e.message}`, 'ERROR');
             console.error(`✗ Failed ${year}/${issue}:`, e.message);
@@ -321,8 +310,9 @@ async function main() {
     }
 }
 
-main().catch((e) => {
+main().catch(async (e) => {
     log('Unhandled: ' + (e && (e.message || e)), 'ERROR');
     console.error('[summarize-gazette]', e);
+    await flushAlertEmail();
     process.exit(1);
 });

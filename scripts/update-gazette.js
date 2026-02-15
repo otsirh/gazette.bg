@@ -55,7 +55,9 @@ async function main() {
     console.log('\n[update-gazette] Done. New issue(s) are in issues/ and the website catalog is updated.\n');
 }
 
-main().catch((e) => {
+main().catch(async (e) => {
+    appendLog(SCRIPT_NAME, 'Unhandled: ' + (e && (e.message || String(e))), 'ERROR');
     console.error('[update-gazette]', e);
+    await flushAlertEmail();
     process.exit(1);
 });

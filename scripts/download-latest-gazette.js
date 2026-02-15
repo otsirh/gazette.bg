@@ -2,9 +2,7 @@
 // only JSON + MD under issues/YEAR/issueNumber/. No PDF is kept. On any failure the new issue
 // folder is removed (revert). For cron/server: runs headless by default. Set HEADLESS=false for local.
 //
-// Email on failure (pick one or both):
-//   - Cron: add MAILTO=your@email.com to crontab; cron emails when the job exits non-zero.
-//   - In-app: set ALERT_EMAIL and RESEND_API_KEY in .env; see scripts/logger.js and .env.example.
+// Email on failure: set ALERT_EMAIL and RESEND_API_KEY in .env; see scripts/logger.js and .env.example.
 //
 // Server/cron setup:
 //   npx playwright install chromium
@@ -14,7 +12,7 @@ const fs = require('fs');
 const { spawnSync } = require('child_process');
 const { chromium } = require('playwright');
 
-const { appendLog } = require('./logger');
+const { appendLog, flushAlertEmail } = require('./logger');
 
 const ROOT = path.join(__dirname, '..');
 const ISSUES_DIR = path.join(ROOT, 'issues');
@@ -32,7 +30,7 @@ function fail(message, cause) {
     if (cause) log(String(cause), 'ERROR');
     console.error('[download-latest-gazette]', message);
     if (cause) console.error(cause);
-    process.exit(1);
+    flushAlertEmail().then(() => process.exit(1));
 }
 
 // Parse "12_26.pdf" (issue 12, year 2026) → { issue: 12, year: 2026 }
@@ -216,5 +214,5 @@ function writeIssueMetadata(issue, year, date) {
 })().catch((e) => {
     log('Unhandled error: ' + (e && (e.message || e)), 'ERROR');
     console.error('[download-latest-gazette] Unhandled error:', e);
-    process.exit(1);
+    flushAlertEmail().then(() => process.exit(1));
 });
