@@ -228,6 +228,7 @@
         document.body.classList.remove('issue-open');
         homeView.style.display = 'block';
         issueView.style.display = 'none';
+        window.scrollTo(0, 0);
         if (readProgressBar) readProgressBar.style.display = 'none';
         if (scrollToTopBtn) scrollToTopBtn.classList.remove('is-visible');
         if (tocObserver) {
