@@ -37,6 +37,13 @@ body {
     -webkit-font-smoothing: antialiased;
 }
 
+button,
+input,
+textarea,
+select {
+    font-family: inherit;
+}
+
 body.issue-open .masthead {
     display: none;
 }
