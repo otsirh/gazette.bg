@@ -114,6 +114,12 @@
                 "date": "19 Февруари 2026",
                 "file": "issues/2026/19/19.md",
                 "readMinutes": 5
+            },
+            {
+                "issue": 20,
+                "date": "20 Февруари 2026",
+                "file": "issues/2026/20/20.md",
+                "readMinutes": 11
             }
         ]
     }
