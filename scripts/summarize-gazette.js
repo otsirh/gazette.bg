@@ -26,7 +26,7 @@ const OFFICIAL_GAZETTES_DIR = path.join(ROOT, 'official-gazettes');
 const ISSUES_DIR = path.join(ROOT, 'issues');
 const SCRIPT_NAME = 'summarize-gazette';
 const API_URL = 'https://api.anthropic.com/v1/messages';
-const MODEL = 'claude-sonnet-4-5';
+const MODEL = 'claude-sonnet-4-6';
 const MAX_TOKENS = 8192;
 
 const apiKey = process.env.ANTHROPIC_API_KEY;
