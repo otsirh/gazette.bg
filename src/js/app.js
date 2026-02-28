@@ -417,7 +417,8 @@
             if (issueReadTimeEl) issueReadTimeEl.textContent = ' · ' + formatReadTime(readMinutes);
             const headings = extractHeadings(md);
             const tocItems = tocItemsWithIds(headings);
-            const rawHtml = typeof marked !== 'undefined' ? marked.parse(md) : md;
+            let rawHtml = typeof marked !== 'undefined' ? marked.parse(md) : md;
+            rawHtml = rawHtml.replace(/<h1(\s[^>]*)?>/gi, '<h2$1>').replace(/<\/h1>/gi, '</h2>');
             const htmlWithIds = addHeadingIds(rawHtml, tocItems);
             const tocHtml = buildTocHtml(tocItems);
             mainContent.innerHTML = contentDisclaimer + tocHtml + htmlWithIds;
