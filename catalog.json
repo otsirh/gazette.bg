@@ -156,6 +156,12 @@
                 "date": "13 Март 2026",
                 "file": "issues/2026/26/26.md",
                 "readMinutes": 2
+            },
+            {
+                "issue": 27,
+                "date": "17 Март 2026",
+                "file": "issues/2026/27/27.md",
+                "readMinutes": 3
             }
         ]
     }
