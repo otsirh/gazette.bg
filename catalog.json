@@ -228,6 +228,12 @@
                 "date": "24 Април 2026",
                 "file": "issues/2026/38/38.md",
                 "readMinutes": 3
+            },
+            {
+                "issue": 39,
+                "date": "28 Април 2026",
+                "file": "issues/2026/39/39.md",
+                "readMinutes": 1
             }
         ]
     }
