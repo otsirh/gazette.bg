@@ -252,6 +252,12 @@
                 "date": "8 Май 2026",
                 "file": "issues/2026/42/42.md",
                 "readMinutes": 2
+            },
+            {
+                "issue": 43,
+                "date": "12 Май 2026",
+                "file": "issues/2026/43/43.md",
+                "readMinutes": 2
             }
         ]
     }
