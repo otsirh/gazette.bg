@@ -29,9 +29,6 @@ body {
     font-family: var(--font);
     background: var(--bg);
     color: var(--text);
-    min-height: 100vh;
-    display: flex;
-    flex-direction: column;
     font-size: 1rem;
     line-height: 1.6;
     -webkit-font-smoothing: antialiased;
@@ -105,8 +102,6 @@ body.issue-open .masthead {
 }
 
 .layout {
-    flex: 1;
-    min-height: 0;
     max-width: 900px;
     margin: 0 auto;
     width: 100%;
@@ -114,8 +109,6 @@ body.issue-open .masthead {
 }
 
 main {
-    flex: 1;
-    overflow-y: auto;
     padding: var(--gap-xl) 0 var(--gap-2xl);
     min-width: 0;
 }
@@ -175,6 +168,37 @@ main .loading {
     box-shadow: 0 4px 12px rgba(196, 92, 38, 0.12);
 }
 
+.issue-card .num {
+    font-weight: 600;
+    color: var(--text);
+    font-size: 1rem;
+}
+
+.issue-card .date {
+    margin-bottom: 0.1rem;
+}
+
+.issue-card .read-time {
+    font-size: 0.75rem;
+    color: var(--muted);
+}
+
+.issue-card:not(.issue-card-current) {
+    display: flex;
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 0.35rem;
+}
+
+.issue-card:not(.issue-card-current) .num,
+.issue-card:not(.issue-card-current) .date,
+.issue-card:not(.issue-card-current) .read-time {
+    display: inline;
+    margin-top: 0;
+    margin-bottom: 0;
+}
+
 .issue-card-current {
     border-color: var(--accent);
     background: linear-gradient(135deg, var(--surface) 0%, rgba(196, 92, 38, 0.05) 100%);
@@ -189,72 +213,21 @@ main .loading {
 }
 
 .issue-card-current .num {
+    display: block;
     color: var(--accent);
     font-size: 1.25rem;
     margin-bottom: 0.25rem;
 }
 
 .issue-card-current .date {
+    display: block;
     margin-bottom: 0.15rem;
 }
 
 .issue-card-current .read-time {
+    display: block;
     font-size: 0.875rem;
     margin-top: 0.35rem;
-}
-
-.issue-card:not(.issue-card-current) {
-    display: flex;
-    flex-direction: row;
-    flex-wrap: wrap;
-    align-items: baseline;
-    gap: 0.35rem;
-}
-
-.issue-card:not(.issue-card-current) .num {
-    display: inline;
-    font-weight: 600;
-    color: var(--text);
-    font-size: 1rem;
-    margin-bottom: 0;
-}
-
-.issue-card:not(.issue-card-current) .date {
-    display: inline;
-    margin-bottom: 0;
-}
-
-.issue-card:not(.issue-card-current) .read-time {
-    display: inline;
-    font-size: 0.75rem;
-    color: var(--muted);
-    margin-top: 0;
-}
-
-.issue-card-current .num,
-.issue-card-current .date,
-.issue-card-current .read-time {
-    display: block;
-}
-
-.issue-card .num {
-    font-weight: 600;
-    color: var(--text);
-    font-size: 1rem;
-}
-
-.issue-card-current .num {
-    color: var(--accent);
-    margin-bottom: 0.25rem;
-}
-
-.issue-card .date {
-    margin-bottom: 0.1rem;
-}
-
-.issue-card .read-time {
-    font-size: 0.75rem;
-    color: var(--muted);
 }
 
 .read-progress-bar {

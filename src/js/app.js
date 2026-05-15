@@ -20,10 +20,6 @@
 
     const PAGE_TITLE_BASE = 'Обобщения на Държавен вестник';
 
-    function escapeAttr(s) {
-        return String(s).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
-    }
-
     function escapeHtml(s) {
         return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
     }
@@ -88,28 +84,30 @@
             .replace(/^-|-$/g, '') || 'section';
     }
 
-    function extractHeadings(md) {
-        const headings = [];
-        const lines = md.split('\n');
-        for (const line of lines) {
-            const m = /^(#{1,6})\s+(.+)$/.exec(line);
-            if (m) headings.push({ level: m[1].length, text: m[2].trim() });
-        }
-        return headings;
-    }
-
-    function tocItemsWithIds(headings) {
+    function processRenderedContent(html) {
+        const div = document.createElement('div');
+        div.innerHTML = html;
+        div.querySelectorAll('h1').forEach((h1) => {
+            const h2 = document.createElement('h2');
+            for (const attr of Array.from(h1.attributes)) h2.setAttribute(attr.name, attr.value);
+            h2.innerHTML = h1.innerHTML;
+            h1.replaceWith(h2);
+        });
         const used = new Set();
-        return headings.map((h) => {
-            let id = slugify(h.text);
+        const tocItems = [];
+        div.querySelectorAll('h1, h2, h3, h4, h5, h6').forEach((h) => {
+            const text = h.textContent.trim();
+            let id = slugify(text);
             if (used.has(id)) {
                 let n = 2;
                 while (used.has(id + '-' + n)) n++;
                 id = id + '-' + n;
             }
             used.add(id);
-            return { level: h.level, text: stripMarkdownInline(h.text), id };
+            h.id = id;
+            tocItems.push({ level: parseInt(h.tagName.slice(1), 10), text, id });
         });
+        return { html: div.innerHTML, tocItems };
     }
 
     function buildTocHtml(tocItems) {
@@ -117,20 +115,10 @@
         if (!mainItems.length) return '';
         let html = '<nav class="issue-toc" aria-label="Съдържание на броя"><div class="issue-toc-title">Съдържание</div><ul class="issue-toc-list">';
         for (const item of mainItems) {
-            html += `<li class="issue-toc-item"><a href="#${escapeAttr(item.id)}">${escapeHtml(item.text)}</a></li>`;
+            html += `<li class="issue-toc-item"><a href="#${escapeHtml(item.id)}">${escapeHtml(item.text)}</a></li>`;
         }
         html += '</ul></nav>';
         return html;
-    }
-
-    function addHeadingIds(html, tocItems) {
-        const div = document.createElement('div');
-        div.innerHTML = html;
-        const headings = div.querySelectorAll('h1, h2, h3, h4, h5, h6');
-        tocItems.forEach((item, i) => {
-            if (headings[i]) headings[i].id = item.id;
-        });
-        return div.innerHTML;
     }
 
     function getAllIssuesNewestFirst() {
@@ -164,7 +152,7 @@
 
     let currentIssue = null;
     let lastFocusedCard = null;
-    let tocObserver = null;
+    let currentTocId = null;
 
     function formatReadTime(minutes) {
         if (minutes < 1) return 'по-малко от 1 мин';
@@ -180,7 +168,7 @@
         const readTime = item.readMinutes != null ? `<span class="read-time">${formatReadTime(item.readMinutes)}</span>` : '';
         const currentClass = isCurrent ? ' issue-card-current' : '';
         const displayDate = formatDateForHomepage(formatDateBulgarian(item.date));
-        return `<button type="button" class="issue-card${currentClass}" data-file="${escapeAttr(item.file)}" data-issue="${item.issue}" data-date="${escapeAttr(item.date)}" data-year="${escapeAttr(item.year)}">
+        return `<button type="button" class="issue-card${currentClass}" data-file="${escapeHtml(item.file)}" data-issue="${item.issue}" data-date="${escapeHtml(item.date)}" data-year="${escapeHtml(item.year)}">
             <span class="num">Брой ${item.issue}</span>
             <span class="date">${escapeHtml(displayDate)}</span>
             ${readTime}
@@ -231,10 +219,7 @@
         window.scrollTo(0, 0);
         if (readProgressBar) readProgressBar.style.display = 'none';
         if (scrollToTopBtn) scrollToTopBtn.classList.remove('is-visible');
-        if (tocObserver) {
-            tocObserver.disconnect();
-            tocObserver = null;
-        }
+        currentTocId = null;
         if (location.pathname !== '/') {
             history.pushState(null, '', '/');
         }
@@ -254,18 +239,14 @@
         }
     }
 
-    function getScrollContainer() {
-        if (issueView.style.display !== 'block' || !mainEl) return null;
-        return mainEl.scrollHeight > mainEl.clientHeight ? mainEl : null;
+    function getWindowScrollTop() {
+        return window.scrollY ?? document.documentElement.scrollTop ?? 0;
     }
 
     function updateReadProgress() {
         if (!readProgressFill || !readProgressBar || issueView.style.display !== 'block') return;
-        const el = getScrollContainer();
-        const scrollTop = el ? el.scrollTop : (window.scrollY ?? document.documentElement.scrollTop);
-        const scrollHeight = el ? el.scrollHeight : document.documentElement.scrollHeight;
-        const clientHeight = el ? el.clientHeight : window.innerHeight;
-        const maxScroll = scrollHeight - clientHeight;
+        const scrollTop = getWindowScrollTop();
+        const maxScroll = document.documentElement.scrollHeight - window.innerHeight;
         const pct = maxScroll <= 0 ? 100 : Math.min(100, (scrollTop / maxScroll) * 100);
         readProgressFill.style.width = pct + '%';
         readProgressBar.setAttribute('aria-valuenow', Math.round(pct));
@@ -279,22 +260,11 @@
             scrollToTopBtn.classList.remove('is-visible');
             return;
         }
-        const el = getScrollContainer();
-        const scrollTop = el ? el.scrollTop : (window.scrollY ?? document.documentElement.scrollTop ?? 0);
-        if (scrollTop > SCROLL_TO_TOP_THRESHOLD) {
-            scrollToTopBtn.classList.add('is-visible');
-        } else {
-            scrollToTopBtn.classList.remove('is-visible');
-        }
+        scrollToTopBtn.classList.toggle('is-visible', getWindowScrollTop() > SCROLL_TO_TOP_THRESHOLD);
     }
 
     function scrollToTop() {
-        const el = getScrollContainer();
-        if (el) {
-            el.scrollTo({ top: 0, behavior: 'smooth' });
-        } else {
-            window.scrollTo({ top: 0, behavior: 'smooth' });
-        }
+        window.scrollTo({ top: 0, behavior: 'smooth' });
     }
 
     function getAdjacentIssues() {
@@ -345,38 +315,27 @@
         });
     }
 
-    function setupTocCurrentSection() {
-        if (tocObserver) {
-            tocObserver.disconnect();
-            tocObserver = null;
-        }
-        const scrollRoot = getScrollContainer();
-        if (!scrollRoot || !mainContent) return;
-        const headings = mainContent.querySelectorAll('h1[id], h2[id], h3[id], h4[id], h5[id], h6[id]');
+    const TOC_ACTIVE_OFFSET = 120;
+
+    function updateCurrentTocItem() {
+        if (issueView.style.display !== 'block' || !mainContent) return;
+        const headings = mainContent.querySelectorAll('h1[id], h2[id]');
         if (!headings.length) return;
-        let currentId = null;
-        function setCurrent(id) {
-            if (id === currentId) return;
-            currentId = id;
-            mainContent.querySelectorAll('.issue-toc a[href^="#"]').forEach((a) => {
-                const href = a.getAttribute('href');
-                const targetId = href ? href.slice(1) : '';
-                a.classList.toggle('is-current', targetId === id);
-            });
+        let activeId = null;
+        for (const h of headings) {
+            if (h.getBoundingClientRect().top <= TOC_ACTIVE_OFFSET) {
+                activeId = h.id;
+            } else {
+                break;
+            }
         }
-        tocObserver = new IntersectionObserver(
-            (entries) => {
-                entries.forEach((entry) => {
-                    if (!entry.isIntersecting) return;
-                    const id = entry.target.id;
-                    if (id) setCurrent(id);
-                });
-            },
-            { root: scrollRoot, rootMargin: '-20% 0px -70% 0px', threshold: 0 }
-        );
-        headings.forEach((h) => tocObserver.observe(h));
-        const first = headings[0];
-        if (first && first.id) setCurrent(first.id);
+        if (activeId === currentTocId) return;
+        currentTocId = activeId;
+        mainContent.querySelectorAll('.issue-toc a[href^="#"]').forEach((a) => {
+            const href = a.getAttribute('href');
+            const targetId = href ? href.slice(1) : '';
+            a.classList.toggle('is-current', activeId !== null && targetId === activeId);
+        });
     }
 
     async function openIssue(file, issueNum, date, year) {
@@ -415,14 +374,12 @@
             const readMinutes = readMinutesForHeader != null ? readMinutesForHeader : Math.max(1, Math.round((md.replace(/\[([^\]]+)\]\([^)]+\)/g, '$1').replace(/[#*_`~]/g, '').split(/\s+/).filter(Boolean).length) / 200));
             const issueReadTimeEl = document.getElementById('issue-read-time');
             if (issueReadTimeEl) issueReadTimeEl.textContent = ' · ' + formatReadTime(readMinutes);
-            const headings = extractHeadings(md);
-            const tocItems = tocItemsWithIds(headings);
-            let rawHtml = typeof marked !== 'undefined' ? marked.parse(md) : md;
-            rawHtml = rawHtml.replace(/<h1(\s[^>]*)?>/gi, '<h2$1>').replace(/<\/h1>/gi, '</h2>');
-            const htmlWithIds = addHeadingIds(rawHtml, tocItems);
+            const rawHtml = typeof marked !== 'undefined' ? marked.parse(md) : md;
+            const { html: processedHtml, tocItems } = processRenderedContent(rawHtml);
             const tocHtml = buildTocHtml(tocItems);
-            mainContent.innerHTML = contentDisclaimer + tocHtml + htmlWithIds;
-            setupTocCurrentSection();
+            mainContent.innerHTML = contentDisclaimer + tocHtml + processedHtml;
+            currentTocId = null;
+            updateCurrentTocItem();
             updateReadProgress();
             if (backBtn) backBtn.focus();
         } catch (e) {
@@ -472,9 +429,9 @@
         function onScroll() {
             updateReadProgress();
             updateScrollToTopVisibility();
+            updateCurrentTocItem();
         }
         window.addEventListener('scroll', onScroll, { passive: true });
-        mainEl.addEventListener('scroll', onScroll, { passive: true });
         if (scrollToTopBtn) scrollToTopBtn.addEventListener('click', scrollToTop);
         updateScrollToTopVisibility();
         try {
