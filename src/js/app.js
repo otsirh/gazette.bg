@@ -164,11 +164,11 @@
         return h + ' ч ' + m + ' мин четене';
     }
 
-    function renderIssueCard(item, isCurrent) {
+    function renderIssueCard(item, variant) {
         const readTime = item.readMinutes != null ? `<span class="read-time">${formatReadTime(item.readMinutes)}</span>` : '';
-        const currentClass = isCurrent ? ' issue-card-current' : '';
+        const variantClass = variant ? ' issue-card-' + variant : '';
         const displayDate = formatDateForHomepage(formatDateBulgarian(item.date));
-        return `<button type="button" class="issue-card${currentClass}" data-file="${escapeHtml(item.file)}" data-issue="${item.issue}" data-date="${escapeHtml(item.date)}" data-year="${escapeHtml(item.year)}">
+        return `<button type="button" class="issue-card${variantClass}" data-file="${escapeHtml(item.file)}" data-issue="${item.issue}" data-date="${escapeHtml(item.date)}" data-year="${escapeHtml(item.year)}">
             <span class="num">Брой ${item.issue}</span>
             <span class="date">${escapeHtml(displayDate)}</span>
             ${readTime}
@@ -191,15 +191,21 @@
         });
         const yearKeys = Object.keys(byYear).sort((a, b) => Number(b) - Number(a));
 
-        let html = '<div class="year-group"><div class="year-title">Последен брой</div><div class="issue-cards">';
-        html += renderIssueCard(latest, true);
-        html += '</div></div>';
+        let html = '<section class="hero-section">';
+        html += '<div class="section-eyebrow">Последен брой</div>';
+        html += renderIssueCard(latest, 'hero');
+        html += '</section>';
 
-        yearKeys.forEach((year) => {
-            html += `<div class="year-group"><div class="year-title">${year}</div><div class="issue-cards">`;
-            byYear[year].forEach((item) => { html += renderIssueCard(item); });
-            html += '</div></div>';
-        });
+        if (yearKeys.length) {
+            html += '<section class="archive-section">';
+            html += '<h2 class="section-title">Архив</h2>';
+            yearKeys.forEach((year) => {
+                html += `<div class="year-group"><h3 class="year-title">${year}</h3><div class="issue-list">`;
+                byYear[year].forEach((item) => { html += renderIssueCard(item, 'row'); });
+                html += '</div></div>';
+            });
+            html += '</section>';
+        }
 
         homeContent.innerHTML = html;
         homeContent.querySelectorAll('.issue-card').forEach((btn) => {
