@@ -10,6 +10,7 @@ import {
     getSummarizeChunkPrompt,
     getRefineUserPrompt,
 } from './ai-prompts.js';
+import { cleanMarkdown } from './clean-markdown.js';
 import { appendLog, flushAlertEmail } from './logger.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -174,11 +175,12 @@ async function summarizePdf(pdfPath, year, issue) {
     const { chunks, pageCount } = await splitPdfIntoChunks(buf);
 
     if (chunks.length === 1) {
-        return summarizePdfBase64(
+        const md = await summarizePdfBase64(
             Buffer.from(chunks[0]).toString('base64'),
             getSummarizePrompt(year, issue),
             'single'
         );
+        return cleanMarkdown(md);
     }
 
     console.log(`  ${pageCount} pages → ${chunks.length} chunks (${PAGES_PER_CHUNK} pages each)`);
@@ -201,7 +203,7 @@ async function summarizePdf(pdfPath, year, issue) {
     console.log(`  Sending full summary to Claude for final pass...`);
     await delay(DELAY_BETWEEN_CHUNKS_MS);
     const finalMarkdown = await refineSummaryWithClaude(combined, year, issue);
-    return finalMarkdown.trim();
+    return cleanMarkdown(finalMarkdown);
 }
 
 async function main() {
