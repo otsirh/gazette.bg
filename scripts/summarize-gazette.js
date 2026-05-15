@@ -3,6 +3,7 @@ import fs from 'fs';
 import { fileURLToPath } from 'url';
 import dotenv from 'dotenv';
 import { PDFDocument } from 'pdf-lib';
+import Anthropic from '@anthropic-ai/sdk';
 import {
     SYSTEM_PROMPT,
     getSummarizePrompt,
@@ -15,7 +16,7 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 dotenv.config({ path: path.join(__dirname, '..', '.env') });
 
 const PAGES_PER_CHUNK = 12;
-const DELAY_BETWEEN_CHUNKS_MS = 60 * 1000;
+const DELAY_BETWEEN_CHUNKS_MS = 10 * 1000;
 
 function delay(ms) {
     return new Promise((resolve) => setTimeout(resolve, ms));
@@ -25,11 +26,37 @@ const ROOT = path.join(__dirname, '..');
 const OFFICIAL_GAZETTES_DIR = path.join(ROOT, 'official-gazettes');
 const ISSUES_DIR = path.join(ROOT, 'issues');
 const SCRIPT_NAME = 'summarize-gazette';
-const API_URL = 'https://api.anthropic.com/v1/messages';
 const MODEL = 'claude-sonnet-4-6';
-const MAX_TOKENS = 8192;
+const MAX_TOKENS = 16000;
 
 const apiKey = process.env.ANTHROPIC_API_KEY;
+
+const client = apiKey ? new Anthropic({ apiKey }) : null;
+
+const CACHED_SYSTEM = [
+    {
+        type: 'text',
+        text: SYSTEM_PROMPT,
+        cache_control: { type: 'ephemeral' },
+    },
+];
+
+function logUsage(label, usage) {
+    if (!usage) return;
+    const parts = [
+        `in=${usage.input_tokens ?? 0}`,
+        `out=${usage.output_tokens ?? 0}`,
+    ];
+    if (usage.cache_creation_input_tokens) parts.push(`cache_write=${usage.cache_creation_input_tokens}`);
+    if (usage.cache_read_input_tokens) parts.push(`cache_read=${usage.cache_read_input_tokens}`);
+    console.log(`    [${label}] ${parts.join(' ')}`);
+}
+
+function extractText(message) {
+    const textBlock = message.content?.find((c) => c.type === 'text');
+    if (!textBlock || !textBlock.text) throw new Error('No text in API response');
+    return textBlock.text;
+}
 
 function log(message, level = 'INFO') {
     appendLog(SCRIPT_NAME, message, level);
@@ -90,99 +117,56 @@ async function splitPdfIntoChunks(pdfBytes) {
     return { chunks, pageCount };
 }
 
-async function refineSummaryWithClaude(fullMarkdown, year, issue, retried = false) {
+async function refineSummaryWithClaude(fullMarkdown, year, issue) {
     const userPrompt = getRefineUserPrompt(fullMarkdown, year, issue);
-    const body = {
+    const message = await client.messages.create({
         model: MODEL,
         max_tokens: MAX_TOKENS,
-        system: SYSTEM_PROMPT,
+        thinking: { type: 'adaptive' },
+        system: CACHED_SYSTEM,
         messages: [
             {
                 role: 'user',
                 content: [{ type: 'text', text: userPrompt }],
             },
         ],
-    };
-
-    const res = await fetch(API_URL, {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            'x-api-key': apiKey,
-            'anthropic-version': '2023-06-01',
-        },
-        body: JSON.stringify(body),
     });
-
-    if (!res.ok) {
-        const errText = await res.text();
-        if (res.status === 429 && !retried) {
-            log('Rate limited (429) on final pass, waiting 2 min then retrying...', 'WARN');
-            console.log(`  Rate limited (429) on final pass, waiting 2 min then retrying...`);
-            await delay(2 * 60 * 1000);
-            return refineSummaryWithClaude(fullMarkdown, year, issue, true);
-        }
-        throw new Error(`API ${res.status}: ${errText}`);
-    }
-
-    const data = await res.json();
-    const textBlock = data.content?.find((c) => c.type === 'text');
-    if (!textBlock || !textBlock.text) throw new Error('No text in API response (final pass)');
-    return textBlock.text;
+    logUsage('refine', message.usage);
+    return extractText(message);
 }
 
-async function summarizePdfBase64(base64, userPrompt, retried = false) {
-    const body = {
-        model: MODEL,
-        max_tokens: MAX_TOKENS,
-        system: SYSTEM_PROMPT,
-        messages: [
-            {
-                role: 'user',
-                content: [
-                    {
-                        type: 'document',
-                        source: {
-                            type: 'base64',
-                            media_type: 'application/pdf',
-                            data: base64,
+async function summarizePdfBase64(base64, userPrompt, label = 'chunk') {
+    try {
+        const message = await client.messages.create({
+            model: MODEL,
+            max_tokens: MAX_TOKENS,
+            thinking: { type: 'adaptive' },
+            system: CACHED_SYSTEM,
+            messages: [
+                {
+                    role: 'user',
+                    content: [
+                        {
+                            type: 'document',
+                            source: {
+                                type: 'base64',
+                                media_type: 'application/pdf',
+                                data: base64,
+                            },
                         },
-                    },
-                    { type: 'text', text: userPrompt },
-                ],
-            },
-        ],
-    };
-
-    const res = await fetch(API_URL, {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            'x-api-key': apiKey,
-            'anthropic-version': '2023-06-01',
-        },
-        body: JSON.stringify(body),
-    });
-
-    if (!res.ok) {
-        const errText = await res.text();
-        if (res.status === 429 && !retried) {
-            log('Rate limited (429), waiting 2 min then retrying...', 'WARN');
-            console.log(`  Rate limited (429), waiting 2 min then retrying...`);
-            await delay(2 * 60 * 1000);
-            return summarizePdfBase64(base64, userPrompt, true);
+                        { type: 'text', text: userPrompt },
+                    ],
+                },
+            ],
+        });
+        logUsage(label, message.usage);
+        return extractText(message);
+    } catch (e) {
+        if (e instanceof Anthropic.BadRequestError && /100 PDF pages/.test(e.message || '')) {
+            throw new Error('PDF has more than 100 pages (API limit). Split the PDF or use a shorter document.');
         }
-        let msg = `API ${res.status}: ${errText}`;
-        if (res.status === 400 && errText.includes('100 PDF pages')) {
-            msg = 'PDF has more than 100 pages (API limit). Split the PDF or use a shorter document.';
-        }
-        throw new Error(msg);
+        throw e;
     }
-
-    const data = await res.json();
-    const textBlock = data.content?.find((c) => c.type === 'text');
-    if (!textBlock || !textBlock.text) throw new Error('No text in API response');
-    return textBlock.text;
 }
 
 async function summarizePdf(pdfPath, year, issue) {
@@ -191,34 +175,31 @@ async function summarizePdf(pdfPath, year, issue) {
 
     if (chunks.length === 1) {
         return summarizePdfBase64(
-            Buffer.from(chunks[0]).toString('base64'), 
-            getSummarizePrompt(year, issue)
+            Buffer.from(chunks[0]).toString('base64'),
+            getSummarizePrompt(year, issue),
+            'single'
         );
     }
 
     console.log(`  ${pageCount} pages → ${chunks.length} chunks (${PAGES_PER_CHUNK} pages each)`);
     const parts = [];
     for (let i = 0; i < chunks.length; i++) {
-        if (i > 0) {
-            console.log(`  Waiting ${DELAY_BETWEEN_CHUNKS_MS / 60000} min before next chunk (rate limit)...`);
-            await delay(DELAY_BETWEEN_CHUNKS_MS);
-        } else if (chunks.length > 1) {
-            console.log(`  Waiting ${DELAY_BETWEEN_CHUNKS_MS / 60000} min before first chunk (rate limit)...`);
-            await delay(DELAY_BETWEEN_CHUNKS_MS);
-        }
+        if (i > 0) await delay(DELAY_BETWEEN_CHUNKS_MS);
         const start = i * PAGES_PER_CHUNK + 1;
         const end = Math.min((i + 1) * PAGES_PER_CHUNK, pageCount);
         const partLabel = `част ${i + 1} от ${chunks.length}`;
         const prompt = getSummarizeChunkPrompt(partLabel, `${start}–${end}`, year, issue);
-        const md = await summarizePdfBase64(Buffer.from(chunks[i]).toString('base64'), prompt);
+        const md = await summarizePdfBase64(
+            Buffer.from(chunks[i]).toString('base64'),
+            prompt,
+            `chunk ${i + 1}/${chunks.length}`
+        );
         parts.push(md.trim());
     }
 
     const combined = parts.join('\n\n');
     console.log(`  Sending full summary to Claude for final pass...`);
-    if (DELAY_BETWEEN_CHUNKS_MS > 0) {
-        await delay(Math.min(DELAY_BETWEEN_CHUNKS_MS, 15 * 1000));
-    }
+    await delay(DELAY_BETWEEN_CHUNKS_MS);
     const finalMarkdown = await refineSummaryWithClaude(combined, year, issue);
     return finalMarkdown.trim();
 }

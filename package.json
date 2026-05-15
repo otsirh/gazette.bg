@@ -13,6 +13,7 @@
     "gazette": "node scripts/build-gazette-catalog.js && npx --yes serve -s -p 3000"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.96.0",
     "dotenv": "^16.4.5",
     "pdf-lib": "^1.17.1",
     "resend": "^6.9.1"
