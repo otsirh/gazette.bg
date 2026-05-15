@@ -17,6 +17,7 @@ function getLastLogLines(maxLines = MAX_BUFFER_LINES) {
 }
 
 function sendAlertOnce(scriptName, message) {
+    if (process.env.SEND_ALERT_EMAILS !== 'true') return;
     const to = process.env.ALERT_EMAIL && process.env.ALERT_EMAIL.trim();
     const resendKey = process.env.RESEND_API_KEY && process.env.RESEND_API_KEY.trim();
     if (!to || !resendKey || alertEmailSentThisProcess) return;
@@ -38,7 +39,9 @@ function sendAlertOnce(scriptName, message) {
         ? process.env.ALERT_FROM
         : 'Gazette Alerts <onboarding@resend.dev>';
     const resend = new Resend(resendKey);
-    alertSendPromise = resend.emails.send({ from, to, subject, text: body }).catch(() => {});
+    alertSendPromise = resend.emails.send({ from, to, subject, text: body }).catch((e) => {
+        console.error('[logger] alert email send failed:', e && (e.message || e));
+    });
 }
 
 function flushAlertEmail() {

@@ -17,14 +17,6 @@ function log(message, level = 'INFO') {
     appendLog(SCRIPT_NAME, message, level);
 }
 
-function fail(message, cause) {
-    log(message, 'ERROR');
-    if (cause) log(String(cause), 'ERROR');
-    console.error('[download-latest-gazette]', message);
-    if (cause) console.error(cause);
-    flushAlertEmail().then(() => process.exit(1));
-}
-
 function parseDvFilename(filename) {
     const match = (filename || '').match(/^(\d+)_(\d{2})\.pdf$/i);
     if (!match) return null;
@@ -92,27 +84,32 @@ function writeIssueMetadata(issue, year, date) {
     }
 }
 
-(async () => {
-    let browser;
+async function run() {
     log('Run started', 'INFO');
+
+    let browser;
+    let issueDir;
+    let downloaded = false;
 
     try {
         browser = await chromium.launch({ headless: HEADLESS });
         const page = await browser.newPage();
 
-        await page.goto('https://dv.parliament.bg/DVWeb/broeveList.faces', {
-            waitUntil: 'domcontentloaded',
-            timeout: STEP_TIMEOUT_MS,
-        }).catch(async (e) => {
-            if (browser) await browser.close().catch(() => {});
-            fail('List page did not load (site down or URL changed?).', e.message);
-        });
+        try {
+            await page.goto('https://dv.parliament.bg/DVWeb/broeveList.faces', {
+                waitUntil: 'domcontentloaded',
+                timeout: STEP_TIMEOUT_MS,
+            });
+        } catch (e) {
+            throw new Error('List page did not load (site down or URL changed?): ' + e.message);
+        }
 
         const firstDownloadLink = page.getByRole('link', { name: 'Изтегли броя' }).first();
-        await firstDownloadLink.waitFor({ state: 'visible', timeout: STEP_TIMEOUT_MS }).catch(async () => {
-            if (browser) await browser.close().catch(() => {});
-            fail("'Изтегли броя' link not found – page layout may have changed.");
-        });
+        try {
+            await firstDownloadLink.waitFor({ state: 'visible', timeout: STEP_TIMEOUT_MS });
+        } catch {
+            throw new Error("'Изтегли броя' link not found – page layout may have changed.");
+        }
 
         const downloadRowDateCell = firstDownloadLink.locator('xpath=../..').locator('.td_tabResult0').first();
         const downloadRowText = await downloadRowDateCell.textContent().catch(() => null);
@@ -121,10 +118,11 @@ function writeIssueMetadata(issue, year, date) {
         await firstDownloadLink.click();
 
         const modal = page.locator('.modal_win');
-        await modal.waitFor({ state: 'visible', timeout: STEP_TIMEOUT_MS }).catch(async () => {
-            if (browser) await browser.close().catch(() => {});
-            fail('Download modal did not appear – site flow may have changed.');
-        });
+        try {
+            await modal.waitFor({ state: 'visible', timeout: STEP_TIMEOUT_MS });
+        } catch {
+            throw new Error('Download modal did not appear – site flow may have changed.');
+        }
         const firstPdfLink = page.locator('.modal_win a[href*="fileUploadShowing"]').first();
 
         const linkText = await firstPdfLink.textContent();
@@ -132,8 +130,7 @@ function writeIssueMetadata(issue, year, date) {
         const parsed = parseDvFilename(rawFilename);
 
         if (!parsed) {
-            await browser.close().catch(() => {});
-            fail('Could not parse PDF filename from link text. Got: ' + JSON.stringify(rawFilename));
+            throw new Error('Could not parse PDF filename from link text. Got: ' + JSON.stringify(rawFilename));
         }
 
         const { issue, year } = parsed;
@@ -142,60 +139,66 @@ function writeIssueMetadata(issue, year, date) {
             const msg = `Already have issue ${year}/${issue} in issues/ – skipping`;
             log(msg, 'OK');
             console.log(msg);
-            await browser.close();
             return;
         }
 
-        const issueDir = getIssueDir(issue, year);
+        issueDir = getIssueDir(issue, year);
         const tempPdfPath = getTempPdfPath(issue, year);
         fs.mkdirSync(issueDir, { recursive: true });
 
+        let pdfDownload;
         try {
-            const [pdfDownload] = await Promise.all([
+            [pdfDownload] = await Promise.all([
                 page.waitForEvent('download', { timeout: STEP_TIMEOUT_MS }),
                 firstPdfLink.click(),
-            ]).catch(async (e) => {
-                if (browser) await browser.close().catch(() => {});
-                throw new Error('PDF download did not start or timed out – link or server may have changed. ' + (e && e.message));
-            });
-
-            await pdfDownload.saveAs(tempPdfPath);
-            await browser.close();
-            log('PDF downloaded to temp', 'INFO');
-
-            if (downloadRowDate) {
-                writeIssueMetadata(issue, year, toBulgarianDateFormat(downloadRowDate));
-            }
-
-            const summarizeScript = path.join(__dirname, 'summarize-gazette.js');
-            const result = spawnSync('node', [summarizeScript, String(year), String(issue), tempPdfPath], {
-                cwd: ROOT,
-                stdio: 'inherit',
-                shell: false,
-            });
-
-            if (result.status !== 0) {
-                revertIssueDir(issueDir);
-                fail('Summarize failed (exit ' + result.status + '). Issue folder reverted.');
-            }
-
-            if (fs.existsSync(tempPdfPath)) {
-                fs.unlinkSync(tempPdfPath);
-                log('Removed temp PDF', 'INFO');
-            }
-            log('Issue ' + year + '/' + issue + ' saved (JSON + MD only)', 'OK');
-            console.log('Issue ' + year + '/' + issue + ' saved to issues/ (JSON + MD only).');
+            ]);
         } catch (e) {
-            await browser.close().catch(() => {});
-            revertIssueDir(issueDir);
-            fail(e.message || 'Unexpected error.', e);
+            throw new Error('PDF download did not start or timed out – link or server may have changed: ' + (e && e.message));
         }
-    } catch (e) {
+
+        await pdfDownload.saveAs(tempPdfPath);
+        downloaded = true;
+        log('PDF downloaded to temp', 'INFO');
+
+        // Close the browser before kicking off the long-running summarize step.
+        await browser.close().catch(() => {});
+        browser = undefined;
+
+        if (downloadRowDate) {
+            writeIssueMetadata(issue, year, toBulgarianDateFormat(downloadRowDate));
+        }
+
+        const summarizeScript = path.join(__dirname, 'summarize-gazette.js');
+        const result = spawnSync('node', [summarizeScript, String(year), String(issue), tempPdfPath], {
+            cwd: ROOT,
+            stdio: 'inherit',
+            shell: false,
+        });
+
+        if (result.status !== 0) {
+            revertIssueDir(issueDir);
+            issueDir = undefined;
+            throw new Error('Summarize failed (exit ' + result.status + '). Issue folder reverted.');
+        }
+
+        if (fs.existsSync(tempPdfPath)) {
+            fs.unlinkSync(tempPdfPath);
+            log('Removed temp PDF', 'INFO');
+        }
+        log('Issue ' + year + '/' + issue + ' saved (JSON + MD only)', 'OK');
+        console.log('Issue ' + year + '/' + issue + ' saved to issues/ (JSON + MD only).');
+    } finally {
         if (browser) await browser.close().catch(() => {});
-        fail('Unexpected error.', e.message || e);
+        if (downloaded === false && issueDir) {
+            // Failed before PDF was saved — nothing to keep.
+            revertIssueDir(issueDir);
+        }
     }
-})().catch((e) => {
-    log('Unhandled error: ' + (e && (e.message || e)), 'ERROR');
-    console.error('[download-latest-gazette] Unhandled error:', e);
-    flushAlertEmail().then(() => process.exit(1));
+}
+
+run().catch(async (e) => {
+    log(e.message || String(e), 'ERROR');
+    console.error('[download-latest-gazette]', e.message || e);
+    await flushAlertEmail();
+    process.exit(1);
 });

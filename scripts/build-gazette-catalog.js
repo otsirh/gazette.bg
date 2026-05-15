@@ -10,8 +10,6 @@ const ROOT = path.join(__dirname, '..');
 const ISSUES_DIR = path.join(ROOT, 'issues');
 const CATALOG_PATH = path.join(ROOT, 'catalog.json');
 
-const issueHeadingRe = /# State Gazette[^\n]*Issue (\d+),\s*([^\n#]+?)(?:\s*$|\s*#)/m;
-
 const BG_MONTHS = ['януари', 'февруари', 'март', 'април', 'май', 'юни', 'юли', 'август', 'септември', 'октомври', 'ноември', 'декември'];
 const BG_MONTHS_CAP = ['Януари', 'Февруари', 'Март', 'Април', 'Май', 'Юни', 'Юли', 'Август', 'Септември', 'Октомври', 'Ноември', 'Декември'];
 
@@ -43,12 +41,6 @@ function countWords(text) {
     return words.length;
 }
 
-function extractIssueInfo(content) {
-    const m = content.match(issueHeadingRe);
-    if (!m) return null;
-    return { issue: parseInt(m[1], 10), date: m[2].trim() };
-}
-
 function buildCatalog() {
     const catalog = { years: {} };
     if (!fs.existsSync(ISSUES_DIR)) {
@@ -78,18 +70,13 @@ function buildCatalog() {
             const filePath = path.join(issueDirPath, mdName);
             if (!fs.existsSync(filePath)) continue;
             const content = fs.readFileSync(filePath, 'utf8');
-            const info = extractIssueInfo(content);
             const readMinutes = Math.max(1, Math.round(countWords(content) / WORDS_PER_MINUTE));
-            const effectiveIssue = info ? info.issue : issueNum;
-            const dateFromJson = getIssueDateFromJson(issueDirPath, issueNum);
-            const dateFromMarkdown = info ? normalizeDate(info.date) : '';
-            const entry = {
-                issue: effectiveIssue,
-                date: dateFromJson || dateFromMarkdown || '',
+            catalog.years[year].push({
+                issue: issueNum,
+                date: getIssueDateFromJson(issueDirPath, issueNum) || '',
                 file: `issues/${year}/${folderName}/${mdName}`,
                 readMinutes,
-            };
-            catalog.years[year].push(entry);
+            });
         }
     }
 
