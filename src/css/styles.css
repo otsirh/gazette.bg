@@ -30,7 +30,7 @@
         --rule: #e8e3d8;
         --text: #ede7d8;
         --text-soft: #c8c1b1;
-        --muted: #8a8478;
+        --muted: #978f7f;
         --accent: #e08758;
         --accent-hover: #f1a07a;
         --accent-soft: rgba(224, 135, 88, 0.12);
@@ -58,6 +58,11 @@ body {
 button, input, textarea, select { font-family: inherit; }
 
 body.issue-open .masthead { display: none; }
+
+#issue-view { display: none; }
+html.initial-issue-route .masthead { display: none; }
+html.initial-issue-route #home-view { display: none; }
+html.initial-issue-route #issue-view { display: block; }
 
 /* ─── Masthead ──────────────────────────────────────── */
 
@@ -338,7 +343,10 @@ main .loading {
     margin-top: var(--gap-xl);
     margin-bottom: 0;
     padding-top: var(--gap-lg);
+    display: none;
 }
+
+body.issue-ready .back-bar-bottom { display: flex; }
 
 .back-btn {
     display: inline-flex;

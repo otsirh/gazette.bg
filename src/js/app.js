@@ -219,7 +219,9 @@
     function showHome() {
         currentIssue = null;
         document.title = PAGE_TITLE_BASE;
+        document.documentElement.classList.remove('initial-issue-route');
         document.body.classList.remove('issue-open');
+        document.body.classList.remove('issue-ready');
         homeView.style.display = 'block';
         issueView.style.display = 'none';
         window.scrollTo(0, 0);
@@ -236,6 +238,7 @@
     }
 
     function showIssue() {
+        document.body.classList.remove('issue-ready');
         document.body.classList.add('issue-open');
         homeView.style.display = 'none';
         issueView.style.display = 'block';
@@ -393,6 +396,7 @@
         }
         renderIssueNav();
         mainLoading.style.display = 'none';
+        document.body.classList.add('issue-ready');
         const { prev, next } = getAdjacentIssues();
         if (prev && prev.file) fetch(prev.file.startsWith('/') ? prev.file : '/' + prev.file).catch(() => {});
         if (next && next.file) fetch(next.file.startsWith('/') ? next.file : '/' + next.file).catch(() => {});
