@@ -49,6 +49,13 @@ async function main() {
         process.exit(code);
     }
 
+    console.log('\n[update-gazette] 4. Pre-render issue pages');
+    code = run('Build issue pages', path.join(SCRIPTS_DIR, 'build-issue-pages.js'));
+    if (code !== 0) {
+        await flushAlertEmail();
+        process.exit(code);
+    }
+
     appendLog(SCRIPT_NAME, 'Full update completed', 'OK');
     console.log('\n[update-gazette] Done. New issue(s) are in issues/ and the website catalog is updated.\n');
 }

@@ -4,8 +4,8 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "build": "node scripts/build-gazette-catalog.js",
-    "serve": "npx --yes serve -s -p 3000",
+    "build": "node scripts/build-gazette-catalog.js && node scripts/build-issue-pages.js",
+    "serve": "npx --yes serve -p 3000",
     "dev": "npm run build && npm run serve",
     "download-latest-gazette": "node scripts/download-latest-gazette.js",
     "summarize-gazette": "node scripts/summarize-gazette.js",
@@ -16,6 +16,7 @@
   "dependencies": {
     "@anthropic-ai/sdk": "^0.96.0",
     "dotenv": "^16.4.5",
+    "marked": "^18.0.3",
     "pdf-lib": "^1.17.1",
     "resend": "^6.9.1"
   },

@@ -432,6 +432,16 @@
         }
     }
 
+    function wireIssueNavCardHandlers(scopeEl) {
+        if (!scopeEl) return;
+        scopeEl.querySelectorAll('.issue-card').forEach((btn) => {
+            btn.addEventListener('click', () => {
+                lastFocusedCard = null;
+                openIssue(btn.dataset.file, btn.dataset.issue, btn.dataset.date, btn.dataset.year);
+            });
+        });
+    }
+
     async function init() {
         backBtns.forEach(function (btn) { btn.addEventListener('click', showHome); });
         mainEl.addEventListener('click', onMainClick);
@@ -444,16 +454,37 @@
         window.addEventListener('scroll', onScroll, { passive: true });
         if (scrollToTopBtn) scrollToTopBtn.addEventListener('click', scrollToTop);
         updateScrollToTopVisibility();
+
+        const initial = getIssueFromPath();
+        const isPreRendered = !!(initial && mainContent && mainContent.children.length > 0);
+
+        if (isPreRendered) {
+            currentIssue = { year: initial.year, issueNum: initial.issueNum };
+            if (readProgressBar) readProgressBar.style.display = 'block';
+            wireIssueNavCardHandlers(document.getElementById('issue-nav'));
+            currentTocId = null;
+            updateCurrentTocItem();
+            updateReadProgress();
+            updateScrollToTopVisibility();
+        }
+
         try {
             const r = await fetch(catalogUrl);
             if (!r.ok) throw new Error(r.statusText);
             catalog = await r.json();
         } catch (e) {
-            homeContent.innerHTML = '<p class="empty">Каталогът временно не е наличен. Моля, опитайте да презаредите страницата или да се върнете по-късно.</p>';
+            if (!isPreRendered) {
+                homeContent.innerHTML = '<p class="empty">Каталогът временно не е наличен. Моля, опитайте да презаредите страницата или да се върнете по-късно.</p>';
+            }
             return;
         }
         renderHome();
-        const initial = getIssueFromPath();
+        if (isPreRendered) {
+            const { prev, next } = getAdjacentIssues();
+            if (prev && prev.file) fetch(prev.file.startsWith('/') ? prev.file : '/' + prev.file).catch(() => {});
+            if (next && next.file) fetch(next.file.startsWith('/') ? next.file : '/' + next.file).catch(() => {});
+            return;
+        }
         if (initial) {
             const item = findIssueByYearAndNumber(initial.year, initial.issueNum);
             if (item) {
