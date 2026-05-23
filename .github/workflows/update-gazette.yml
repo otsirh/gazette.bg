@@ -3,8 +3,8 @@ name: Update Gazette
 on:
   workflow_dispatch: {}
   schedule:
-    # Run daily at 08:00 UTC (adjust as needed)
-    - cron: '0 8 * * *'
+    # Run daily at 12:00 UTC
+    - cron: '0 12 * * *'
 
 jobs:
   update:
