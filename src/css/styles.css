@@ -219,6 +219,11 @@ main .loading {
     border-bottom: 2px solid var(--rule);
 }
 
+.issue-card {
+    color: inherit;
+    text-decoration: none;
+}
+
 .issue-card-hero {
     display: block;
     width: 100%;

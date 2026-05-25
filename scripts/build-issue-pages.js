@@ -121,11 +121,48 @@ function renderIssueCard(item, variant) {
     const readTime = item.readMinutes != null ? `<span class="read-time">${escapeHtml(formatReadTime(item.readMinutes))}</span>` : '';
     const variantClass = variant ? ' issue-card-' + variant : '';
     const displayDate = formatDateForHomepage(formatDateBulgarian(item.date));
-    return `<button type="button" class="issue-card${variantClass}" data-file="${escapeHtml(item.file)}" data-issue="${escapeHtml(String(item.issue))}" data-date="${escapeHtml(item.date)}" data-year="${escapeHtml(String(item.year))}">
+    const href = `/issue/${encodeURIComponent(item.year)}/${encodeURIComponent(item.issue)}`;
+    return `<a class="issue-card${variantClass}" href="${escapeHtml(href)}" data-file="${escapeHtml(item.file)}" data-issue="${escapeHtml(String(item.issue))}" data-date="${escapeHtml(item.date)}" data-year="${escapeHtml(String(item.year))}">
             <span class="num">Брой ${escapeHtml(String(item.issue))}</span>
             <span class="date">${escapeHtml(displayDate)}</span>
             ${readTime}
-        </button>`;
+        </a>`;
+}
+
+function replaceHomeContent(html, content) {
+    return html.replace(/(<!--HOME-CONTENT-START-->)[\s\S]*?(<!--HOME-CONTENT-END-->)/, `$1${content}$2`);
+}
+
+function buildHomeContentHtml(catalog) {
+    const all = getAllIssuesNewestFirst(catalog);
+    if (all.length === 0) {
+        return '<p class="empty">В момента няма налични броеве. Опитайте отново по-късно.</p>';
+    }
+    const latest = all[0];
+    const older = all.slice(1);
+    const byYear = {};
+    older.forEach((item) => {
+        if (!byYear[item.year]) byYear[item.year] = [];
+        byYear[item.year].push(item);
+    });
+    const yearKeys = Object.keys(byYear).sort((a, b) => Number(b) - Number(a));
+
+    let html = '<section class="hero-section">';
+    html += '<div class="section-eyebrow">Последен брой</div>';
+    html += renderIssueCard(latest, 'hero');
+    html += '</section>';
+
+    if (yearKeys.length) {
+        html += '<section class="archive-section">';
+        html += '<h2 class="section-title">Архив</h2>';
+        yearKeys.forEach((year) => {
+            html += `<div class="year-group"><h3 class="year-title">${escapeHtml(year)}</h3><div class="issue-list">`;
+            byYear[year].forEach((item) => { html += renderIssueCard(item, 'row'); });
+            html += '</div></div>';
+        });
+        html += '</section>';
+    }
+    return html;
 }
 
 function getAllIssuesNewestFirst(catalog) {
@@ -204,7 +241,10 @@ function buildIssuePage(template, item, prev, next) {
 
 function build() {
     const catalog = JSON.parse(fs.readFileSync(CATALOG_PATH, 'utf8'));
-    const template = fs.readFileSync(TEMPLATE_PATH, 'utf8');
+    const rawTemplate = fs.readFileSync(TEMPLATE_PATH, 'utf8');
+    // Strip any pre-rendered home content so the template is clean for issue pages
+    // and as the base for a fresh homepage build.
+    const cleanTemplate = replaceHomeContent(rawTemplate, '');
     const all = getAllIssuesNewestFirst(catalog);
 
     fs.mkdirSync(OUTPUT_DIR, { recursive: true });
@@ -215,14 +255,18 @@ function build() {
         const prev = idx >= 0 && idx + 1 < all.length ? all[idx + 1] : null;
         const next = idx > 0 ? all[idx - 1] : null;
 
-        const html = buildIssuePage(template, entry, prev, next);
+        const html = buildIssuePage(cleanTemplate, entry, prev, next);
         const dir = path.join(OUTPUT_DIR, String(entry.year), String(entry.issue));
         fs.mkdirSync(dir, { recursive: true });
         fs.writeFileSync(path.join(dir, 'index.html'), html, 'utf8');
         count++;
     }
 
-    console.log(`[build-issue-pages] Wrote ${count} pages to ${OUTPUT_DIR}`);
+    // Pre-render homepage with the full issue list so crawlers see all internal links.
+    const homeHtml = replaceHomeContent(cleanTemplate, buildHomeContentHtml(catalog));
+    fs.writeFileSync(TEMPLATE_PATH, homeHtml, 'utf8');
+
+    console.log(`[build-issue-pages] Wrote ${count} pages to ${OUTPUT_DIR} and updated ${TEMPLATE_PATH}`);
     return count;
 }
 

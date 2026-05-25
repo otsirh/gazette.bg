@@ -168,11 +168,12 @@
         const readTime = item.readMinutes != null ? `<span class="read-time">${formatReadTime(item.readMinutes)}</span>` : '';
         const variantClass = variant ? ' issue-card-' + variant : '';
         const displayDate = formatDateForHomepage(formatDateBulgarian(item.date));
-        return `<button type="button" class="issue-card${variantClass}" data-file="${escapeHtml(item.file)}" data-issue="${item.issue}" data-date="${escapeHtml(item.date)}" data-year="${escapeHtml(item.year)}">
+        const href = `/issue/${encodeURIComponent(item.year)}/${encodeURIComponent(item.issue)}`;
+        return `<a class="issue-card${variantClass}" href="${escapeHtml(href)}" data-file="${escapeHtml(item.file)}" data-issue="${item.issue}" data-date="${escapeHtml(item.date)}" data-year="${escapeHtml(item.year)}">
             <span class="num">Брой ${item.issue}</span>
             <span class="date">${escapeHtml(displayDate)}</span>
             ${readTime}
-        </button>`;
+        </a>`;
     }
 
     function renderHome() {
@@ -208,12 +209,6 @@
         }
 
         homeContent.innerHTML = html;
-        homeContent.querySelectorAll('.issue-card').forEach((btn) => {
-            btn.addEventListener('click', () => {
-                lastFocusedCard = btn;
-                openIssue(btn.dataset.file, btn.dataset.issue, btn.dataset.date, btn.dataset.year);
-            });
-        });
     }
 
     function showHome() {
@@ -316,12 +311,6 @@
             html += '</div></div>';
         }
         navEl.innerHTML = html;
-        navEl.querySelectorAll('.issue-card').forEach((btn) => {
-            btn.addEventListener('click', () => {
-                lastFocusedCard = null;
-                openIssue(btn.dataset.file, btn.dataset.issue, btn.dataset.date, btn.dataset.year);
-            });
-        });
     }
 
     const TOC_ACTIVE_OFFSET = 120;
@@ -421,6 +410,19 @@
             showHome();
             return;
         }
+        const card = e.target.closest('a.issue-card');
+        if (card) {
+            if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button !== 0) return;
+            const file = card.dataset.file;
+            const issueNum = card.dataset.issue;
+            const date = card.dataset.date;
+            const year = card.dataset.year;
+            if (!file || !issueNum) return;
+            e.preventDefault();
+            lastFocusedCard = card;
+            openIssue(file, issueNum, date, year);
+            return;
+        }
         const link = e.target.closest('.issue-toc a[href^="#"]');
         if (!link) return;
         const id = link.getAttribute('href').slice(1);
@@ -430,16 +432,6 @@
             e.preventDefault();
             el.scrollIntoView({ behavior: 'smooth', block: 'start' });
         }
-    }
-
-    function wireIssueNavCardHandlers(scopeEl) {
-        if (!scopeEl) return;
-        scopeEl.querySelectorAll('.issue-card').forEach((btn) => {
-            btn.addEventListener('click', () => {
-                lastFocusedCard = null;
-                openIssue(btn.dataset.file, btn.dataset.issue, btn.dataset.date, btn.dataset.year);
-            });
-        });
     }
 
     async function init() {
@@ -461,7 +453,6 @@
         if (isPreRendered) {
             currentIssue = { year: initial.year, issueNum: initial.issueNum };
             if (readProgressBar) readProgressBar.style.display = 'block';
-            wireIssueNavCardHandlers(document.getElementById('issue-nav'));
             currentTocId = null;
             updateCurrentTocItem();
             updateReadProgress();
