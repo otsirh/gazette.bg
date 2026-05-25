@@ -494,6 +494,50 @@ body.issue-ready .back-bar-bottom { display: flex; }
     flex-shrink: 0;
 }
 
+.not-found-section {
+    max-width: 36rem;
+    margin: 0 auto;
+    padding: var(--gap-2xl) 0;
+    text-align: center;
+}
+
+.not-found-eyebrow {
+    font-family: var(--font-sans);
+    font-size: 0.875rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.14em;
+    color: var(--accent);
+    margin: 0 0 var(--gap-md);
+}
+
+.not-found-title {
+    font-family: var(--font-serif);
+    font-size: clamp(1.75rem, 4vw, 2.5rem);
+    font-weight: 700;
+    line-height: 1.15;
+    color: var(--text);
+    margin: 0 0 var(--gap-lg);
+}
+
+.not-found-text {
+    font-family: var(--font-serif);
+    font-size: 1.0625rem;
+    line-height: 1.7;
+    color: var(--text-soft);
+    margin: 0 0 var(--gap-xl);
+}
+
+.not-found-link {
+    color: var(--accent);
+    text-decoration: none;
+    font-weight: 600;
+}
+
+.not-found-link:hover {
+    text-decoration: underline;
+}
+
 .issue-related {
     margin-top: var(--gap-3xl);
 }

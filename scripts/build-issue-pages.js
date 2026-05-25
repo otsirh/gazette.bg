@@ -13,6 +13,7 @@ const CATALOG_PATH = path.join(ROOT, 'catalog.json');
 const OUTPUT_DIR = path.join(ROOT, 'issue');
 const SITEMAP_PATH = path.join(ROOT, 'sitemap.xml');
 const CSS_PATH = path.join(ROOT, 'src', 'css', 'styles.css');
+const NOT_FOUND_PATH = path.join(ROOT, '404.html');
 
 const BG_MONTHS = ['януари', 'февруари', 'март', 'април', 'май', 'юни', 'юли', 'август', 'септември', 'октомври', 'ноември', 'декември'];
 const BG_MONTHS_CAP = ['Януари', 'Февруари', 'Март', 'Април', 'Май', 'Юни', 'Юли', 'Август', 'Септември', 'Октомври', 'Ноември', 'Декември'];
@@ -133,6 +134,20 @@ function renderIssueCard(item, variant) {
 
 function replaceHomeContent(html, content) {
     return html.replace(/(<!--HOME-CONTENT-START-->)[\s\S]*?(<!--HOME-CONTENT-END-->)/, `$1${content}$2`);
+}
+
+function buildNotFoundHtml(cleanTemplate) {
+    const body = `<section class="not-found-section">
+                    <p class="not-found-eyebrow">404</p>
+                    <h2 class="not-found-title">Страницата не е намерена</h2>
+                    <p class="not-found-text">Възможно е броят, който търсите, никога да не е съществувал или връзката да е остаряла. Върнете се към началната страница, за да разгледате наличните броеве на Държавен вестник.</p>
+                    <p class="not-found-actions"><a class="not-found-link" href="/">← Към началната страница</a></p>
+                </section>`;
+    let html = cleanTemplate;
+    html = html.replace(/<title>[\s\S]*?<\/title>/, '<title>Страницата не е намерена — Държавен вестник</title>');
+    html = html.replace(/(<meta property="og:title" content=")[^"]*("\s*\/>)/, '$1Страницата не е намерена — Държавен вестник$2');
+    html = replaceHomeContent(html, body);
+    return html;
 }
 
 function inlineCriticalCss(html) {
@@ -341,8 +356,9 @@ function build() {
     fs.writeFileSync(TEMPLATE_PATH, homeHtml, 'utf8');
 
     fs.writeFileSync(SITEMAP_PATH, buildSitemapXml(catalog), 'utf8');
+    fs.writeFileSync(NOT_FOUND_PATH, buildNotFoundHtml(cleanTemplate), 'utf8');
 
-    console.log(`[build-issue-pages] Wrote ${count} pages to ${OUTPUT_DIR}, updated ${TEMPLATE_PATH}, wrote ${SITEMAP_PATH}`);
+    console.log(`[build-issue-pages] Wrote ${count} pages to ${OUTPUT_DIR}, updated ${TEMPLATE_PATH}, wrote ${SITEMAP_PATH} and ${NOT_FOUND_PATH}`);
     return count;
 }
 
