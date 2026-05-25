@@ -90,9 +90,11 @@ body {
 
 button, input, textarea, select { font-family: inherit; }
 
-body.issue-open .masthead { display: none; }
+body.issue-open .masthead,
+body.issue-open #home-view { display: none; }
 
 #issue-view { display: none; }
+.issue-nav:empty { display: none; }
 html.initial-issue-route .masthead { display: none; }
 html.initial-issue-route #home-view { display: none; }
 html.initial-issue-route #issue-view { display: block; }

@@ -109,9 +109,11 @@ body {
 
 button, input, textarea, select { font-family: inherit; }
 
-body.issue-open .masthead { display: none; }
+body.issue-open .masthead,
+body.issue-open #home-view { display: none; }
 
 #issue-view { display: none; }
+.issue-nav:empty { display: none; }
 html.initial-issue-route .masthead { display: none; }
 html.initial-issue-route #home-view { display: none; }
 html.initial-issue-route #issue-view { display: block; }
@@ -1280,7 +1282,7 @@ body.issue-ready .back-bar-bottom { display: flex; }
                     <button type="button" class="back-btn" id="back-btn-bottom" aria-label="Обратно към началната страница">← Обратно към началната страница</button>
                 </div>
             </div>
-            <div class="loading" id="loading" style="display:none;">Зареждане…</div>
+            <div class="loading" id="loading" hidden>Зареждане…</div>
         </main>
     </div>
     <button type="button" class="scroll-to-top" id="scroll-to-top" aria-label="Обратно нагоре" title="Обратно нагоре">↑</button>

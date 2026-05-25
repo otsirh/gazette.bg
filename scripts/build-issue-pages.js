@@ -243,8 +243,6 @@ function buildIssueViewInner(item, prev, next, related) {
     if (next) {
         navHtml += `<div class="issue-nav-group"><div class="issue-nav-title">Следващ брой →</div><div class="issue-cards">${renderIssueCard(next)}</div></div>`;
     }
-    const navAttrs = (prev || next) ? '' : ' style="display:none;"';
-
     let relatedHtml = '';
     if (related && related.length) {
         let cards = '';
@@ -262,7 +260,7 @@ function buildIssueViewInner(item, prev, next, related) {
                 <div class="issue-header" id="issue-header">${headerHtml}</div>
                 ${shareHtml}
                 <div class="content" id="content">${contentHtml}</div>
-                <div id="issue-nav" class="issue-nav issue-nav-bottom" aria-label="Навигация между броеве"${navAttrs}>${navHtml}</div>
+                <div id="issue-nav" class="issue-nav issue-nav-bottom" aria-label="Навигация между броеве">${navHtml}</div>
                 ${relatedHtml}
                 <div class="back-bar back-bar-bottom">
                     <button type="button" class="back-btn" id="back-btn-bottom" aria-label="Обратно към началната страница">← Обратно към началната страница</button>
@@ -300,9 +298,6 @@ function buildIssuePage(template, item, prev, next, related) {
 
     // Pre-apply the issue-open and issue-ready classes so initial paint shows the article.
     html = html.replace(/<body(\s|>)/, '<body class="issue-open issue-ready"$1');
-
-    // Hide home-view inline so it doesn't flash before CSS computed styles apply.
-    html = html.replace('<div id="home-view" class="home-section">', '<div id="home-view" class="home-section" style="display:none;">');
 
     const innerHtml = buildIssueViewInner(item, prev, next, related);
     html = html.replace(/(<div id="issue-view">)[\s\S]*?(<\/div>\s*<div class="loading")/, `$1${innerHtml}\n            $2`);
