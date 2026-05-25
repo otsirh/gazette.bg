@@ -18,7 +18,7 @@
 
     let catalog = null;
 
-    const PAGE_TITLE_BASE = 'Обобщения на Държавен вестник';
+    const PAGE_TITLE_BASE = 'Държавен вестник — обобщения на броеве, генерирани с AI';
 
     function escapeHtml(s) {
         return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
