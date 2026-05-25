@@ -274,12 +274,31 @@ function buildIssuePage(template, item, prev, next, related) {
     const titleDate = stripDateSuffix(formattedDate);
     const pageTitle = `Брой ${item.issue} · ${titleDate} — ${PAGE_TITLE_BASE}`;
     const canonicalUrl = `${SITE_ORIGIN}/issue/${item.year}/${item.issue}`;
+    const isoDate = issueDateToIso(item.date);
 
     let html = template;
 
     html = html.replace(/<title>[\s\S]*?<\/title>/, `<title>${escapeHtml(pageTitle)}</title>`);
     html = html.replace(/(<meta property="og:title" content=")[^"]*("\s*\/>)/, `$1${escapeHtml(pageTitle)}$2`);
     html = html.replace(/(<meta property="og:url" content=")[^"]*("\s*\/>)/, `$1${escapeHtml(canonicalUrl)}$2`);
+
+    const articleLd = {
+        '@context': 'https://schema.org',
+        '@type': 'Article',
+        headline: `Държавен вестник, брой ${item.issue} · ${titleDate}`,
+        url: canonicalUrl,
+        inLanguage: 'bg',
+        isPartOf: {
+            '@type': 'WebSite',
+            name: 'Държавен вестник — обобщения на броеве',
+            url: `${SITE_ORIGIN}/`
+        }
+    };
+    if (isoDate) {
+        articleLd.datePublished = isoDate;
+        articleLd.dateModified = isoDate;
+    }
+    html = html.replace('</head>', `    <script type="application/ld+json">${JSON.stringify(articleLd)}</script>\n</head>`);
 
     // Pre-apply the issue-open and issue-ready classes so initial paint shows the article.
     html = html.replace(/<body(\s|>)/, '<body class="issue-open issue-ready"$1');
