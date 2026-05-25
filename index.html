@@ -15,7 +15,991 @@
     <meta property="og:url" content="https://gazette.bg/" />
     <meta property="og:locale" content="bg_BG" />
     <link rel="preload" as="font" type="font/woff2" href="/fonts/source-sans-3-cyrillic.woff2" crossorigin />
-    <link rel="stylesheet" href="/src/css/styles.css?v=2.9.0" />
+    <!--CRITICAL-CSS-START--><style>@font-face {
+    font-family: 'Source Sans 3';
+    font-style: normal;
+    font-weight: 400 700;
+    font-display: swap;
+    src: url('/fonts/source-sans-3-cyrillic.woff2') format('woff2');
+    unicode-range: U+0301, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116;
+}
+@font-face {
+    font-family: 'Source Sans 3';
+    font-style: normal;
+    font-weight: 400 700;
+    font-display: swap;
+    src: url('/fonts/source-sans-3-latin.woff2') format('woff2');
+    unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+@font-face {
+    font-family: 'Source Serif 4';
+    font-style: normal;
+    font-weight: 400 700;
+    font-display: swap;
+    src: url('/fonts/source-serif-4-cyrillic.woff2') format('woff2');
+    unicode-range: U+0301, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116;
+}
+@font-face {
+    font-family: 'Source Serif 4';
+    font-style: normal;
+    font-weight: 400 700;
+    font-display: swap;
+    src: url('/fonts/source-serif-4-latin.woff2') format('woff2');
+    unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+:root {
+    --bg: #f4ede0;
+    --surface: #fbf7ee;
+    --border: #d9cfbb;
+    --rule: #1a1a1a;
+    --text: #1a1a1a;
+    --text-soft: #3a3530;
+    --muted: #6a6258;
+    --accent: #a8421a;
+    --accent-hover: #8a3514;
+    --accent-soft: rgba(168, 66, 26, 0.08);
+    --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.04);
+    --shadow-md: 0 4px 14px rgba(0, 0, 0, 0.06);
+    --font-sans: 'Source Sans 3', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    --font-serif: 'Source Serif 4', 'Iowan Old Style', Cambria, Georgia, serif;
+    --gap-sm: 0.75rem;
+    --gap-md: 1rem;
+    --gap-lg: 1.5rem;
+    --gap-xl: 2rem;
+    --gap-2xl: 2.5rem;
+    --gap-3xl: 3.5rem;
+    color-scheme: light dark;
+}
+
+@media (prefers-color-scheme: dark) {
+    :root {
+        --bg: #14171c;
+        --surface: #1b1f26;
+        --border: #2e333d;
+        --rule: #e8e3d8;
+        --text: #ede7d8;
+        --text-soft: #c8c1b1;
+        --muted: #978f7f;
+        --accent: #e08758;
+        --accent-hover: #f1a07a;
+        --accent-soft: rgba(224, 135, 88, 0.12);
+        --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
+        --shadow-md: 0 4px 18px rgba(0, 0, 0, 0.5);
+    }
+}
+
+* { box-sizing: border-box; }
+
+html { scroll-behavior: smooth; }
+
+body {
+    margin: 0;
+    font-family: var(--font-sans);
+    background: var(--bg);
+    color: var(--text);
+    font-size: 1rem;
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+    font-feature-settings: "kern", "liga", "calt";
+}
+
+button, input, textarea, select { font-family: inherit; }
+
+body.issue-open .masthead { display: none; }
+
+#issue-view { display: none; }
+html.initial-issue-route .masthead { display: none; }
+html.initial-issue-route #home-view { display: none; }
+html.initial-issue-route #issue-view { display: block; }
+
+/* ─── Masthead ──────────────────────────────────────── */
+
+.masthead {
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    padding: var(--gap-xl) var(--gap-lg) var(--gap-2xl);
+}
+
+.masthead-inner {
+    max-width: 1100px;
+    margin: 0 auto;
+    text-align: center;
+}
+
+.masthead-eyebrow {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    font-size: 0.6875rem;
+    text-transform: uppercase;
+    letter-spacing: 0.14em;
+    color: var(--muted);
+    margin-bottom: var(--gap-md);
+}
+
+.masthead-rule {
+    height: 0;
+    border: none;
+    border-top: 2px solid var(--rule);
+    margin: 0;
+}
+
+.masthead-rule-top { border-top-width: 3px; }
+.masthead-rule-bottom { border-top-width: 1px; }
+
+.masthead-title {
+    font-family: var(--font-serif);
+    font-size: clamp(2rem, 6vw, 3.5rem);
+    font-weight: 700;
+    letter-spacing: -0.01em;
+    line-height: 1.05;
+    margin: var(--gap-lg) 0;
+    color: var(--text);
+}
+
+.masthead-title-link {
+    color: inherit;
+    text-decoration: none;
+}
+
+.masthead-title-link:hover {
+    color: var(--accent);
+}
+
+.masthead-disclaimer {
+    margin: var(--gap-md) auto 0;
+    max-width: 38rem;
+    font-size: 0.8125rem;
+    font-style: italic;
+    color: var(--muted);
+    line-height: 1.5;
+}
+
+.masthead-disclaimer a {
+    color: var(--text-soft);
+    text-decoration: none;
+    border-bottom: 1px solid var(--muted);
+}
+
+.masthead-disclaimer a:hover {
+    color: var(--accent);
+    border-bottom-color: var(--accent);
+}
+
+/* ─── Layout ────────────────────────────────────────── */
+
+.layout {
+    max-width: 1100px;
+    margin: 0 auto;
+    width: 100%;
+    padding: 0 var(--gap-lg);
+}
+
+main {
+    padding: var(--gap-2xl) 0 var(--gap-3xl);
+    min-width: 0;
+}
+
+main .empty,
+main .loading {
+    color: var(--muted);
+    text-align: center;
+    padding: var(--gap-2xl) var(--gap-lg);
+    font-size: 1rem;
+    font-style: italic;
+}
+
+/* ─── Home: hero ────────────────────────────────────── */
+
+.hero-section {
+    margin-bottom: var(--gap-3xl);
+}
+
+.section-eyebrow {
+    font-family: var(--font-sans);
+    font-size: 0.6875rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.14em;
+    color: var(--muted);
+    margin: 0 0 var(--gap-md);
+}
+
+.section-title {
+    font-family: var(--font-serif);
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: var(--text);
+    margin: 0 0 var(--gap-lg);
+    padding-bottom: var(--gap-sm);
+    border-bottom: 2px solid var(--rule);
+}
+
+.issue-card {
+    color: inherit;
+    text-decoration: none;
+}
+
+.about-section {
+    margin-top: var(--gap-3xl);
+}
+
+.about-section p {
+    font-family: var(--font-serif);
+    font-size: 1.0625rem;
+    line-height: 1.7;
+    color: var(--text-soft);
+    margin: 0 0 var(--gap-md);
+}
+
+.about-section p:last-child {
+    margin-bottom: 0;
+}
+
+.about-section a {
+    color: var(--accent);
+}
+
+.issue-card-hero {
+    display: block;
+    width: 100%;
+    text-align: left;
+    padding: var(--gap-xl) var(--gap-2xl);
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-left: 4px solid var(--accent);
+    border-radius: 2px;
+    cursor: pointer;
+    box-shadow: var(--shadow-md);
+    transition: transform 0.2s, box-shadow 0.2s, border-color 0.2s;
+}
+
+.issue-card-hero:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.1);
+    border-left-color: var(--accent-hover);
+}
+
+.issue-card-hero .num {
+    display: block;
+    font-family: var(--font-sans);
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.14em;
+    color: var(--accent);
+    margin-bottom: var(--gap-sm);
+}
+
+.issue-card-hero .date {
+    display: block;
+    font-family: var(--font-serif);
+    font-size: clamp(1.75rem, 4vw, 2.5rem);
+    font-weight: 700;
+    line-height: 1.1;
+    color: var(--text);
+    margin-bottom: var(--gap-sm);
+}
+
+.issue-card-hero .read-time {
+    display: block;
+    font-size: 0.875rem;
+    color: var(--muted);
+    font-style: italic;
+}
+
+/* ─── Home: archive list ────────────────────────────── */
+
+.archive-section {
+    margin-bottom: 0;
+}
+
+.year-group {
+    margin-bottom: var(--gap-2xl);
+}
+
+.year-group:last-child { margin-bottom: 0; }
+
+.year-title {
+    font-family: var(--font-sans);
+    font-size: 0.875rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: var(--muted);
+    margin: 0 0 var(--gap-sm);
+    padding-bottom: var(--gap-sm);
+    border-bottom: 1px solid var(--border);
+}
+
+.issue-list {
+    display: flex;
+    flex-direction: column;
+}
+
+.issue-card-row {
+    display: grid;
+    grid-template-columns: minmax(4.5rem, 6rem) auto minmax(0, 1fr);
+    align-items: baseline;
+    column-gap: var(--gap-lg);
+    padding: 0.7rem var(--gap-sm);
+    background: transparent;
+    border: none;
+    border-bottom: 1px solid var(--border);
+    border-radius: 0;
+    text-align: left;
+    cursor: pointer;
+    color: var(--text-soft);
+    transition: background 0.15s, color 0.15s, padding-left 0.15s;
+}
+
+.issue-card-row:hover {
+    background: var(--accent-soft);
+    color: var(--text);
+    padding-left: var(--gap-md);
+}
+
+.issue-card-row:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: -2px;
+}
+
+.issue-card-row .num {
+    font-family: var(--font-sans);
+    font-size: 0.9375rem;
+    font-weight: 600;
+    color: var(--text);
+    font-variant-numeric: tabular-nums;
+}
+
+.issue-card-row .date {
+    font-family: var(--font-serif);
+    font-size: 1rem;
+    color: var(--text-soft);
+}
+
+.issue-card-row .read-time {
+    font-family: var(--font-sans);
+    font-size: 0.8125rem;
+    color: var(--muted);
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+}
+
+/* ─── Issue view ────────────────────────────────────── */
+
+.read-progress-bar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 2px;
+    background: transparent;
+    z-index: 10;
+    display: none;
+}
+
+.read-progress-fill {
+    height: 100%;
+    width: 0%;
+    background: var(--accent);
+    transition: width 0.12s ease-out;
+}
+
+.back-bar {
+    display: flex;
+    padding: var(--gap-md) 0 var(--gap-lg);
+    margin-bottom: var(--gap-lg);
+}
+
+.back-bar-bottom {
+    border-top: 1px solid var(--border);
+    margin-top: var(--gap-xl);
+    margin-bottom: 0;
+    padding-top: var(--gap-lg);
+    display: none;
+}
+
+body.issue-ready .back-bar-bottom { display: flex; }
+
+.back-btn {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.35rem 0;
+    background: none;
+    border: none;
+    color: var(--accent);
+    font-family: var(--font-sans);
+    font-size: 0.9375rem;
+    font-weight: 500;
+    cursor: pointer;
+    text-decoration: none;
+    transition: color 0.2s;
+}
+
+.back-btn:hover { color: var(--accent-hover); }
+
+.issue-header {
+    margin-bottom: var(--gap-xl);
+    padding-bottom: var(--gap-lg);
+    border-bottom: 2px solid var(--rule);
+}
+
+.issue-share {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: var(--gap-sm);
+    margin: calc(-1 * var(--gap-md)) 0 var(--gap-xl);
+}
+
+.issue-share:empty {
+    display: none;
+}
+
+.issue-share-label {
+    font-family: var(--font-sans);
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: var(--muted);
+    margin-right: var(--gap-xs, 0.25rem);
+}
+
+.share-link {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 2rem;
+    height: 2rem;
+    border: 1px solid var(--border);
+    border-radius: 2px;
+    color: var(--text-soft);
+    text-decoration: none;
+    background: var(--surface);
+    transition: border-color 0.15s, color 0.15s, background 0.15s;
+}
+
+.share-link:hover {
+    border-color: var(--accent);
+    color: var(--accent);
+}
+
+.share-icon {
+    width: 1.1rem;
+    height: 1.1rem;
+    flex-shrink: 0;
+}
+
+.issue-related {
+    margin-top: var(--gap-3xl);
+}
+
+.issue-related:empty {
+    display: none;
+}
+
+.issue-related-all {
+    margin: var(--gap-md) 0 0;
+    font-family: var(--font-sans);
+    font-size: 0.875rem;
+}
+
+.issue-related-all a {
+    color: var(--accent);
+    text-decoration: none;
+}
+
+.issue-related-all a:hover {
+    text-decoration: underline;
+}
+
+.issue-header .meta {
+    font-family: var(--font-sans);
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.14em;
+    color: var(--accent);
+    margin-bottom: var(--gap-sm);
+}
+
+.issue-header .issue-read-time {
+    font-weight: 400;
+    text-transform: uppercase;
+    letter-spacing: 0.14em;
+    color: var(--muted);
+}
+
+.issue-header .title {
+    font-family: var(--font-serif);
+    font-size: clamp(1.75rem, 4vw, 2.5rem);
+    font-weight: 700;
+    color: var(--text);
+    line-height: 1.1;
+    margin: 0;
+    letter-spacing: -0.01em;
+}
+
+.issue-header .issue-pdf-link {
+    margin-top: var(--gap-md);
+    font-size: 0.9375rem;
+}
+
+.issue-header .issue-pdf-link a.pdf-file-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.35rem 0.7rem;
+    background: transparent;
+    color: var(--text-soft);
+    text-decoration: none;
+    border: 1px solid var(--border);
+    border-radius: 2px;
+    font-family: var(--font-sans);
+    font-size: 0.8125rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    transition: background 0.2s, border-color 0.2s, color 0.2s;
+}
+
+.issue-header .issue-pdf-link a.pdf-file-link:hover {
+    border-color: var(--text);
+    color: var(--text);
+}
+
+.issue-header .issue-pdf-link .pdf-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0.1rem 0.35rem;
+    background: var(--text);
+    color: var(--surface);
+    font-weight: 700;
+    font-size: 0.6875rem;
+    letter-spacing: 0.06em;
+    line-height: 1;
+    border-radius: 2px;
+}
+
+.content-disclaimer {
+    margin-bottom: var(--gap-xl);
+    padding: 0 0 0 var(--gap-md);
+    background: transparent;
+    border: none;
+    border-left: 2px solid var(--border);
+    border-radius: 0;
+    font-family: var(--font-sans);
+    font-size: 0.8125rem;
+    font-style: italic;
+    line-height: 1.55;
+    color: var(--muted);
+}
+
+.content-disclaimer a {
+    color: var(--text-soft);
+    text-decoration: none;
+    border-bottom: 1px solid var(--muted);
+}
+
+.content-disclaimer a:hover {
+    color: var(--accent);
+    border-bottom-color: var(--accent);
+}
+
+.issue-toc {
+    margin-bottom: var(--gap-xl);
+    padding: var(--gap-lg);
+    background: transparent;
+    border: none;
+    border-top: 1px solid var(--border);
+    border-bottom: 1px solid var(--border);
+    border-radius: 0;
+}
+
+.issue-toc-title {
+    font-family: var(--font-sans);
+    font-size: 0.6875rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.14em;
+    color: var(--muted);
+    margin: 0 0 var(--gap-md);
+}
+
+.issue-toc .issue-toc-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    counter-reset: toc-counter;
+}
+
+.issue-toc .issue-toc-list .issue-toc-item {
+    counter-increment: toc-counter;
+    margin: 0.4rem 0 0;
+    line-height: 1.5;
+    padding-left: 2rem;
+    position: relative;
+    font-family: var(--font-serif);
+    font-size: 1rem;
+}
+
+.issue-toc .issue-toc-list .issue-toc-item::before {
+    content: counter(toc-counter, decimal-leading-zero);
+    position: absolute;
+    left: 0;
+    top: 0;
+    color: var(--muted);
+    font-family: var(--font-sans);
+    font-size: 0.75rem;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    line-height: 1.7;
+    font-variant-numeric: tabular-nums;
+}
+
+.issue-toc-item a {
+    color: var(--text-soft);
+    text-decoration: none;
+    border-bottom: 1px solid transparent;
+    transition: color 0.2s, border-color 0.2s;
+}
+
+.issue-toc-item a:hover {
+    color: var(--accent);
+    border-bottom-color: var(--accent);
+}
+
+.issue-toc-item a.is-current {
+    color: var(--accent);
+    font-weight: 600;
+}
+
+/* ─── Article content (serif body) ──────────────────── */
+
+.content {
+    line-height: 1.75;
+    font-size: 1.0625rem;
+    font-family: var(--font-serif);
+    color: var(--text-soft);
+}
+
+.content [id] { scroll-margin-top: 1.5rem; }
+
+.content h1 {
+    font-family: var(--font-serif);
+    font-size: 1.75rem;
+    margin-top: 0;
+    margin-bottom: var(--gap-sm);
+    font-weight: 700;
+    color: var(--text);
+    letter-spacing: -0.005em;
+}
+
+.content h2 {
+    font-family: var(--font-serif);
+    font-size: 1.5rem;
+    margin-top: var(--gap-2xl);
+    margin-bottom: var(--gap-sm);
+    font-weight: 700;
+    color: var(--text);
+    padding-bottom: 0.4rem;
+    border-bottom: 1px solid var(--border);
+    letter-spacing: -0.005em;
+}
+
+.content h3 {
+    font-family: var(--font-serif);
+    font-size: 1.15rem;
+    margin-top: var(--gap-xl);
+    margin-bottom: 0.4rem;
+    font-weight: 600;
+    color: var(--text);
+    font-style: italic;
+}
+
+.content p {
+    margin: 0 0 var(--gap-md);
+    color: var(--text-soft);
+}
+
+.content h2 + p::first-letter {
+    font-family: var(--font-serif);
+    font-weight: 700;
+    font-size: 3.25rem;
+    line-height: 0.9;
+    float: left;
+    padding: 0.3rem 0.6rem 0 0;
+    color: var(--accent);
+}
+
+.content > .issue-toc + p {
+    font-family: var(--font-serif);
+    font-size: 1.25rem;
+    line-height: 1.55;
+    font-style: italic;
+    color: var(--text);
+    margin: 0 0 var(--gap-xl);
+    padding-bottom: var(--gap-md);
+    border-bottom: 1px solid var(--border);
+}
+
+.content > .issue-toc + p em {
+    font-style: normal;
+}
+
+.content ul,
+.content ol {
+    margin: 0 0 var(--gap-md);
+    padding-left: 1.5rem;
+    color: var(--text-soft);
+}
+
+.content li { margin: 0.3rem 0; }
+
+.content strong { color: var(--text); font-weight: 600; }
+
+.content em { color: var(--text); }
+
+.content a {
+    color: var(--accent);
+    text-decoration: none;
+    border-bottom: 1px solid var(--accent-soft);
+    transition: border-color 0.2s, color 0.2s;
+}
+
+.content a:hover {
+    color: var(--accent-hover);
+    border-bottom-color: var(--accent);
+}
+
+.content blockquote {
+    margin: var(--gap-lg) 0;
+    padding: 0 0 0 var(--gap-lg);
+    border-left: 2px solid var(--accent);
+    color: var(--text-soft);
+    font-style: italic;
+}
+
+.content hr {
+    border: none;
+    border-top: 1px solid var(--border);
+    margin: var(--gap-xl) 0;
+}
+
+.content pre,
+.content code {
+    background: rgba(0, 0, 0, 0.06);
+    padding: 0.2em 0.45em;
+    border-radius: 2px;
+    font-size: 0.92em;
+    font-family: ui-monospace, 'Cascadia Code', Menlo, monospace;
+}
+
+.content pre {
+    padding: var(--gap-lg);
+    overflow-x: auto;
+    margin: var(--gap-md) 0;
+}
+
+.content pre code { padding: 0; background: none; }
+
+/* ─── Issue bottom nav ──────────────────────────────── */
+
+.issue-nav-bottom {
+    margin-top: var(--gap-2xl);
+    padding-top: var(--gap-lg);
+    border-top: 1px solid var(--border);
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: var(--gap-lg);
+}
+
+.issue-nav-bottom .issue-nav-group { min-width: 0; }
+
+.issue-nav-bottom .issue-nav-group:only-child { grid-column: 1 / -1; }
+
+.issue-nav-bottom .issue-nav-title {
+    font-family: var(--font-sans);
+    font-size: 0.6875rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.14em;
+    color: var(--muted);
+    margin: 0 0 var(--gap-sm);
+}
+
+.issue-nav-bottom .issue-card {
+    display: block;
+    width: 100%;
+    padding: var(--gap-md) var(--gap-lg);
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 2px;
+    color: var(--text-soft);
+    text-align: left;
+    cursor: pointer;
+    transition: border-color 0.2s, color 0.2s;
+}
+
+.issue-nav-bottom .issue-card:hover {
+    border-color: var(--accent);
+    color: var(--text);
+}
+
+.issue-nav-bottom .issue-card .num {
+    display: block;
+    font-family: var(--font-sans);
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: var(--accent);
+    margin-bottom: 0.2rem;
+}
+
+.issue-nav-bottom .issue-card .date {
+    display: block;
+    font-family: var(--font-serif);
+    font-size: 1.15rem;
+    font-weight: 600;
+    color: var(--text);
+    line-height: 1.2;
+}
+
+.issue-nav-bottom .issue-card .read-time {
+    display: block;
+    font-family: var(--font-sans);
+    font-size: 0.75rem;
+    color: var(--muted);
+    margin-top: 0.3rem;
+    font-style: italic;
+}
+
+/* ─── Scroll-to-top ─────────────────────────────────── */
+
+.scroll-to-top {
+    position: fixed;
+    bottom: var(--gap-lg);
+    right: var(--gap-lg);
+    z-index: 20;
+    width: 2.5rem;
+    height: 2.5rem;
+    padding: 0;
+    border: 1px solid var(--border);
+    border-radius: 2px;
+    background: var(--surface);
+    color: var(--text-soft);
+    font-size: 1rem;
+    line-height: 1;
+    cursor: pointer;
+    box-shadow: var(--shadow-sm);
+    opacity: 0;
+    visibility: hidden;
+    transform: translateY(0.5rem);
+    transition: opacity 0.2s, visibility 0.2s, transform 0.2s, color 0.2s, border-color 0.2s;
+}
+
+.scroll-to-top.is-visible {
+    opacity: 1;
+    visibility: visible;
+    transform: translateY(0);
+}
+
+.scroll-to-top:hover {
+    color: var(--accent);
+    border-color: var(--accent);
+}
+
+/* ─── Sticky TOC on wide screens ────────────────────── */
+
+@media (min-width: 1100px) {
+    .content {
+        display: grid;
+        grid-template-columns: 220px minmax(0, 1fr);
+        column-gap: var(--gap-2xl);
+        align-items: start;
+    }
+
+    .content > .content-disclaimer { grid-column: 1 / -1; }
+
+    .content > .issue-toc {
+        grid-column: 1;
+        grid-row: 2 / span 9999;
+        margin-bottom: 0;
+        padding: var(--gap-md) 0 0;
+        border: none;
+        border-top: 2px solid var(--rule);
+        position: sticky;
+        top: var(--gap-md);
+        align-self: start;
+        max-height: calc(100vh - 2rem);
+        overflow-y: auto;
+    }
+
+    .content > .issue-toc .issue-toc-list .issue-toc-item { font-size: 0.9375rem; }
+
+    .content > :not(.content-disclaimer):not(.issue-toc) { grid-column: 2; }
+
+    .content > :not(.content-disclaimer):not(.issue-toc):first-of-type { margin-top: var(--gap-md); }
+}
+
+/* ─── Mobile ────────────────────────────────────────── */
+
+@media (max-width: 768px) {
+    .masthead {
+        padding: var(--gap-lg) var(--gap-md) var(--gap-xl);
+    }
+
+    .masthead-title { font-size: 2.25rem; }
+
+    .layout { padding: 0 var(--gap-md); }
+
+    main { padding: var(--gap-lg) 0 var(--gap-xl); }
+
+    .issue-card-hero {
+        padding: var(--gap-lg);
+    }
+
+    .issue-card-row {
+        grid-template-columns: minmax(3.5rem, 4.5rem) minmax(0, 1fr);
+        column-gap: var(--gap-sm);
+        grid-template-areas: "num date" "rt rt";
+    }
+
+    .issue-card-row .num { grid-area: num; }
+    .issue-card-row .date { grid-area: date; }
+    .issue-card-row .read-time {
+        grid-area: rt;
+        text-align: left;
+        padding-left: calc(3.5rem + var(--gap-sm));
+    }
+
+    .issue-nav-bottom {
+        grid-template-columns: 1fr;
+    }
+
+    .scroll-to-top {
+        bottom: var(--gap-md);
+        right: var(--gap-md);
+    }
+}
+
+@media print {
+    .read-progress-bar,
+    .back-bar,
+    .issue-nav,
+    .scroll-to-top {
+        display: none !important;
+    }
+    body { background: #fff; }
+    .content { font-family: var(--font-serif); }
+}
+</style><!--CRITICAL-CSS-END-->
     <script>
         if (/^\/issue\/\d+\/\d+\/?$/i.test(location.pathname)) {
             document.documentElement.classList.add('initial-issue-route');

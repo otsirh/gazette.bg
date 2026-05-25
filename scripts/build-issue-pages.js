@@ -12,6 +12,7 @@ const TEMPLATE_PATH = path.join(ROOT, 'index.html');
 const CATALOG_PATH = path.join(ROOT, 'catalog.json');
 const OUTPUT_DIR = path.join(ROOT, 'issue');
 const SITEMAP_PATH = path.join(ROOT, 'sitemap.xml');
+const CSS_PATH = path.join(ROOT, 'src', 'css', 'styles.css');
 
 const BG_MONTHS = ['януари', 'февруари', 'март', 'април', 'май', 'юни', 'юли', 'август', 'септември', 'октомври', 'ноември', 'декември'];
 const BG_MONTHS_CAP = ['Януари', 'Февруари', 'Март', 'Април', 'Май', 'Юни', 'Юли', 'Август', 'Септември', 'Октомври', 'Ноември', 'Декември'];
@@ -132,6 +133,14 @@ function renderIssueCard(item, variant) {
 
 function replaceHomeContent(html, content) {
     return html.replace(/(<!--HOME-CONTENT-START-->)[\s\S]*?(<!--HOME-CONTENT-END-->)/, `$1${content}$2`);
+}
+
+function inlineCriticalCss(html) {
+    const css = fs.readFileSync(CSS_PATH, 'utf8');
+    return html.replace(
+        /(<!--CRITICAL-CSS-START-->)[\s\S]*?(<!--CRITICAL-CSS-END-->)/,
+        `$1<style>${css}</style>$2`
+    );
 }
 
 function buildHomeContentHtml(catalog) {
@@ -306,8 +315,9 @@ function build() {
     const catalog = JSON.parse(fs.readFileSync(CATALOG_PATH, 'utf8'));
     const rawTemplate = fs.readFileSync(TEMPLATE_PATH, 'utf8');
     // Strip any pre-rendered home content so the template is clean for issue pages
-    // and as the base for a fresh homepage build.
-    const cleanTemplate = replaceHomeContent(rawTemplate, '');
+    // and as the base for a fresh homepage build. Inline the stylesheet so it
+    // doesn't block initial render.
+    const cleanTemplate = inlineCriticalCss(replaceHomeContent(rawTemplate, ''));
     const all = getAllIssuesNewestFirst(catalog);
 
     fs.mkdirSync(OUTPUT_DIR, { recursive: true });
