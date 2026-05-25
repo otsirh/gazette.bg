@@ -196,7 +196,7 @@ function renderShareLinks(url, title) {
                 </div>`;
 }
 
-function buildIssueViewInner(item, prev, next) {
+function buildIssueViewInner(item, prev, next, related) {
     const formattedDate = formatDateBulgarian(item.date);
     const titleDate = stripDateSuffix(formattedDate);
     const readTimeStr = item.readMinutes != null ? ` · ${escapeHtml(formatReadTime(item.readMinutes))}` : '';
@@ -221,6 +221,13 @@ function buildIssueViewInner(item, prev, next) {
     }
     const navAttrs = (prev || next) ? '' : ' style="display:none;"';
 
+    let relatedHtml = '';
+    if (related && related.length) {
+        let cards = '';
+        related.forEach((it) => { cards += renderIssueCard(it, 'row'); });
+        relatedHtml = `<section class="issue-related" id="issue-related" aria-label="Скорошни броеве"><h2 class="section-title">Скорошни броеве</h2><div class="issue-list">${cards}</div><p class="issue-related-all"><a href="/">Виж всички броеве →</a></p></section>`;
+    }
+
     return `
                 <div class="read-progress-bar" id="read-progress-bar" role="progressbar" aria-label="Прогрес при четене" aria-valuemin="0" aria-valuemax="100">
                     <div class="read-progress-fill" id="read-progress-fill"></div>
@@ -232,12 +239,13 @@ function buildIssueViewInner(item, prev, next) {
                 ${shareHtml}
                 <div class="content" id="content">${contentHtml}</div>
                 <div id="issue-nav" class="issue-nav issue-nav-bottom" aria-label="Навигация между броеве"${navAttrs}>${navHtml}</div>
+                ${relatedHtml}
                 <div class="back-bar back-bar-bottom">
                     <button type="button" class="back-btn" id="back-btn-bottom" aria-label="Обратно към началната страница">← Обратно към началната страница</button>
                 </div>`;
 }
 
-function buildIssuePage(template, item, prev, next) {
+function buildIssuePage(template, item, prev, next, related) {
     const formattedDate = formatDateBulgarian(item.date);
     const titleDate = stripDateSuffix(formattedDate);
     const pageTitle = `Брой ${item.issue} · ${titleDate} — ${PAGE_TITLE_BASE}`;
@@ -255,7 +263,7 @@ function buildIssuePage(template, item, prev, next) {
     // Hide home-view inline so it doesn't flash before CSS computed styles apply.
     html = html.replace('<div id="home-view" class="home-section">', '<div id="home-view" class="home-section" style="display:none;">');
 
-    const innerHtml = buildIssueViewInner(item, prev, next);
+    const innerHtml = buildIssueViewInner(item, prev, next, related);
     html = html.replace(/(<div id="issue-view">)[\s\S]*?(<\/div>\s*<div class="loading")/, `$1${innerHtml}\n            $2`);
 
     return html;
@@ -309,8 +317,9 @@ function build() {
         const idx = all.findIndex((it) => it.year === entry.year && it.issue === entry.issue);
         const prev = idx >= 0 && idx + 1 < all.length ? all[idx + 1] : null;
         const next = idx > 0 ? all[idx - 1] : null;
+        const related = all.filter((_, i) => i !== idx && i !== idx - 1 && i !== idx + 1).slice(0, 6);
 
-        const html = buildIssuePage(cleanTemplate, entry, prev, next);
+        const html = buildIssuePage(cleanTemplate, entry, prev, next, related);
         const dir = path.join(OUTPUT_DIR, String(entry.year), String(entry.issue));
         fs.mkdirSync(dir, { recursive: true });
         fs.writeFileSync(path.join(dir, 'index.html'), html, 'utf8');

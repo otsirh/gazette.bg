@@ -14,7 +14,7 @@
     <meta property="og:url" content="https://gazette.bg/" />
     <meta property="og:locale" content="bg_BG" />
     <link rel="preload" as="font" type="font/woff2" href="/fonts/source-sans-3-cyrillic.woff2" crossorigin />
-    <link rel="stylesheet" href="/src/css/styles.css?v=2.8.0" />
+    <link rel="stylesheet" href="/src/css/styles.css?v=2.9.0" />
     <script>
         if (/^\/issue\/\d+\/\d+\/?$/i.test(location.pathname)) {
             document.documentElement.classList.add('initial-issue-route');
@@ -29,7 +29,7 @@
                 <span>gazette.bg</span>
             </div>
             <div class="masthead-rule masthead-rule-top" aria-hidden="true"></div>
-            <h1 class="masthead-title">Държавен вестник — обобщения на броеве</h1>
+            <h1 class="masthead-title"><a href="/" class="masthead-title-link">Държавен вестник — обобщения на броеве</a></h1>
             <div class="masthead-rule masthead-rule-bottom" aria-hidden="true"></div>
             <p class="masthead-disclaimer">Този сайт не е официален и не е свързан с държавни органи. Обобщенията може да съдържат грешки. Официален източник: <a href="https://dv.parliament.bg" target="_blank" rel="noopener">dv.parliament.bg</a>.</p>
         </div>
@@ -244,6 +244,7 @@
                 <div class="issue-share" id="issue-share"></div>
                 <div class="content" id="content"></div>
                 <div id="issue-nav" class="issue-nav issue-nav-bottom" aria-label="Навигация между броеве"></div>
+                <section class="issue-related" id="issue-related" aria-label="Скорошни броеве"></section>
                 <div class="back-bar back-bar-bottom">
                     <button type="button" class="back-btn" id="back-btn-bottom" aria-label="Обратно към началната страница">← Обратно към началната страница</button>
                 </div>
@@ -253,6 +254,6 @@
     </div>
     <button type="button" class="scroll-to-top" id="scroll-to-top" aria-label="Обратно нагоре" title="Обратно нагоре">↑</button>
     <script defer src="https://cdn.jsdelivr.net/npm/marked@17/lib/marked.umd.js"></script>
-    <script defer src="/src/js/app.js?v=2.7.0"></script>
+    <script defer src="/src/js/app.js?v=2.8.0"></script>
 </body>
 </html>

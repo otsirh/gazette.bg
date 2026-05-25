@@ -307,6 +307,20 @@
         };
     }
 
+    function renderIssueRelated() {
+        const el = document.getElementById('issue-related');
+        if (!el) return;
+        if (!currentIssue || !catalog) { el.innerHTML = ''; return; }
+        const all = getAllIssuesNewestFirst();
+        const idx = all.findIndex((item) => String(item.year) === currentIssue.year && String(item.issue) === currentIssue.issueNum);
+        if (idx < 0) { el.innerHTML = ''; return; }
+        const related = all.filter((_, i) => i !== idx && i !== idx - 1 && i !== idx + 1).slice(0, 6);
+        if (!related.length) { el.innerHTML = ''; return; }
+        let cards = '';
+        related.forEach((it) => { cards += renderIssueCard(it, 'row'); });
+        el.innerHTML = `<h2 class="section-title">Скорошни броеве</h2><div class="issue-list">${cards}</div><p class="issue-related-all"><a href="/">Виж всички броеве →</a></p>`;
+    }
+
     function renderIssueNav() {
         const navEl = document.getElementById('issue-nav');
         if (!navEl || !catalog) return;
@@ -412,6 +426,7 @@
             mainContent.innerHTML = '<p>Този брой не може да бъде зареден в момента. Моля, опитайте отново или изберете друг брой от началната страница.</p><p><a href="/" class="back-btn">← Обратно към началната страница</a></p>';
         }
         renderIssueNav();
+        renderIssueRelated();
         mainLoading.style.display = 'none';
         document.body.classList.add('issue-ready');
         const { prev, next } = getAdjacentIssues();
