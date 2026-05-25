@@ -224,6 +224,26 @@ main .loading {
     text-decoration: none;
 }
 
+.about-section {
+    margin-top: var(--gap-3xl);
+}
+
+.about-section p {
+    font-family: var(--font-serif);
+    font-size: 1.0625rem;
+    line-height: 1.7;
+    color: var(--text-soft);
+    margin: 0 0 var(--gap-md);
+}
+
+.about-section p:last-child {
+    margin-bottom: 0;
+}
+
+.about-section a {
+    color: var(--accent);
+}
+
 .issue-card-hero {
     display: block;
     width: 100%;
