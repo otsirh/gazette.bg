@@ -11,6 +11,7 @@ const ROOT = path.join(__dirname, '..');
 const TEMPLATE_PATH = path.join(ROOT, 'index.html');
 const CATALOG_PATH = path.join(ROOT, 'catalog.json');
 const OUTPUT_DIR = path.join(ROOT, 'issue');
+const SITEMAP_PATH = path.join(ROOT, 'sitemap.xml');
 
 const BG_MONTHS = ['януари', 'февруари', 'март', 'април', 'май', 'юни', 'юли', 'август', 'септември', 'октомври', 'ноември', 'декември'];
 const BG_MONTHS_CAP = ['Януари', 'Февруари', 'Март', 'Април', 'Май', 'Юни', 'Юли', 'Август', 'Септември', 'Октомври', 'Ноември', 'Декември'];
@@ -239,6 +240,39 @@ function buildIssuePage(template, item, prev, next) {
     return html;
 }
 
+function issueDateToIso(str) {
+    if (!str || typeof str !== 'string') return null;
+    const dotMatch = str.match(/^(\d{1,2})\.(\d{1,2})\.(\d{4})/);
+    if (dotMatch) {
+        return `${dotMatch[3]}-${dotMatch[2].padStart(2, '0')}-${dotMatch[1].padStart(2, '0')}`;
+    }
+    const bgMatch = str.match(/^(\d{1,2})\s+([^\s]+)\s+(\d{4})/);
+    if (bgMatch) {
+        const day = bgMatch[1].padStart(2, '0');
+        const monthName = bgMatch[2].toLowerCase();
+        const monthIdx = BG_MONTHS.indexOf(monthName);
+        if (monthIdx >= 0) {
+            const mm = String(monthIdx + 1).padStart(2, '0');
+            return `${bgMatch[3]}-${mm}-${day}`;
+        }
+    }
+    return null;
+}
+
+function buildSitemapXml(catalog) {
+    const all = getAllIssuesNewestFirst(catalog);
+    const today = new Date().toISOString().slice(0, 10);
+    const latestIso = all.length ? (issueDateToIso(all[0].date) || today) : today;
+    const urls = [];
+    urls.push(`  <url>\n    <loc>${SITE_ORIGIN}/</loc>\n    <lastmod>${latestIso}</lastmod>\n    <changefreq>daily</changefreq>\n    <priority>1.0</priority>\n  </url>`);
+    for (const item of all) {
+        const iso = issueDateToIso(item.date) || today;
+        const loc = `${SITE_ORIGIN}/issue/${encodeURIComponent(item.year)}/${encodeURIComponent(item.issue)}`;
+        urls.push(`  <url>\n    <loc>${loc}</loc>\n    <lastmod>${iso}</lastmod>\n    <changefreq>yearly</changefreq>\n    <priority>0.7</priority>\n  </url>`);
+    }
+    return `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${urls.join('\n')}\n</urlset>\n`;
+}
+
 function build() {
     const catalog = JSON.parse(fs.readFileSync(CATALOG_PATH, 'utf8'));
     const rawTemplate = fs.readFileSync(TEMPLATE_PATH, 'utf8');
@@ -266,7 +300,9 @@ function build() {
     const homeHtml = replaceHomeContent(cleanTemplate, buildHomeContentHtml(catalog));
     fs.writeFileSync(TEMPLATE_PATH, homeHtml, 'utf8');
 
-    console.log(`[build-issue-pages] Wrote ${count} pages to ${OUTPUT_DIR} and updated ${TEMPLATE_PATH}`);
+    fs.writeFileSync(SITEMAP_PATH, buildSitemapXml(catalog), 'utf8');
+
+    console.log(`[build-issue-pages] Wrote ${count} pages to ${OUTPUT_DIR}, updated ${TEMPLATE_PATH}, wrote ${SITEMAP_PATH}`);
     return count;
 }
 
