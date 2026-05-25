@@ -289,11 +289,8 @@ function buildIssuePage(template, item, prev, next, related) {
         headline: `Държавен вестник, брой ${item.issue} · ${titleDate}`,
         url: canonicalUrl,
         inLanguage: 'bg',
-        isPartOf: {
-            '@type': 'WebSite',
-            name: 'Държавен вестник — обобщения на броеве',
-            url: `${SITE_ORIGIN}/`
-        }
+        isPartOf: { '@id': `${SITE_ORIGIN}/#website` },
+        publisher: { '@id': `${SITE_ORIGIN}/#org` }
     };
     if (isoDate) {
         articleLd.datePublished = isoDate;
