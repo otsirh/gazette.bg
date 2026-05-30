@@ -376,6 +376,16 @@
         });
     }
 
+    function scrollToHashTarget(behavior) {
+        if (!location.hash || location.hash.length < 2) return false;
+        let id = location.hash.slice(1);
+        try { id = decodeURIComponent(id); } catch (_) { /* keep raw */ }
+        const el = document.getElementById(id);
+        if (!el) return false;
+        el.scrollIntoView({ behavior: behavior || 'auto', block: 'start' });
+        return true;
+    }
+
     async function openIssue(file, issueNum, date, year) {
         if (year && issueNum) {
             currentIssue = { year: String(year), issueNum: String(issueNum) };
@@ -421,7 +431,8 @@
             currentTocId = null;
             updateCurrentTocItem();
             updateReadProgress();
-            if (backBtn) backBtn.focus();
+            if (location.hash) requestAnimationFrame(() => scrollToHashTarget('auto'));
+            else if (backBtn) backBtn.focus();
         } catch (e) {
             mainContent.innerHTML = '<p>Този брой не може да бъде зареден в момента. Моля, опитайте отново или изберете друг брой от началната страница.</p><p><a href="/" class="back-btn">← Обратно към началната страница</a></p>';
         }
@@ -436,7 +447,10 @@
 
     function applyRoute() {
         const fromPath = getIssueFromPath();
-        if (fromPath && currentIssue && currentIssue.year === fromPath.year && currentIssue.issueNum === fromPath.issueNum) return;
+        if (fromPath && currentIssue && currentIssue.year === fromPath.year && currentIssue.issueNum === fromPath.issueNum) {
+            if (!scrollToHashTarget('smooth')) window.scrollTo({ top: 0, behavior: 'smooth' });
+            return;
+        }
         if (fromPath) {
             const item = findIssueByYearAndNumber(fromPath.year, fromPath.issueNum);
             if (item) openIssue(item.file, item.issue, item.date, item.year);
@@ -468,12 +482,14 @@
         }
         const link = e.target.closest('.issue-toc a[href^="#"]');
         if (!link) return;
-        const id = link.getAttribute('href').slice(1);
+        const href = link.getAttribute('href');
+        const id = href.slice(1);
         if (!id) return;
         const el = document.getElementById(id);
         if (el) {
             e.preventDefault();
             el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            if (location.hash !== href) history.pushState(null, '', href);
         }
     }
 
@@ -500,6 +516,7 @@
             updateCurrentTocItem();
             updateReadProgress();
             updateScrollToTopVisibility();
+            if (location.hash) requestAnimationFrame(() => scrollToHashTarget('auto'));
         }
 
         try {
