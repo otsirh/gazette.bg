@@ -30,7 +30,6 @@ jobs:
         run: npx playwright install chromium
 
       - name: Run update-gazette
-        timeout-minutes: 20
         run: npm run update-gazette
         env:
           HEADLESS: 'true'
