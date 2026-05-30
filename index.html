@@ -307,13 +307,6 @@ main .loading {
     margin-bottom: var(--gap-sm);
 }
 
-.issue-card-hero .read-time {
-    display: block;
-    font-size: 0.875rem;
-    color: var(--muted);
-    font-style: italic;
-}
-
 /* ─── Home: archive list ────────────────────────────── */
 
 .archive-section {
@@ -345,7 +338,7 @@ main .loading {
 
 .issue-card-row {
     display: grid;
-    grid-template-columns: minmax(4.5rem, 6rem) auto minmax(0, 1fr);
+    grid-template-columns: minmax(4.5rem, 6rem) minmax(0, 1fr);
     align-items: baseline;
     column-gap: var(--gap-lg);
     padding: 0.7rem var(--gap-sm);
@@ -384,33 +377,7 @@ main .loading {
     color: var(--text-soft);
 }
 
-.issue-card-row .read-time {
-    font-family: var(--font-sans);
-    font-size: 0.8125rem;
-    color: var(--muted);
-    text-align: right;
-    font-variant-numeric: tabular-nums;
-}
-
 /* ─── Issue view ────────────────────────────────────── */
-
-.read-progress-bar {
-    position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    height: 2px;
-    background: transparent;
-    z-index: 10;
-    display: none;
-}
-
-.read-progress-fill {
-    height: 100%;
-    width: 0%;
-    background: var(--accent);
-    transition: width 0.12s ease-out;
-}
 
 .back-bar {
     display: flex;
@@ -573,13 +540,6 @@ body.issue-ready .back-bar-bottom { display: flex; }
     letter-spacing: 0.14em;
     color: var(--accent);
     margin-bottom: var(--gap-sm);
-}
-
-.issue-header .issue-read-time {
-    font-weight: 400;
-    text-transform: uppercase;
-    letter-spacing: 0.14em;
-    color: var(--muted);
 }
 
 .issue-header .title {
@@ -919,15 +879,6 @@ body.issue-ready .back-bar-bottom { display: flex; }
     line-height: 1.2;
 }
 
-.issue-nav-bottom .issue-card .read-time {
-    display: block;
-    font-family: var(--font-sans);
-    font-size: 0.75rem;
-    color: var(--muted);
-    margin-top: 0.3rem;
-    font-style: italic;
-}
-
 /* ─── Scroll-to-top ─────────────────────────────────── */
 
 .scroll-to-top {
@@ -1016,16 +967,11 @@ body.issue-ready .back-bar-bottom { display: flex; }
     .issue-card-row {
         grid-template-columns: minmax(3.5rem, 4.5rem) minmax(0, 1fr);
         column-gap: var(--gap-sm);
-        grid-template-areas: "num date" "rt rt";
+        grid-template-areas: "num date";
     }
 
     .issue-card-row .num { grid-area: num; }
     .issue-card-row .date { grid-area: date; }
-    .issue-card-row .read-time {
-        grid-area: rt;
-        text-align: left;
-        padding-left: calc(3.5rem + var(--gap-sm));
-    }
 
     .issue-nav-bottom {
         grid-template-columns: 1fr;
@@ -1038,7 +984,6 @@ body.issue-ready .back-bar-bottom { display: flex; }
 }
 
 @media print {
-    .read-progress-bar,
     .back-bar,
     .issue-nav,
     .scroll-to-top {
@@ -1073,199 +1018,150 @@ body.issue-ready .back-bar-bottom { display: flex; }
                 <div id="home-content"><!--HOME-CONTENT-START--><section class="hero-section"><div class="section-eyebrow">Последен брой</div><a class="issue-card issue-card-hero" href="/issue/2026/49" data-file="issues/2026/49/49.md" data-issue="49" data-date="29 Май 2026" data-year="2026">
             <span class="num">Брой 49</span>
             <span class="date">29 май</span>
-            <span class="read-time">2 мин четене</span>
         </a></section><section class="archive-section"><h2 class="section-title">Архив</h2><div class="year-group"><h3 class="year-title">2026</h3><div class="issue-list"><a class="issue-card issue-card-row" href="/issue/2026/48" data-file="issues/2026/48/48.md" data-issue="48" data-date="26 Май 2026" data-year="2026">
             <span class="num">Брой 48</span>
             <span class="date">26 май</span>
-            <span class="read-time">1 мин четене</span>
         </a><a class="issue-card issue-card-row" href="/issue/2026/47" data-file="issues/2026/47/47.md" data-issue="47" data-date="22 Май 2026" data-year="2026">
             <span class="num">Брой 47</span>
             <span class="date">22 май</span>
-            <span class="read-time">2 мин четене</span>
         </a><a class="issue-card issue-card-row" href="/issue/2026/46" data-file="issues/2026/46/46.md" data-issue="46" data-date="19 Май 2026" data-year="2026">
             <span class="num">Брой 46</span>
             <span class="date">19 май</span>
-            <span class="read-time">2 мин четене</span>
         </a><a class="issue-card issue-card-row" href="/issue/2026/45" data-file="issues/2026/45/45.md" data-issue="45" data-date="15 Май 2026" data-year="2026">
             <span class="num">Брой 45</span>
             <span class="date">15 май</span>
-            <span class="read-time">1 мин четене</span>
         </a><a class="issue-card issue-card-row" href="/issue/2026/44" data-file="issues/2026/44/44.md" data-issue="44" data-date="14 Май 2026" data-year="2026">
             <span class="num">Брой 44</span>
             <span class="date">14 май</span>
-            <span class="read-time">1 мин четене</span>
         </a><a class="issue-card issue-card-row" href="/issue/2026/43" data-file="issues/2026/43/43.md" data-issue="43" data-date="12 Май 2026" data-year="2026">
             <span class="num">Брой 43</span>
             <span class="date">12 май</span>
-            <span class="read-time">2 мин четене</span>
         </a><a class="issue-card issue-card-row" href="/issue/2026/42" data-file="issues/2026/42/42.md" data-issue="42" data-date="8 Май 2026" data-year="2026">
             <span class="num">Брой 42</span>
             <span class="date">8 май</span>
-            <span class="read-time">2 мин четене</span>
         </a><a class="issue-card issue-card-row" href="/issue/2026/41" data-file="issues/2026/41/41.md" data-issue="41" data-date="5 Май 2026" data-year="2026">
             <span class="num">Брой 41</span>
             <span class="date">5 май</span>
-            <span class="read-time">3 мин четене</span>
         </a><a class="issue-card issue-card-row" href="/issue/2026/40" data-file="issues/2026/40/40.md" data-issue="40" data-date="29 Април 2026" data-year="2026">
             <span class="num">Брой 40</span>
             <span class="date">29 април</span>
-            <span class="read-time">1 мин четене</span>
         </a><a class="issue-card issue-card-row" href="/issue/2026/39" data-file="issues/2026/39/39.md" data-issue="39" data-date="28 Април 2026" data-year="2026">
             <span class="num">Брой 39</span>
             <span class="date">28 април</span>
-            <span class="read-time">1 мин четене</span>
         </a><a class="issue-card issue-card-row" href="/issue/2026/38" data-file="issues/2026/38/38.md" data-issue="38" data-date="24 Април 2026" data-year="2026">
             <span class="num">Брой 38</span>
             <span class="date">24 април</span>
-            <span class="read-time">3 мин четене</span>
         </a><a class="issue-card issue-card-row" href="/issue/2026/37" data-file="issues/2026/37/37.md" data-issue="37" data-date="21 Април 2026" data-year="2026">
             <span class="num">Брой 37</span>
             <span class="date">21 април</span>
-            <span class="read-time">1 мин четене</span>
         </a><a class="issue-card issue-card-row" href="/issue/2026/36" data-file="issues/2026/36/36.md" data-issue="36" data-date="17 Април 2026" data-year="2026">
             <span class="num">Брой 36</span>
             <span class="date">17 април</span>
-            <span class="read-time">3 мин четене</span>
         </a><a class="issue-card issue-card-row" href="/issue/2026/35" data-file="issues/2026/35/35.md" data-issue="35" data-date="14 Април 2026" data-year="2026">
             <span class="num">Брой 35</span>
             <span class="date">14 април</span>
-            <span class="read-time">4 мин четене</span>
         </a><a class="issue-card issue-card-row" href="/issue/2026/34" data-file="issues/2026/34/34.md" data-issue="34" data-date="7 Април 2026" data-year="2026">
             <span class="num">Брой 34</span>
             <span class="date">7 април</span>
-            <span class="read-time">2 мин четене</span>
         </a><a class="issue-card issue-card-row" href="/issue/2026/33" data-file="issues/2026/33/33.md" data-issue="33" data-date="3 Април 2026" data-year="2026">
             <span class="num">Брой 33</span>
             <span class="date">3 април</span>
-            <span class="read-time">2 мин четене</span>
         </a><a class="issue-card issue-card-row" href="/issue/2026/32" data-file="issues/2026/32/32.md" data-issue="32" data-date="1 Април 2026" data-year="2026">
             <span class="num">Брой 32</span>
             <span class="date">1 април</span>
-            <span class="read-time">4 мин четене</span>
         </a><a class="issue-card issue-card-row" href="/issue/2026/31" data-file="issues/2026/31/31.md" data-issue="31" data-date="31 Март 2026" data-year="2026">
             <span class="num">Брой 31</span>
             <span class="date">31 март</span>
-            <span class="read-time">1 мин четене</span>
         </a><a class="issue-card issue-card-row" href="/issue/2026/30" data-file="issues/2026/30/30.md" data-issue="30" data-date="27 Март 2026" data-year="2026">
             <span class="num">Брой 30</span>
             <span class="date">27 март</span>
-            <span class="read-time">4 мин четене</span>
         </a><a class="issue-card issue-card-row" href="/issue/2026/29" data-file="issues/2026/29/29.md" data-issue="29" data-date="24 Март 2026" data-year="2026">
             <span class="num">Брой 29</span>
             <span class="date">24 март</span>
-            <span class="read-time">1 мин четене</span>
         </a><a class="issue-card issue-card-row" href="/issue/2026/28" data-file="issues/2026/28/28.md" data-issue="28" data-date="20 Март 2026" data-year="2026">
             <span class="num">Брой 28</span>
             <span class="date">20 март</span>
-            <span class="read-time">2 мин четене</span>
         </a><a class="issue-card issue-card-row" href="/issue/2026/27" data-file="issues/2026/27/27.md" data-issue="27" data-date="17 Март 2026" data-year="2026">
             <span class="num">Брой 27</span>
             <span class="date">17 март</span>
-            <span class="read-time">3 мин четене</span>
         </a><a class="issue-card issue-card-row" href="/issue/2026/26" data-file="issues/2026/26/26.md" data-issue="26" data-date="13 Март 2026" data-year="2026">
             <span class="num">Брой 26</span>
             <span class="date">13 март</span>
-            <span class="read-time">2 мин четене</span>
         </a><a class="issue-card issue-card-row" href="/issue/2026/25" data-file="issues/2026/25/25.md" data-issue="25" data-date="10 Март 2026" data-year="2026">
             <span class="num">Брой 25</span>
             <span class="date">10 март</span>
-            <span class="read-time">1 мин четене</span>
         </a><a class="issue-card issue-card-row" href="/issue/2026/24" data-file="issues/2026/24/24.md" data-issue="24" data-date="6 Март 2026" data-year="2026">
             <span class="num">Брой 24</span>
             <span class="date">6 март</span>
-            <span class="read-time">3 мин четене</span>
         </a><a class="issue-card issue-card-row" href="/issue/2026/23" data-file="issues/2026/23/23.md" data-issue="23" data-date="27 Февруари 2026" data-year="2026">
             <span class="num">Брой 23</span>
             <span class="date">27 февруари</span>
-            <span class="read-time">3 мин четене</span>
         </a><a class="issue-card issue-card-row" href="/issue/2026/22" data-file="issues/2026/22/22.md" data-issue="22" data-date="24 Февруари 2026" data-year="2026">
             <span class="num">Брой 22</span>
             <span class="date">24 февруари</span>
-            <span class="read-time">2 мин четене</span>
         </a><a class="issue-card issue-card-row" href="/issue/2026/21" data-file="issues/2026/21/21.md" data-issue="21" data-date="21 Февруари 2026" data-year="2026">
             <span class="num">Брой 21</span>
             <span class="date">21 февруари</span>
-            <span class="read-time">5 мин четене</span>
         </a><a class="issue-card issue-card-row" href="/issue/2026/20" data-file="issues/2026/20/20.md" data-issue="20" data-date="20 Февруари 2026" data-year="2026">
             <span class="num">Брой 20</span>
             <span class="date">20 февруари</span>
-            <span class="read-time">11 мин четене</span>
         </a><a class="issue-card issue-card-row" href="/issue/2026/19" data-file="issues/2026/19/19.md" data-issue="19" data-date="19 Февруари 2026" data-year="2026">
             <span class="num">Брой 19</span>
             <span class="date">19 февруари</span>
-            <span class="read-time">5 мин четене</span>
         </a><a class="issue-card issue-card-row" href="/issue/2026/18" data-file="issues/2026/18/18.md" data-issue="18" data-date="17 Февруари 2026" data-year="2026">
             <span class="num">Брой 18</span>
             <span class="date">17 февруари</span>
-            <span class="read-time">13 мин четене</span>
         </a><a class="issue-card issue-card-row" href="/issue/2026/17" data-file="issues/2026/17/17.md" data-issue="17" data-date="13 Февруари 2026" data-year="2026">
             <span class="num">Брой 17</span>
             <span class="date">13 февруари</span>
-            <span class="read-time">12 мин четене</span>
         </a><a class="issue-card issue-card-row" href="/issue/2026/16" data-file="issues/2026/16/16.md" data-issue="16" data-date="10 Февруари 2026" data-year="2026">
             <span class="num">Брой 16</span>
             <span class="date">10 февруари</span>
-            <span class="read-time">11 мин четене</span>
         </a><a class="issue-card issue-card-row" href="/issue/2026/15" data-file="issues/2026/15/15.md" data-issue="15" data-date="6 Февруари 2026" data-year="2026">
             <span class="num">Брой 15</span>
             <span class="date">6 февруари</span>
-            <span class="read-time">5 мин четене</span>
         </a><a class="issue-card issue-card-row" href="/issue/2026/14" data-file="issues/2026/14/14.md" data-issue="14" data-date="4 Февруари 2026" data-year="2026">
             <span class="num">Брой 14</span>
             <span class="date">4 февруари</span>
-            <span class="read-time">3 мин четене</span>
         </a><a class="issue-card issue-card-row" href="/issue/2026/13" data-file="issues/2026/13/13.md" data-issue="13" data-date="3 Февруари 2026" data-year="2026">
             <span class="num">Брой 13</span>
             <span class="date">3 февруари</span>
-            <span class="read-time">8 мин четене</span>
         </a><a class="issue-card issue-card-row" href="/issue/2026/12" data-file="issues/2026/12/12.md" data-issue="12" data-date="30 Януари 2026" data-year="2026">
             <span class="num">Брой 12</span>
             <span class="date">30 януари</span>
-            <span class="read-time">7 мин четене</span>
         </a><a class="issue-card issue-card-row" href="/issue/2026/11" data-file="issues/2026/11/11.md" data-issue="11" data-date="29 Януари 2026" data-year="2026">
             <span class="num">Брой 11</span>
             <span class="date">29 януари</span>
-            <span class="read-time">6 мин четене</span>
         </a><a class="issue-card issue-card-row" href="/issue/2026/10" data-file="issues/2026/10/10.md" data-issue="10" data-date="27 Януари 2026" data-year="2026">
             <span class="num">Брой 10</span>
             <span class="date">27 януари</span>
-            <span class="read-time">3 мин четене</span>
         </a><a class="issue-card issue-card-row" href="/issue/2026/9" data-file="issues/2026/09/9.md" data-issue="9" data-date="23 Януари 2026" data-year="2026">
             <span class="num">Брой 9</span>
             <span class="date">23 януари</span>
-            <span class="read-time">2 мин четене</span>
         </a><a class="issue-card issue-card-row" href="/issue/2026/8" data-file="issues/2026/08/8.md" data-issue="8" data-date="21 Януари 2026" data-year="2026">
             <span class="num">Брой 8</span>
             <span class="date">21 януари</span>
-            <span class="read-time">5 мин четене</span>
         </a><a class="issue-card issue-card-row" href="/issue/2026/7" data-file="issues/2026/07/7.md" data-issue="7" data-date="20 Януари 2026" data-year="2026">
             <span class="num">Брой 7</span>
             <span class="date">20 януари</span>
-            <span class="read-time">4 мин четене</span>
         </a><a class="issue-card issue-card-row" href="/issue/2026/6" data-file="issues/2026/06/6.md" data-issue="6" data-date="16 Януари 2026" data-year="2026">
             <span class="num">Брой 6</span>
             <span class="date">16 януари</span>
-            <span class="read-time">4 мин четене</span>
         </a><a class="issue-card issue-card-row" href="/issue/2026/5" data-file="issues/2026/05/5.md" data-issue="5" data-date="15 Януари 2026" data-year="2026">
             <span class="num">Брой 5</span>
             <span class="date">15 януари</span>
-            <span class="read-time">6 мин четене</span>
         </a><a class="issue-card issue-card-row" href="/issue/2026/4" data-file="issues/2026/04/4.md" data-issue="4" data-date="13 Януари 2026" data-year="2026">
             <span class="num">Брой 4</span>
             <span class="date">13 януари</span>
-            <span class="read-time">12 мин четене</span>
         </a><a class="issue-card issue-card-row" href="/issue/2026/3" data-file="issues/2026/03/3.md" data-issue="3" data-date="9 Януари 2026" data-year="2026">
             <span class="num">Брой 3</span>
             <span class="date">9 януари</span>
-            <span class="read-time">7 мин четене</span>
         </a><a class="issue-card issue-card-row" href="/issue/2026/2" data-file="issues/2026/02/2.md" data-issue="2" data-date="8 Януари 2026" data-year="2026">
             <span class="num">Брой 2</span>
             <span class="date">8 януари</span>
-            <span class="read-time">4 мин четене</span>
         </a><a class="issue-card issue-card-row" href="/issue/2026/1" data-file="issues/2026/01/1.md" data-issue="1" data-date="6 Януари 2026" data-year="2026">
             <span class="num">Брой 1</span>
             <span class="date">6 януари</span>
-            <span class="read-time">6 мин четене</span>
         </a></div></div></section><!--HOME-CONTENT-END--></div>
                 <section class="about-section">
                     <h2 class="section-title">За Държавен вестник</h2>
@@ -1275,9 +1171,6 @@ body.issue-ready .back-bar-bottom { display: flex; }
                 </section>
             </div>
             <div id="issue-view">
-                <div class="read-progress-bar" id="read-progress-bar" role="progressbar" aria-label="Прогрес при четене" aria-valuemin="0" aria-valuemax="100">
-                    <div class="read-progress-fill" id="read-progress-fill"></div>
-                </div>
                 <div class="back-bar">
                     <button type="button" class="back-btn" id="back-btn" aria-label="Обратно към началната страница">← Обратно към началната страница</button>
                 </div>
@@ -1295,6 +1188,6 @@ body.issue-ready .back-bar-bottom { display: flex; }
     </div>
     <button type="button" class="scroll-to-top" id="scroll-to-top" aria-label="Обратно нагоре" title="Обратно нагоре">↑</button>
     <script defer src="https://cdn.jsdelivr.net/npm/marked@17/lib/marked.umd.js"></script>
-    <script defer src="/src/js/app.js?v=2.9.2"></script>
+    <script defer src="/src/js/app.js?v=2.9.3"></script>
 </body>
 </html>

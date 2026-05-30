@@ -307,13 +307,6 @@ main .loading {
     margin-bottom: var(--gap-sm);
 }
 
-.issue-card-hero .read-time {
-    display: block;
-    font-size: 0.875rem;
-    color: var(--muted);
-    font-style: italic;
-}
-
 /* ─── Home: archive list ────────────────────────────── */
 
 .archive-section {
@@ -345,7 +338,7 @@ main .loading {
 
 .issue-card-row {
     display: grid;
-    grid-template-columns: minmax(4.5rem, 6rem) auto minmax(0, 1fr);
+    grid-template-columns: minmax(4.5rem, 6rem) minmax(0, 1fr);
     align-items: baseline;
     column-gap: var(--gap-lg);
     padding: 0.7rem var(--gap-sm);
@@ -384,33 +377,7 @@ main .loading {
     color: var(--text-soft);
 }
 
-.issue-card-row .read-time {
-    font-family: var(--font-sans);
-    font-size: 0.8125rem;
-    color: var(--muted);
-    text-align: right;
-    font-variant-numeric: tabular-nums;
-}
-
 /* ─── Issue view ────────────────────────────────────── */
-
-.read-progress-bar {
-    position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    height: 2px;
-    background: transparent;
-    z-index: 10;
-    display: none;
-}
-
-.read-progress-fill {
-    height: 100%;
-    width: 0%;
-    background: var(--accent);
-    transition: width 0.12s ease-out;
-}
 
 .back-bar {
     display: flex;
@@ -573,13 +540,6 @@ body.issue-ready .back-bar-bottom { display: flex; }
     letter-spacing: 0.14em;
     color: var(--accent);
     margin-bottom: var(--gap-sm);
-}
-
-.issue-header .issue-read-time {
-    font-weight: 400;
-    text-transform: uppercase;
-    letter-spacing: 0.14em;
-    color: var(--muted);
 }
 
 .issue-header .title {
@@ -919,15 +879,6 @@ body.issue-ready .back-bar-bottom { display: flex; }
     line-height: 1.2;
 }
 
-.issue-nav-bottom .issue-card .read-time {
-    display: block;
-    font-family: var(--font-sans);
-    font-size: 0.75rem;
-    color: var(--muted);
-    margin-top: 0.3rem;
-    font-style: italic;
-}
-
 /* ─── Scroll-to-top ─────────────────────────────────── */
 
 .scroll-to-top {
@@ -1016,16 +967,11 @@ body.issue-ready .back-bar-bottom { display: flex; }
     .issue-card-row {
         grid-template-columns: minmax(3.5rem, 4.5rem) minmax(0, 1fr);
         column-gap: var(--gap-sm);
-        grid-template-areas: "num date" "rt rt";
+        grid-template-areas: "num date";
     }
 
     .issue-card-row .num { grid-area: num; }
     .issue-card-row .date { grid-area: date; }
-    .issue-card-row .read-time {
-        grid-area: rt;
-        text-align: left;
-        padding-left: calc(3.5rem + var(--gap-sm));
-    }
 
     .issue-nav-bottom {
         grid-template-columns: 1fr;
@@ -1038,7 +984,6 @@ body.issue-ready .back-bar-bottom { display: flex; }
 }
 
 @media print {
-    .read-progress-bar,
     .back-bar,
     .issue-nav,
     .scroll-to-top {
@@ -1084,9 +1029,6 @@ body.issue-ready .back-bar-bottom { display: flex; }
                 </section>
             </div>
             <div id="issue-view">
-                <div class="read-progress-bar" id="read-progress-bar" role="progressbar" aria-label="Прогрес при четене" aria-valuemin="0" aria-valuemax="100">
-                    <div class="read-progress-fill" id="read-progress-fill"></div>
-                </div>
                 <div class="back-bar">
                     <button type="button" class="back-btn" id="back-btn" aria-label="Обратно към началната страница">← Обратно към началната страница</button>
                 </div>
@@ -1104,6 +1046,6 @@ body.issue-ready .back-bar-bottom { display: flex; }
     </div>
     <button type="button" class="scroll-to-top" id="scroll-to-top" aria-label="Обратно нагоре" title="Обратно нагоре">↑</button>
     <script defer src="https://cdn.jsdelivr.net/npm/marked@17/lib/marked.umd.js"></script>
-    <script defer src="/src/js/app.js?v=2.9.2"></script>
+    <script defer src="/src/js/app.js?v=2.9.3"></script>
 </body>
 </html>

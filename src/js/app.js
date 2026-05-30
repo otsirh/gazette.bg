@@ -11,8 +11,6 @@
     const mainLoading = document.getElementById('loading');
     const issueHeaderEl = document.getElementById('issue-header');
     const mainContent = document.getElementById('content');
-    const readProgressBar = document.getElementById('read-progress-bar');
-    const readProgressFill = document.getElementById('read-progress-fill');
     const mainEl = document.getElementById('main');
     const scrollToTopBtn = document.getElementById('scroll-to-top');
 
@@ -154,16 +152,6 @@
     let lastFocusedCard = null;
     let currentTocId = null;
 
-    function formatReadTime(minutes) {
-        if (minutes < 1) return 'по-малко от 1 мин';
-        if (minutes === 1) return '1 мин четене';
-        if (minutes < 60) return minutes + ' мин четене';
-        const h = Math.floor(minutes / 60);
-        const m = minutes % 60;
-        if (m === 0) return h + ' ч четене';
-        return h + ' ч ' + m + ' мин четене';
-    }
-
     const SHARE_ICONS = {
         fb: '<svg class="share-icon" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M13.5 21v-8h2.7l.4-3.1h-3.1V7.9c0-.9.3-1.5 1.6-1.5h1.7V3.6c-.3 0-1.3-.1-2.4-.1-2.4 0-4 1.5-4 4.1V9.9H7.7V13h2.7v8h3.1z"/></svg>',
         li: '<svg class="share-icon" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M20.5 2h-17C2.7 2 2 2.7 2 3.5v17c0 .8.7 1.5 1.5 1.5h17c.8 0 1.5-.7 1.5-1.5v-17c0-.8-.7-1.5-1.5-1.5zM8 19H5V9h3v10zM6.5 7.7C5.5 7.7 4.7 7 4.7 6S5.5 4.3 6.5 4.3 8.3 5 8.3 6s-.8 1.7-1.8 1.7zM19 19h-3v-5c0-1.2-.4-2-1.5-2-.8 0-1.3.6-1.5 1.1-.1.2-.1.5-.1.7V19h-3V9h3v1.3c.4-.6 1.1-1.5 2.7-1.5 2 0 3.4 1.3 3.4 4V19z"/></svg>',
@@ -191,14 +179,12 @@
     }
 
     function renderIssueCard(item, variant) {
-        const readTime = item.readMinutes != null ? `<span class="read-time">${formatReadTime(item.readMinutes)}</span>` : '';
         const variantClass = variant ? ' issue-card-' + variant : '';
         const displayDate = formatDateForHomepage(formatDateBulgarian(item.date));
         const href = `/issue/${encodeURIComponent(item.year)}/${encodeURIComponent(item.issue)}`;
         return `<a class="issue-card${variantClass}" href="${escapeHtml(href)}" data-file="${escapeHtml(item.file)}" data-issue="${item.issue}" data-date="${escapeHtml(item.date)}" data-year="${escapeHtml(item.year)}">
             <span class="num">Брой ${item.issue}</span>
             <span class="date">${escapeHtml(displayDate)}</span>
-            ${readTime}
         </a>`;
     }
 
@@ -246,7 +232,6 @@
         homeView.style.display = 'block';
         issueView.style.display = 'none';
         window.scrollTo(0, 0);
-        if (readProgressBar) readProgressBar.style.display = 'none';
         if (scrollToTopBtn) scrollToTopBtn.classList.remove('is-visible');
         currentTocId = null;
         if (location.pathname !== '/') {
@@ -263,23 +248,10 @@
         document.body.classList.add('issue-open');
         homeView.style.display = 'none';
         issueView.style.display = 'block';
-        if (readProgressBar) {
-            readProgressBar.style.display = 'block';
-            updateReadProgress();
-        }
     }
 
     function getWindowScrollTop() {
         return window.scrollY ?? document.documentElement.scrollTop ?? 0;
-    }
-
-    function updateReadProgress() {
-        if (!readProgressFill || !readProgressBar || issueView.style.display !== 'block') return;
-        const scrollTop = getWindowScrollTop();
-        const maxScroll = document.documentElement.scrollHeight - window.innerHeight;
-        const pct = maxScroll <= 0 ? 100 : Math.min(100, (scrollTop / maxScroll) * 100);
-        readProgressFill.style.width = pct + '%';
-        readProgressBar.setAttribute('aria-valuenow', Math.round(pct));
     }
 
     const SCROLL_TO_TOP_THRESHOLD = 300;
@@ -401,36 +373,29 @@
             issueNavEl.innerHTML = '';
             issueNavEl.style.display = 'none';
         }
-        const catalogItem = year && issueNum ? findIssueByYearAndNumber(year, issueNum) : null;
         if (issueNum && date) {
             const formattedDate = formatDateBulgarian(date);
             const titleDate = stripDateSuffix(formattedDate);
             document.title = `Брой ${issueNum} · ${titleDate} — Обобщения на Държавен вестник`;
-            const readTimePlaceholder = '<span class="issue-read-time" id="issue-read-time"></span>';
-            issueHeaderEl.innerHTML = `<div class="meta">Брой ${escapeHtml(issueNum)}${readTimePlaceholder}</div><div class="title">${escapeHtml(stripDateSuffix(formattedDate))}</div>`;
+            issueHeaderEl.innerHTML = `<div class="meta">Брой ${escapeHtml(issueNum)}</div><div class="title">${escapeHtml(stripDateSuffix(formattedDate))}</div>`;
             updateShareLinks(year, issueNum, date);
         } else {
             document.title = PAGE_TITLE_BASE;
             issueHeaderEl.innerHTML = '';
             updateShareLinks(null, null, null);
         }
-        const readMinutesForHeader = catalogItem?.readMinutes ?? null;
         const contentDisclaimer = '<p class="content-disclaimer">Текстът по-долу е неофициално обобщение, генерирано с AI, и може да съдържа грешки. За официален текст и правни цели използвайте <a href="https://dv.parliament.bg" target="_blank" rel="noopener">dv.parliament.bg</a>.</p>';
         try {
             const fileUrl = file.startsWith('/') ? file : '/' + file;
             const r = await fetch(fileUrl);
             if (!r.ok) throw new Error(r.statusText);
             const md = await r.text();
-            const readMinutes = readMinutesForHeader != null ? readMinutesForHeader : Math.max(1, Math.round((md.replace(/\[([^\]]+)\]\([^)]+\)/g, '$1').replace(/[#*_`~]/g, '').split(/\s+/).filter(Boolean).length) / 200));
-            const issueReadTimeEl = document.getElementById('issue-read-time');
-            if (issueReadTimeEl) issueReadTimeEl.textContent = ' · ' + formatReadTime(readMinutes);
             const rawHtml = typeof marked !== 'undefined' ? marked.parse(md) : md;
             const { html: processedHtml, tocItems } = processRenderedContent(rawHtml);
             const tocHtml = buildTocHtml(tocItems);
             mainContent.innerHTML = contentDisclaimer + tocHtml + processedHtml;
             currentTocId = null;
             updateCurrentTocItem();
-            updateReadProgress();
             if (location.hash) requestAnimationFrame(() => scrollToHashTarget('auto'));
             else if (backBtn) backBtn.focus();
         } catch (e) {
@@ -498,7 +463,6 @@
         mainEl.addEventListener('click', onMainClick);
         window.addEventListener('popstate', applyRoute);
         function onScroll() {
-            updateReadProgress();
             updateScrollToTopVisibility();
             updateCurrentTocItem();
         }
@@ -511,10 +475,8 @@
 
         if (isPreRendered) {
             currentIssue = { year: initial.year, issueNum: initial.issueNum };
-            if (readProgressBar) readProgressBar.style.display = 'block';
             currentTocId = null;
             updateCurrentTocItem();
-            updateReadProgress();
             updateScrollToTopVisibility();
             if (location.hash) requestAnimationFrame(() => scrollToHashTarget('auto'));
         }

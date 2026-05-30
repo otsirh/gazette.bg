@@ -61,16 +61,6 @@ function formatDateForHomepage(str) {
     return lowercaseMonthInDate(s.replace(/\s+\d{4}\s*$/, '').trim());
 }
 
-function formatReadTime(minutes) {
-    if (minutes < 1) return 'по-малко от 1 мин';
-    if (minutes === 1) return '1 мин четене';
-    if (minutes < 60) return minutes + ' мин четене';
-    const h = Math.floor(minutes / 60);
-    const m = minutes % 60;
-    if (m === 0) return h + ' ч четене';
-    return h + ' ч ' + m + ' мин четене';
-}
-
 function stripMarkdownInline(s) {
     return String(s)
         .replace(/\*+|\_+/g, '')
@@ -121,14 +111,12 @@ function buildTocHtml(tocItems) {
 }
 
 function renderIssueCard(item, variant) {
-    const readTime = item.readMinutes != null ? `<span class="read-time">${escapeHtml(formatReadTime(item.readMinutes))}</span>` : '';
     const variantClass = variant ? ' issue-card-' + variant : '';
     const displayDate = formatDateForHomepage(formatDateBulgarian(item.date));
     const href = `/issue/${encodeURIComponent(item.year)}/${encodeURIComponent(item.issue)}`;
     return `<a class="issue-card${variantClass}" href="${escapeHtml(href)}" data-file="${escapeHtml(item.file)}" data-issue="${escapeHtml(String(item.issue))}" data-date="${escapeHtml(item.date)}" data-year="${escapeHtml(String(item.year))}">
             <span class="num">Брой ${escapeHtml(String(item.issue))}</span>
             <span class="date">${escapeHtml(displayDate)}</span>
-            ${readTime}
         </a>`;
 }
 
@@ -223,8 +211,7 @@ function renderShareLinks(url, title) {
 function buildIssueViewInner(item, prev, next, related) {
     const formattedDate = formatDateBulgarian(item.date);
     const titleDate = stripDateSuffix(formattedDate);
-    const readTimeStr = item.readMinutes != null ? ` · ${escapeHtml(formatReadTime(item.readMinutes))}` : '';
-    const headerHtml = `<div class="meta">Брой ${escapeHtml(String(item.issue))}<span class="issue-read-time" id="issue-read-time">${readTimeStr}</span></div><div class="title">${escapeHtml(titleDate)}</div>`;
+    const headerHtml = `<div class="meta">Брой ${escapeHtml(String(item.issue))}</div><div class="title">${escapeHtml(titleDate)}</div>`;
     const canonicalUrl = `${SITE_ORIGIN}/issue/${item.year}/${item.issue}`;
     const shareTitle = `Държавен вестник, брой ${item.issue} · ${titleDate} — обобщение`;
     const shareHtml = renderShareLinks(canonicalUrl, shareTitle);
@@ -251,9 +238,6 @@ function buildIssueViewInner(item, prev, next, related) {
     }
 
     return `
-                <div class="read-progress-bar" id="read-progress-bar" role="progressbar" aria-label="Прогрес при четене" aria-valuemin="0" aria-valuemax="100">
-                    <div class="read-progress-fill" id="read-progress-fill"></div>
-                </div>
                 <div class="back-bar">
                     <button type="button" class="back-btn" id="back-btn" aria-label="Обратно към началната страница">← Обратно към началната страница</button>
                 </div>

@@ -4,296 +4,247 @@
             {
                 "issue": 1,
                 "date": "6 Януари 2026",
-                "file": "issues/2026/01/1.md",
-                "readMinutes": 6
+                "file": "issues/2026/01/1.md"
             },
             {
                 "issue": 2,
                 "date": "8 Януари 2026",
-                "file": "issues/2026/02/2.md",
-                "readMinutes": 4
+                "file": "issues/2026/02/2.md"
             },
             {
                 "issue": 3,
                 "date": "9 Януари 2026",
-                "file": "issues/2026/03/3.md",
-                "readMinutes": 7
+                "file": "issues/2026/03/3.md"
             },
             {
                 "issue": 4,
                 "date": "13 Януари 2026",
-                "file": "issues/2026/04/4.md",
-                "readMinutes": 12
+                "file": "issues/2026/04/4.md"
             },
             {
                 "issue": 5,
                 "date": "15 Януари 2026",
-                "file": "issues/2026/05/5.md",
-                "readMinutes": 6
+                "file": "issues/2026/05/5.md"
             },
             {
                 "issue": 6,
                 "date": "16 Януари 2026",
-                "file": "issues/2026/06/6.md",
-                "readMinutes": 4
+                "file": "issues/2026/06/6.md"
             },
             {
                 "issue": 7,
                 "date": "20 Януари 2026",
-                "file": "issues/2026/07/7.md",
-                "readMinutes": 4
+                "file": "issues/2026/07/7.md"
             },
             {
                 "issue": 8,
                 "date": "21 Януари 2026",
-                "file": "issues/2026/08/8.md",
-                "readMinutes": 5
+                "file": "issues/2026/08/8.md"
             },
             {
                 "issue": 9,
                 "date": "23 Януари 2026",
-                "file": "issues/2026/09/9.md",
-                "readMinutes": 2
+                "file": "issues/2026/09/9.md"
             },
             {
                 "issue": 10,
                 "date": "27 Януари 2026",
-                "file": "issues/2026/10/10.md",
-                "readMinutes": 3
+                "file": "issues/2026/10/10.md"
             },
             {
                 "issue": 11,
                 "date": "29 Януари 2026",
-                "file": "issues/2026/11/11.md",
-                "readMinutes": 6
+                "file": "issues/2026/11/11.md"
             },
             {
                 "issue": 12,
                 "date": "30 Януари 2026",
-                "file": "issues/2026/12/12.md",
-                "readMinutes": 7
+                "file": "issues/2026/12/12.md"
             },
             {
                 "issue": 13,
                 "date": "3 Февруари 2026",
-                "file": "issues/2026/13/13.md",
-                "readMinutes": 8
+                "file": "issues/2026/13/13.md"
             },
             {
                 "issue": 14,
                 "date": "4 Февруари 2026",
-                "file": "issues/2026/14/14.md",
-                "readMinutes": 3
+                "file": "issues/2026/14/14.md"
             },
             {
                 "issue": 15,
                 "date": "6 Февруари 2026",
-                "file": "issues/2026/15/15.md",
-                "readMinutes": 5
+                "file": "issues/2026/15/15.md"
             },
             {
                 "issue": 16,
                 "date": "10 Февруари 2026",
-                "file": "issues/2026/16/16.md",
-                "readMinutes": 11
+                "file": "issues/2026/16/16.md"
             },
             {
                 "issue": 17,
                 "date": "13 Февруари 2026",
-                "file": "issues/2026/17/17.md",
-                "readMinutes": 12
+                "file": "issues/2026/17/17.md"
             },
             {
                 "issue": 18,
                 "date": "17 Февруари 2026",
-                "file": "issues/2026/18/18.md",
-                "readMinutes": 13
+                "file": "issues/2026/18/18.md"
             },
             {
                 "issue": 19,
                 "date": "19 Февруари 2026",
-                "file": "issues/2026/19/19.md",
-                "readMinutes": 5
+                "file": "issues/2026/19/19.md"
             },
             {
                 "issue": 20,
                 "date": "20 Февруари 2026",
-                "file": "issues/2026/20/20.md",
-                "readMinutes": 11
+                "file": "issues/2026/20/20.md"
             },
             {
                 "issue": 21,
                 "date": "21 Февруари 2026",
-                "file": "issues/2026/21/21.md",
-                "readMinutes": 5
+                "file": "issues/2026/21/21.md"
             },
             {
                 "issue": 22,
                 "date": "24 Февруари 2026",
-                "file": "issues/2026/22/22.md",
-                "readMinutes": 2
+                "file": "issues/2026/22/22.md"
             },
             {
                 "issue": 23,
                 "date": "27 Февруари 2026",
-                "file": "issues/2026/23/23.md",
-                "readMinutes": 3
+                "file": "issues/2026/23/23.md"
             },
             {
                 "issue": 24,
                 "date": "6 Март 2026",
-                "file": "issues/2026/24/24.md",
-                "readMinutes": 3
+                "file": "issues/2026/24/24.md"
             },
             {
                 "issue": 25,
                 "date": "10 Март 2026",
-                "file": "issues/2026/25/25.md",
-                "readMinutes": 1
+                "file": "issues/2026/25/25.md"
             },
             {
                 "issue": 26,
                 "date": "13 Март 2026",
-                "file": "issues/2026/26/26.md",
-                "readMinutes": 2
+                "file": "issues/2026/26/26.md"
             },
             {
                 "issue": 27,
                 "date": "17 Март 2026",
-                "file": "issues/2026/27/27.md",
-                "readMinutes": 3
+                "file": "issues/2026/27/27.md"
             },
             {
                 "issue": 28,
                 "date": "20 Март 2026",
-                "file": "issues/2026/28/28.md",
-                "readMinutes": 2
+                "file": "issues/2026/28/28.md"
             },
             {
                 "issue": 29,
                 "date": "24 Март 2026",
-                "file": "issues/2026/29/29.md",
-                "readMinutes": 1
+                "file": "issues/2026/29/29.md"
             },
             {
                 "issue": 30,
                 "date": "27 Март 2026",
-                "file": "issues/2026/30/30.md",
-                "readMinutes": 4
+                "file": "issues/2026/30/30.md"
             },
             {
                 "issue": 31,
                 "date": "31 Март 2026",
-                "file": "issues/2026/31/31.md",
-                "readMinutes": 1
+                "file": "issues/2026/31/31.md"
             },
             {
                 "issue": 32,
                 "date": "1 Април 2026",
-                "file": "issues/2026/32/32.md",
-                "readMinutes": 4
+                "file": "issues/2026/32/32.md"
             },
             {
                 "issue": 33,
                 "date": "3 Април 2026",
-                "file": "issues/2026/33/33.md",
-                "readMinutes": 2
+                "file": "issues/2026/33/33.md"
             },
             {
                 "issue": 34,
                 "date": "7 Април 2026",
-                "file": "issues/2026/34/34.md",
-                "readMinutes": 2
+                "file": "issues/2026/34/34.md"
             },
             {
                 "issue": 35,
                 "date": "14 Април 2026",
-                "file": "issues/2026/35/35.md",
-                "readMinutes": 4
+                "file": "issues/2026/35/35.md"
             },
             {
                 "issue": 36,
                 "date": "17 Април 2026",
-                "file": "issues/2026/36/36.md",
-                "readMinutes": 3
+                "file": "issues/2026/36/36.md"
             },
             {
                 "issue": 37,
                 "date": "21 Април 2026",
-                "file": "issues/2026/37/37.md",
-                "readMinutes": 1
+                "file": "issues/2026/37/37.md"
             },
             {
                 "issue": 38,
                 "date": "24 Април 2026",
-                "file": "issues/2026/38/38.md",
-                "readMinutes": 3
+                "file": "issues/2026/38/38.md"
             },
             {
                 "issue": 39,
                 "date": "28 Април 2026",
-                "file": "issues/2026/39/39.md",
-                "readMinutes": 1
+                "file": "issues/2026/39/39.md"
             },
             {
                 "issue": 40,
                 "date": "29 Април 2026",
-                "file": "issues/2026/40/40.md",
-                "readMinutes": 1
+                "file": "issues/2026/40/40.md"
             },
             {
                 "issue": 41,
                 "date": "5 Май 2026",
-                "file": "issues/2026/41/41.md",
-                "readMinutes": 3
+                "file": "issues/2026/41/41.md"
             },
             {
                 "issue": 42,
                 "date": "8 Май 2026",
-                "file": "issues/2026/42/42.md",
-                "readMinutes": 2
+                "file": "issues/2026/42/42.md"
             },
             {
                 "issue": 43,
                 "date": "12 Май 2026",
-                "file": "issues/2026/43/43.md",
-                "readMinutes": 2
+                "file": "issues/2026/43/43.md"
             },
             {
                 "issue": 44,
                 "date": "14 Май 2026",
-                "file": "issues/2026/44/44.md",
-                "readMinutes": 1
+                "file": "issues/2026/44/44.md"
             },
             {
                 "issue": 45,
                 "date": "15 Май 2026",
-                "file": "issues/2026/45/45.md",
-                "readMinutes": 1
+                "file": "issues/2026/45/45.md"
             },
             {
                 "issue": 46,
                 "date": "19 Май 2026",
-                "file": "issues/2026/46/46.md",
-                "readMinutes": 2
+                "file": "issues/2026/46/46.md"
             },
             {
                 "issue": 47,
                 "date": "22 Май 2026",
-                "file": "issues/2026/47/47.md",
-                "readMinutes": 2
+                "file": "issues/2026/47/47.md"
             },
             {
                 "issue": 48,
                 "date": "26 Май 2026",
-                "file": "issues/2026/48/48.md",
-                "readMinutes": 1
+                "file": "issues/2026/48/48.md"
             },
             {
                 "issue": 49,
                 "date": "29 Май 2026",
-                "file": "issues/2026/49/49.md",
-                "readMinutes": 2
+                "file": "issues/2026/49/49.md"
             }
         ]
     }

@@ -33,14 +33,6 @@ function getIssueDateFromJson(issueDirPath, issueNum) {
     } catch (_) {}
     return null;
 }
-const WORDS_PER_MINUTE = 200;
-
-function countWords(text) {
-    const stripped = text.replace(/^#+ .+$/gm, '').replace(/\[([^\]]+)\]\([^)]+\)/g, '$1').replace(/[#*_`~]/g, '');
-    const words = stripped.split(/\s+/).filter(Boolean);
-    return words.length;
-}
-
 function buildCatalog() {
     const catalog = { years: {} };
     if (!fs.existsSync(ISSUES_DIR)) {
@@ -69,13 +61,10 @@ function buildCatalog() {
             const mdName = `${issueNum}.md`;
             const filePath = path.join(issueDirPath, mdName);
             if (!fs.existsSync(filePath)) continue;
-            const content = fs.readFileSync(filePath, 'utf8');
-            const readMinutes = Math.max(1, Math.round(countWords(content) / WORDS_PER_MINUTE));
             catalog.years[year].push({
                 issue: issueNum,
                 date: getIssueDateFromJson(issueDirPath, issueNum) || '',
                 file: `issues/${year}/${folderName}/${mdName}`,
-                readMinutes,
             });
         }
     }
