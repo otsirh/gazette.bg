@@ -10,6 +10,11 @@ jobs:
   update:
     runs-on: ubuntu-latest
     timeout-minutes: 60
+    # Run inside Playwright's official image: Chromium and its system deps are
+    # baked in, so there is no flaky CDN download to hang on. The tag MUST match
+    # the playwright version in package-lock.json (1.58.1).
+    container:
+      image: mcr.microsoft.com/playwright:v1.58.1-noble
     permissions:
       contents: write  # needed to push commits
 
@@ -26,45 +31,12 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Cache Playwright browsers
-        id: playwright-cache
-        uses: actions/cache@v4
-        with:
-          path: ~/.cache/ms-playwright
-          key: playwright-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
-
-      # apt packages are not part of the cached browser dir, so install them
-      # on every run regardless of cache state.
-      - name: Install Playwright system deps
-        timeout-minutes: 5
-        run: npx playwright install-deps chromium
-
-      - name: Download Playwright Chromium
-        if: steps.playwright-cache.outputs.cache-hit != 'true'
-        timeout-minutes: 16
-        # Azure-hosted runners frequently blackhole IPv6 to the Playwright
-        # CDN, which makes the browser download hang forever. Force IPv4.
-        env:
-          NODE_OPTIONS: --dns-result-order=ipv4first
-        run: |
-          # Each attempt is hard-killed (SIGKILL) after 5 min so a stalled
-          # download actually dies and the retry starts fresh.
-          for attempt in 1 2 3; do
-            echo "Chromium download attempt $attempt..."
-            if timeout --signal=KILL 300 npx playwright install chromium; then
-              echo "Chromium download succeeded."
-              exit 0
-            fi
-            echo "Attempt $attempt failed or timed out; retrying in 15s..."
-            sleep 15
-          done
-          echo "Chromium download failed after 3 attempts." >&2
-          exit 1
-
       - name: Run update-gazette
         run: npm run update-gazette
         env:
           HEADLESS: 'true'
+          # Browsers are pre-installed here in the image.
+          PLAYWRIGHT_BROWSERS_PATH: /ms-playwright
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
           ALERT_EMAIL: ${{ secrets.ALERT_EMAIL }}
@@ -72,6 +44,8 @@ jobs:
 
       - name: Commit and push if there are changes
         run: |
+          # Avoid git "dubious ownership" inside the container.
+          git config --global --add safe.directory "$GITHUB_WORKSPACE"
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add -A
