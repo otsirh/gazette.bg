@@ -33,29 +33,33 @@ jobs:
           path: ~/.cache/ms-playwright
           key: playwright-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
 
-      - name: Install Playwright Chromium
-        if: steps.playwright-cache.outputs.cache-hit != 'true'
-        timeout-minutes: 16
-        run: |
-          # Retry with a per-attempt timeout so a stalled CDN download gets
-          # killed and retried instead of hanging until the step cap.
-          # --with-deps installs the system libraries explicitly.
-          for attempt in 1 2 3; do
-            echo "Playwright install attempt $attempt..."
-            if timeout 300 npx playwright install --with-deps chromium; then
-              echo "Playwright install succeeded."
-              exit 0
-            fi
-            echo "Attempt $attempt failed or timed out; retrying in 10s..."
-            sleep 10
-          done
-          echo "Playwright install failed after 3 attempts." >&2
-          exit 1
-
-      - name: Install Playwright system deps (cache hit)
-        if: steps.playwright-cache.outputs.cache-hit == 'true'
+      # apt packages are not part of the cached browser dir, so install them
+      # on every run regardless of cache state.
+      - name: Install Playwright system deps
         timeout-minutes: 5
         run: npx playwright install-deps chromium
+
+      - name: Download Playwright Chromium
+        if: steps.playwright-cache.outputs.cache-hit != 'true'
+        timeout-minutes: 16
+        # Azure-hosted runners frequently blackhole IPv6 to the Playwright
+        # CDN, which makes the browser download hang forever. Force IPv4.
+        env:
+          NODE_OPTIONS: --dns-result-order=ipv4first
+        run: |
+          # Each attempt is hard-killed (SIGKILL) after 5 min so a stalled
+          # download actually dies and the retry starts fresh.
+          for attempt in 1 2 3; do
+            echo "Chromium download attempt $attempt..."
+            if timeout --signal=KILL 300 npx playwright install chromium; then
+              echo "Chromium download succeeded."
+              exit 0
+            fi
+            echo "Attempt $attempt failed or timed out; retrying in 15s..."
+            sleep 15
+          done
+          echo "Chromium download failed after 3 attempts." >&2
+          exit 1
 
       - name: Run update-gazette
         run: npm run update-gazette
