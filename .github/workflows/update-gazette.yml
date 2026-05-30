@@ -64,8 +64,18 @@ jobs:
           git add -A
           if git diff --staged --quiet; then
             echo "No files to commit."
-          else
-            COMMIT_DATE=$(date +"%Y-%m-%d")
-            git commit -m "Update gazette: new issues and catalog ($COMMIT_DATE)"
-            git push
+            exit 0
           fi
+          COMMIT_DATE=$(date +"%Y-%m-%d")
+          git commit -m "Update gazette: new issues and catalog ($COMMIT_DATE)"
+          # main may have advanced since checkout; rebase and retry the push.
+          for attempt in 1 2 3; do
+            if git push; then
+              echo "Pushed on attempt $attempt."
+              exit 0
+            fi
+            echo "Push rejected (attempt $attempt); rebasing onto latest main..."
+            git pull --rebase --autostash origin "${GITHUB_REF_NAME}"
+          done
+          echo "Failed to push after rebase retries." >&2
+          exit 1
