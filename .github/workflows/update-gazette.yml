@@ -14,10 +14,10 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4.2.0
+        uses: actions/checkout@v6.0.2
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4.2.0
+        uses: actions/setup-node@v6.4.0
         with:
           node-version: '24'
           cache: 'npm'
@@ -29,6 +29,7 @@ jobs:
         run: npx playwright install chromium
 
       - name: Run update-gazette
+        timeout-minutes: 20
         run: npm run update-gazette
         env:
           HEADLESS: 'true'
