@@ -27,14 +27,28 @@ jobs:
         run: npm ci
 
       - name: Cache Playwright browsers
+        id: playwright-cache
         uses: actions/cache@v4
         with:
           path: ~/.cache/ms-playwright
           key: playwright-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
 
       - name: Install Playwright Chromium
-        timeout-minutes: 5
-        run: npx playwright install chromium
+        timeout-minutes: 8
+        run: |
+          # Retry with a per-attempt timeout so a stalled CDN download gets
+          # killed and retried instead of hanging until the step cap.
+          for attempt in 1 2 3; do
+            echo "Playwright install attempt $attempt..."
+            if timeout 150 npx playwright install chromium; then
+              echo "Playwright install succeeded."
+              exit 0
+            fi
+            echo "Attempt $attempt failed or timed out; retrying in 10s..."
+            sleep 10
+          done
+          echo "Playwright install failed after 3 attempts." >&2
+          exit 1
 
       - name: Run update-gazette
         run: npm run update-gazette
