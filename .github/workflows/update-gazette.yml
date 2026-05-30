@@ -10,11 +10,15 @@ jobs:
   update:
     runs-on: ubuntu-latest
     timeout-minutes: 60
-    # Run inside Playwright's official image: Chromium and its system deps are
-    # baked in, so there is no flaky CDN download to hang on. The tag MUST match
-    # the playwright version in package-lock.json (1.58.1).
+    strategy:
+      matrix:
+        # Single source of truth for the Playwright version. Run inside
+        # Playwright's official image so Chromium + its system deps are baked
+        # in (no flaky CDN download to hang on). The guard step below fails the
+        # run if this drifts from package-lock.json, so you can't forget.
+        playwright-version: ['1.58.1']
     container:
-      image: mcr.microsoft.com/playwright:v1.58.1-noble
+      image: mcr.microsoft.com/playwright:v${{ matrix.playwright-version }}-noble
     permissions:
       contents: write  # needed to push commits
 
@@ -30,6 +34,15 @@ jobs:
 
       - name: Install dependencies
         run: npm ci
+
+      - name: Verify Playwright version matches the container image
+        run: |
+          LOCKED=$(node -e "console.log(require('playwright/package.json').version)")
+          if [ "$LOCKED" != "${{ matrix.playwright-version }}" ]; then
+            echo "::error::package-lock.json has playwright $LOCKED but the container image is v${{ matrix.playwright-version }}. Set playwright-version in .github/workflows/update-gazette.yml to $LOCKED."
+            exit 1
+          fi
+          echo "Playwright $LOCKED matches the container image."
 
       - name: Run update-gazette
         run: npm run update-gazette
