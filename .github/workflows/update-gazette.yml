@@ -34,13 +34,15 @@ jobs:
           key: playwright-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
 
       - name: Install Playwright Chromium
-        timeout-minutes: 8
+        if: steps.playwright-cache.outputs.cache-hit != 'true'
+        timeout-minutes: 16
         run: |
           # Retry with a per-attempt timeout so a stalled CDN download gets
           # killed and retried instead of hanging until the step cap.
+          # --with-deps installs the system libraries explicitly.
           for attempt in 1 2 3; do
             echo "Playwright install attempt $attempt..."
-            if timeout 150 npx playwright install chromium; then
+            if timeout 300 npx playwright install --with-deps chromium; then
               echo "Playwright install succeeded."
               exit 0
             fi
@@ -49,6 +51,11 @@ jobs:
           done
           echo "Playwright install failed after 3 attempts." >&2
           exit 1
+
+      - name: Install Playwright system deps (cache hit)
+        if: steps.playwright-cache.outputs.cache-hit == 'true'
+        timeout-minutes: 5
+        run: npx playwright install-deps chromium
 
       - name: Run update-gazette
         run: npm run update-gazette
