@@ -325,6 +325,63 @@ main .loading {
     margin-bottom: var(--gap-sm);
 }
 
+.issue-card-lead {
+    display: block;
+    max-width: 46rem;
+    margin: var(--gap-sm) 0 0;
+    font-family: var(--font-serif);
+    font-size: 1.0625rem;
+    font-style: italic;
+    line-height: 1.5;
+    color: var(--text-soft);
+}
+
+.issue-card-topics-label {
+    display: block;
+    margin: var(--gap-lg) 0 var(--gap-sm);
+    font-family: var(--font-sans);
+    font-size: 0.6875rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.14em;
+    color: var(--muted);
+}
+
+.issue-card-topics {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+}
+
+.issue-card-topics li {
+    position: relative;
+    padding-left: 1.1rem;
+    font-family: var(--font-serif);
+    font-size: 1.0625rem;
+    line-height: 1.4;
+    color: var(--text-soft);
+}
+
+.issue-card-topics li::before {
+    content: "—";
+    position: absolute;
+    left: 0;
+    color: var(--accent);
+}
+
+.issue-card-topics li.more {
+    font-family: var(--font-sans);
+    font-size: 0.8125rem;
+    color: var(--muted);
+}
+
+.issue-card-topics li.more::before { content: ""; }
+
+.issue-card-hero:hover .issue-card-topics li { color: var(--text); }
+
 /* ─── Home: archive list ────────────────────────────── */
 
 .archive-section {
@@ -389,11 +446,33 @@ main .loading {
     font-variant-numeric: tabular-nums;
 }
 
+.issue-card-row .row-body {
+    display: flex;
+    align-items: baseline;
+    column-gap: var(--gap-md);
+    min-width: 0;
+}
+
 .issue-card-row .date {
+    flex: none;
+    width: 7rem;
     font-family: var(--font-serif);
     font-size: 1rem;
     color: var(--text-soft);
 }
+
+.issue-card-row .row-preview {
+    flex: 1 1 auto;
+    min-width: 0;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+    font-family: var(--font-sans);
+    font-size: 0.875rem;
+    color: var(--muted);
+}
+
+.issue-card-row:hover .row-preview { color: var(--text-soft); }
 
 /* ─── Issue view ────────────────────────────────────── */
 
@@ -985,11 +1064,17 @@ body.issue-ready .back-bar-bottom { display: flex; }
     .issue-card-row {
         grid-template-columns: minmax(3.5rem, 4.5rem) minmax(0, 1fr);
         column-gap: var(--gap-sm);
-        grid-template-areas: "num date";
     }
 
-    .issue-card-row .num { grid-area: num; }
-    .issue-card-row .date { grid-area: date; }
+    .issue-card-row .row-body {
+        flex-direction: column;
+        align-items: baseline;
+        row-gap: 0.15rem;
+    }
+
+    .issue-card-row .date { width: auto; }
+
+    .issue-card-row .row-preview { max-width: 100%; }
 
     .issue-nav-bottom {
         grid-template-columns: 1fr;

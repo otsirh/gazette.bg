@@ -22,6 +22,44 @@ function normalizeDate(str) {
     return s;
 }
 
+function stripMarkdownInline(s) {
+    return String(s)
+        .replace(/!\[[^\]]*\]\([^)]*\)/g, '')
+        .replace(/\[([^\]]*)\]\([^)]*\)/g, '$1')
+        .replace(/[*_`]/g, '')
+        .replace(/\s+/g, ' ')
+        .trim();
+}
+
+// Pull the issue's lead sentence (a leading *italic* line, present on only a
+// few issues) and its topic headlines (the level-2 headings). These power the
+// front-page teaser and the per-row previews on the homepage.
+function extractIssueMeta(filePath) {
+    try {
+        const md = fs.readFileSync(filePath, 'utf8');
+        const topics = [];
+        let lead = '';
+        let sawHeading = false;
+        for (const raw of md.split('\n')) {
+            const line = raw.trim();
+            if (!line) continue;
+            const h = /^(#{1,6})\s+(.+?)\s*$/.exec(line);
+            if (h) {
+                sawHeading = true;
+                if (h[1].length === 2) topics.push(stripMarkdownInline(h[2]));
+                continue;
+            }
+            if (!sawHeading && !lead) {
+                const it = /^\*(.+?)\*$/.exec(line);
+                lead = stripMarkdownInline(it ? it[1] : line);
+            }
+        }
+        return { lead, topics };
+    } catch (_) {
+        return { lead: '', topics: [] };
+    }
+}
+
 function getIssueDateFromJson(issueDirPath, issueNum) {
     const metaPath = path.join(issueDirPath, `${issueNum}.json`);
     try {
@@ -61,10 +99,13 @@ function buildCatalog() {
             const mdName = `${issueNum}.md`;
             const filePath = path.join(issueDirPath, mdName);
             if (!fs.existsSync(filePath)) continue;
+            const { lead, topics } = extractIssueMeta(filePath);
             catalog.years[year].push({
                 issue: issueNum,
                 date: getIssueDateFromJson(issueDirPath, issueNum) || '',
                 file: `issues/${year}/${folderName}/${mdName}`,
+                lead,
+                topics,
             });
         }
     }

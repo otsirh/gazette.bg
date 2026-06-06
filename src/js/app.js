@@ -180,14 +180,37 @@
         el.innerHTML = renderShareLinks(url, title);
     }
 
+    const HERO_TOPIC_LIMIT = 5;
+
     function renderIssueCard(item, variant) {
         const variantClass = variant ? ' issue-card-' + variant : '';
         const displayDate = formatDateForHomepage(formatDateBulgarian(item.date));
         const href = `/issue/${encodeURIComponent(item.year)}/${encodeURIComponent(item.issue)}/`;
-        return `<a class="issue-card${variantClass}" href="${escapeHtml(href)}" data-file="${escapeHtml(item.file)}" data-issue="${item.issue}" data-date="${escapeHtml(item.date)}" data-year="${escapeHtml(item.year)}">
-            <span class="num">Брой ${item.issue}</span>
-            <span class="date">${escapeHtml(displayDate)}</span>
-        </a>`;
+        const topics = Array.isArray(item.topics) ? item.topics : [];
+        const attrs = `href="${escapeHtml(href)}" data-file="${escapeHtml(item.file)}" data-issue="${escapeHtml(String(item.issue))}" data-date="${escapeHtml(item.date)}" data-year="${escapeHtml(String(item.year))}"`;
+        const num = `<span class="num">Брой ${escapeHtml(String(item.issue))}</span>`;
+        const date = `<span class="date">${escapeHtml(displayDate)}</span>`;
+
+        if (variant === 'hero') {
+            let body = '';
+            if (item.lead) body += `<span class="issue-card-lead">${escapeHtml(item.lead)}</span>`;
+            if (topics.length) {
+                const shown = topics.slice(0, HERO_TOPIC_LIMIT);
+                const rest = topics.length - shown.length;
+                let items = shown.map((t) => `<li>${escapeHtml(t)}</li>`).join('');
+                if (rest > 0) items += `<li class="more">+ още ${rest} ${rest === 1 ? 'тема' : 'теми'}</li>`;
+                body += `<span class="issue-card-topics-label">В броя</span><ul class="issue-card-topics">${items}</ul>`;
+            }
+            return `<a class="issue-card${variantClass}" ${attrs}>${num}${date}${body}</a>`;
+        }
+
+        if (variant === 'row') {
+            const preview = item.lead || topics[0] || '';
+            const previewHtml = preview ? `<span class="row-preview">${escapeHtml(preview)}</span>` : '';
+            return `<a class="issue-card${variantClass}" ${attrs}>${num}<span class="row-body">${date}${previewHtml}</span></a>`;
+        }
+
+        return `<a class="issue-card${variantClass}" ${attrs}>${num}${date}</a>`;
     }
 
     function renderHome() {
