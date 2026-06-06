@@ -78,6 +78,28 @@ function slugify(text) {
         .replace(/^-|-$/g, '') || 'section';
 }
 
+// Level-2 markdown headings are the issue's topics — used to build a unique
+// meta description and JSON-LD articleSection per page.
+function extractTopicsFromFile(file) {
+    try {
+        const md = fs.readFileSync(path.join(ROOT, file), 'utf8');
+        const topics = [];
+        for (const line of md.split('\n')) {
+            const m = /^##\s+(.+?)\s*$/.exec(line);
+            if (m) topics.push(stripMarkdownInline(m[1]));
+        }
+        return topics;
+    } catch (_) {
+        return [];
+    }
+}
+
+function truncate(s, max) {
+    const clean = String(s).replace(/\s+/g, ' ').trim();
+    if (clean.length <= max) return clean;
+    return clean.slice(0, max - 1).replace(/[\s.,;:–-]+$/, '') + '…';
+}
+
 function processRenderedContent(html) {
     // Promote any h1 to h2, assign unique heading IDs, collect TOC items
     html = html.replace(/<h1(\s[^>]*)?>([\s\S]*?)<\/h1>/gi, '<h2$1>$2</h2>');
@@ -113,7 +135,7 @@ function buildTocHtml(tocItems) {
 function renderIssueCard(item, variant) {
     const variantClass = variant ? ' issue-card-' + variant : '';
     const displayDate = formatDateForHomepage(formatDateBulgarian(item.date));
-    const href = `/issue/${encodeURIComponent(item.year)}/${encodeURIComponent(item.issue)}`;
+    const href = `/issue/${encodeURIComponent(item.year)}/${encodeURIComponent(item.issue)}/`;
     return `<a class="issue-card${variantClass}" href="${escapeHtml(href)}" data-file="${escapeHtml(item.file)}" data-issue="${escapeHtml(String(item.issue))}" data-date="${escapeHtml(item.date)}" data-year="${escapeHtml(String(item.year))}">
             <span class="num">Брой ${escapeHtml(String(item.issue))}</span>
             <span class="date">${escapeHtml(displayDate)}</span>
@@ -212,7 +234,7 @@ function buildIssueViewInner(item, prev, next, related) {
     const formattedDate = formatDateBulgarian(item.date);
     const titleDate = stripDateSuffix(formattedDate);
     const headerHtml = `<div class="meta">Брой ${escapeHtml(String(item.issue))}</div><div class="title">${escapeHtml(titleDate)}</div>`;
-    const canonicalUrl = `${SITE_ORIGIN}/issue/${item.year}/${item.issue}`;
+    const canonicalUrl = `${SITE_ORIGIN}/issue/${item.year}/${item.issue}/`;
     const shareTitle = `Държавен вестник, брой ${item.issue} · ${titleDate} — обобщение`;
     const shareHtml = renderShareLinks(canonicalUrl, shareTitle);
 
@@ -255,30 +277,49 @@ function buildIssuePage(template, item, prev, next, related) {
     const formattedDate = formatDateBulgarian(item.date);
     const titleDate = stripDateSuffix(formattedDate);
     const pageTitle = `Брой ${item.issue} · ${titleDate} — ${PAGE_TITLE_BASE}`;
-    const canonicalUrl = `${SITE_ORIGIN}/issue/${item.year}/${item.issue}`;
+    const canonicalUrl = `${SITE_ORIGIN}/issue/${item.year}/${item.issue}/`;
+    const ogImage = `${SITE_ORIGIN}/og-image.png`;
     const isoDate = issueDateToIso(item.date);
+
+    // Unique, content-rich description per issue (kills duplicate snippets).
+    const topics = extractTopicsFromFile(item.file);
+    const lead = topics[0] || `Брой ${item.issue}`;
+    const metaDesc = truncate(
+        `Държавен вестник, брой ${item.issue} от ${titleDate}: ` + (topics.length ? topics.join('; ') : 'обобщение на броя, генерирано с AI.'),
+        160
+    );
 
     let html = template;
 
     html = html.replace(/<title>[\s\S]*?<\/title>/, `<title>${escapeHtml(pageTitle)}</title>`);
+    html = html.replace(/(<meta name="description" content=")[^"]*("\s*\/>)/, `$1${escapeHtml(metaDesc)}$2`);
+    html = html.replace(/(<meta property="og:type" content=")[^"]*("\s*\/>)/, `$1article$2`);
     html = html.replace(/(<meta property="og:title" content=")[^"]*("\s*\/>)/, `$1${escapeHtml(pageTitle)}$2`);
+    html = html.replace(/(<meta property="og:description" content=")[^"]*("\s*\/>)/, `$1${escapeHtml(metaDesc)}$2`);
     html = html.replace(/(<meta property="og:url" content=")[^"]*("\s*\/>)/, `$1${escapeHtml(canonicalUrl)}$2`);
     html = html.replace(/(<link rel="canonical" href=")[^"]*("\s*\/>)/, `$1${escapeHtml(canonicalUrl)}$2`);
 
     const articleLd = {
         '@context': 'https://schema.org',
         '@type': 'Article',
-        headline: `Държавен вестник, брой ${item.issue} · ${titleDate}`,
+        headline: truncate(`Държавен вестник, брой ${item.issue} · ${titleDate}` + (topics.length ? ` — ${lead}` : ''), 110),
+        description: metaDesc,
         url: canonicalUrl,
+        mainEntityOfPage: canonicalUrl,
         inLanguage: 'bg',
+        image: [ogImage],
         isPartOf: { '@id': `${SITE_ORIGIN}/#website` },
-        publisher: { '@id': `${SITE_ORIGIN}/#org` }
+        publisher: { '@id': `${SITE_ORIGIN}/#org` },
+        author: { '@id': `${SITE_ORIGIN}/#org` }
     };
+    if (topics.length) articleLd.articleSection = topics.slice(0, 12);
     if (isoDate) {
         articleLd.datePublished = isoDate;
         articleLd.dateModified = isoDate;
     }
-    html = html.replace('</head>', `    <script type="application/ld+json">${JSON.stringify(articleLd)}</script>\n</head>`);
+    let headExtras = `<script type="application/ld+json">${JSON.stringify(articleLd)}</script>`;
+    if (isoDate) headExtras = `<meta property="article:published_time" content="${isoDate}" />\n    ${headExtras}`;
+    html = html.replace('</head>', `    ${headExtras}\n</head>`);
 
     // Pre-apply the issue-open and issue-ready classes so initial paint shows the article.
     html = html.replace(/<body(\s|>)/, '<body class="issue-open issue-ready"$1');
@@ -316,7 +357,7 @@ function buildSitemapXml(catalog) {
     urls.push(`  <url>\n    <loc>${SITE_ORIGIN}/</loc>\n    <lastmod>${latestIso}</lastmod>\n    <changefreq>daily</changefreq>\n    <priority>1.0</priority>\n  </url>`);
     for (const item of all) {
         const iso = issueDateToIso(item.date) || today;
-        const loc = `${SITE_ORIGIN}/issue/${encodeURIComponent(item.year)}/${encodeURIComponent(item.issue)}`;
+        const loc = `${SITE_ORIGIN}/issue/${encodeURIComponent(item.year)}/${encodeURIComponent(item.issue)}/`;
         urls.push(`  <url>\n    <loc>${loc}</loc>\n    <lastmod>${iso}</lastmod>\n    <changefreq>yearly</changefreq>\n    <priority>0.7</priority>\n  </url>`);
     }
     return `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${urls.join('\n')}\n</urlset>\n`;

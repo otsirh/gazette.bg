@@ -144,7 +144,9 @@
     }
 
     function setIssuePath(year, issueNum) {
-        const path = '/issue/' + year + '/' + issueNum;
+        // Trailing slash matches the URL the host actually serves (Cloudflare
+        // Pages 308-redirects the non-slash form), so canonical == current URL.
+        const path = '/issue/' + year + '/' + issueNum + '/';
         if (location.pathname !== path) history.pushState(null, '', path);
     }
 
@@ -171,7 +173,7 @@
         const el = document.getElementById('issue-share');
         if (!el) return;
         if (!year || !issueNum) { el.innerHTML = ''; return; }
-        const url = `${location.origin}/issue/${encodeURIComponent(year)}/${encodeURIComponent(issueNum)}`;
+        const url = `${location.origin}/issue/${encodeURIComponent(year)}/${encodeURIComponent(issueNum)}/`;
         const titleDate = stripDateSuffix(formatDateBulgarian(dateStr || ''));
         const title = `Държавен вестник, брой ${issueNum}${titleDate ? ' · ' + titleDate : ''} — обобщение`;
         el.setAttribute('aria-label', 'Споделяне');
@@ -181,7 +183,7 @@
     function renderIssueCard(item, variant) {
         const variantClass = variant ? ' issue-card-' + variant : '';
         const displayDate = formatDateForHomepage(formatDateBulgarian(item.date));
-        const href = `/issue/${encodeURIComponent(item.year)}/${encodeURIComponent(item.issue)}`;
+        const href = `/issue/${encodeURIComponent(item.year)}/${encodeURIComponent(item.issue)}/`;
         return `<a class="issue-card${variantClass}" href="${escapeHtml(href)}" data-file="${escapeHtml(item.file)}" data-issue="${item.issue}" data-date="${escapeHtml(item.date)}" data-year="${escapeHtml(item.year)}">
             <span class="num">Брой ${item.issue}</span>
             <span class="date">${escapeHtml(displayDate)}</span>
