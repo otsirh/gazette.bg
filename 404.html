@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <meta name="description" content="Кратки обобщения на всеки брой на Държавен вестник, генерирани с изкуствен интелект. Прегледайте основните закони, постановления и нормативни актове за няколко минути. Официален източник: dv.parliament.bg" />
+    <meta name="description" content="Кои нови закони и правила влизат в сила? Кратки обобщения на всеки брой на Държавен вестник, генерирани с изкуствен интелект — прегледайте основните закони, постановления и актове за минути. Официален източник: dv.parliament.bg" />
     <meta name="theme-color" content="#1a1a1a" />
     <link rel="icon" href="/favicon.ico" sizes="any" />
     <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
@@ -11,7 +11,7 @@
     <title>Страницата не е намерена — Държавен вестник</title>
     <meta property="og:type" content="website" />
     <meta property="og:title" content="Страницата не е намерена — Държавен вестник" />
-    <meta property="og:description" content="Кратки обобщения на всеки брой на Държавен вестник, генерирани с изкуствен интелект. Прегледайте основните закони, постановления и нормативни актове за няколко минути. Официален източник: dv.parliament.bg" />
+    <meta property="og:description" content="Кои нови закони и правила влизат в сила? Кратки обобщения на всеки брой на Държавен вестник, генерирани с изкуствен интелект — прегледайте основните закони, постановления и актове за минути. Официален източник: dv.parliament.bg" />
     <meta property="og:url" content="https://gazette.bg/" />
     <link rel="canonical" href="https://gazette.bg/" />
     <meta property="og:locale" content="bg_BG" />
@@ -178,6 +178,16 @@ html.initial-issue-route #issue-view { display: block; }
 
 .masthead-title-link:hover {
     color: var(--accent);
+}
+
+.masthead-tagline {
+    margin: var(--gap-lg) auto 0;
+    max-width: 42rem;
+    font-family: var(--font-serif);
+    font-size: clamp(1.0625rem, 2.4vw, 1.3125rem);
+    font-weight: 400;
+    line-height: 1.45;
+    color: var(--text-soft);
 }
 
 .masthead-disclaimer {
@@ -1017,6 +1027,7 @@ body.issue-ready .back-bar-bottom { display: flex; }
             <div class="masthead-rule masthead-rule-top" aria-hidden="true"></div>
             <h1 class="masthead-title"><a href="/" class="masthead-title-link">Държавен вестник — обобщения на броеве</a></h1>
             <div class="masthead-rule masthead-rule-bottom" aria-hidden="true"></div>
+            <p class="masthead-tagline">Новите закони, правила и решения от всеки брой — обобщени ясно и кратко, за да видите какво ви засяга за минути.</p>
             <p class="masthead-disclaimer">Този сайт не е официален и не е свързан с държавни органи. Обобщенията може да съдържат грешки. Официален източник: <a href="https://dv.parliament.bg" target="_blank" rel="noopener">dv.parliament.bg</a>.</p>
         </div>
     </header>
