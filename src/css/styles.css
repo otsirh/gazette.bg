@@ -707,51 +707,6 @@ body.issue-ready .back-bar-bottom { display: flex; }
     border-radius: var(--radius-sm);
 }
 
-/* ─── Issue view: share ─────────────────────────────── */
-
-.issue-share {
-    display: flex;
-    align-items: center;
-    flex-wrap: wrap;
-    gap: var(--gap-sm);
-    margin: 0 0 var(--gap-xl);
-}
-
-.issue-share:empty { display: none; }
-
-.issue-share-label {
-    font-family: var(--font-sans);
-    font-size: 0.6875rem;
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: 0.16em;
-    color: var(--muted);
-    margin-right: 0.15rem;
-}
-
-.share-link {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    width: 2.15rem;
-    height: 2.15rem;
-    border: 1px solid var(--line-strong);
-    border-radius: var(--radius-md);
-    color: var(--ink-soft);
-    text-decoration: none;
-    background: var(--paper);
-    transition: border-color 0.16s var(--ease), color 0.16s var(--ease), background 0.16s var(--ease), transform 0.16s var(--ease);
-}
-
-.share-link:hover {
-    border-color: var(--ink);
-    color: var(--paper);
-    background: var(--ink);
-    transform: translateY(-2px);
-}
-
-.share-icon { width: 1.05rem; height: 1.05rem; flex-shrink: 0; }
-
 /* ─── Not found ─────────────────────────────────────── */
 
 .not-found-section {
@@ -1230,7 +1185,6 @@ body.issue-ready .back-bar-bottom { display: flex; }
 @media print {
     .back-bar,
     .issue-nav,
-    .issue-share,
     .scroll-to-top { display: none !important; }
     body { background: #fff; color: #000; }
     .content { font-family: var(--font-serif); }

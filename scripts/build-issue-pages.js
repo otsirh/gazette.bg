@@ -254,30 +254,10 @@ function getAllIssuesNewestFirst(catalog) {
 
 const CONTENT_DISCLAIMER = '<p class="content-disclaimer">Текстът по-долу е неофициално обобщение, генерирано с AI, и може да съдържа грешки. За официален текст и правни цели използвайте <a href="https://dv.parliament.bg" target="_blank" rel="noopener">dv.parliament.bg</a>.</p>';
 
-const SHARE_ICONS = {
-    fb: '<svg class="share-icon" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M13.5 21v-8h2.7l.4-3.1h-3.1V7.9c0-.9.3-1.5 1.6-1.5h1.7V3.6c-.3 0-1.3-.1-2.4-.1-2.4 0-4 1.5-4 4.1V9.9H7.7V13h2.7v8h3.1z"/></svg>',
-    li: '<svg class="share-icon" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M20.5 2h-17C2.7 2 2 2.7 2 3.5v17c0 .8.7 1.5 1.5 1.5h17c.8 0 1.5-.7 1.5-1.5v-17c0-.8-.7-1.5-1.5-1.5zM8 19H5V9h3v10zM6.5 7.7C5.5 7.7 4.7 7 4.7 6S5.5 4.3 6.5 4.3 8.3 5 8.3 6s-.8 1.7-1.8 1.7zM19 19h-3v-5c0-1.2-.4-2-1.5-2-.8 0-1.3.6-1.5 1.1-.1.2-.1.5-.1.7V19h-3V9h3v1.3c.4-.6 1.1-1.5 2.7-1.5 2 0 3.4 1.3 3.4 4V19z"/></svg>',
-    x: '<svg class="share-icon" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>'
-};
-
-function renderShareLinks(url, title) {
-    const u = encodeURIComponent(url);
-    const t = encodeURIComponent(title);
-    return `<div class="issue-share" id="issue-share" aria-label="Споделяне">
-                    <span class="issue-share-label">Споделете:</span>
-                    <a class="share-link share-fb" href="https://www.facebook.com/sharer/sharer.php?u=${u}" target="_blank" rel="noopener" aria-label="Споделяне във Facebook" title="Споделяне във Facebook">${SHARE_ICONS.fb}</a>
-                    <a class="share-link share-li" href="https://www.linkedin.com/sharing/share-offsite/?url=${u}" target="_blank" rel="noopener" aria-label="Споделяне в LinkedIn" title="Споделяне в LinkedIn">${SHARE_ICONS.li}</a>
-                    <a class="share-link share-x" href="https://twitter.com/intent/tweet?url=${u}&text=${t}" target="_blank" rel="noopener" aria-label="Споделяне в X" title="Споделяне в X">${SHARE_ICONS.x}</a>
-                </div>`;
-}
-
 function buildIssueViewInner(item, prev, next, related) {
     const formattedDate = formatDateBulgarian(item.date);
     const titleDate = stripDateSuffix(formattedDate);
     const headerHtml = `<div class="meta">Брой ${escapeHtml(String(item.issue))}</div><div class="title">${escapeHtml(titleDate)}</div>`;
-    const canonicalUrl = `${SITE_ORIGIN}/issue/${item.year}/${item.issue}/`;
-    const shareTitle = `Държавен вестник, брой ${item.issue} · ${titleDate} — обобщение`;
-    const shareHtml = renderShareLinks(canonicalUrl, shareTitle);
 
     const mdPath = path.join(ROOT, item.file);
     const md = fs.readFileSync(mdPath, 'utf8');
@@ -305,7 +285,6 @@ function buildIssueViewInner(item, prev, next, related) {
                     <button type="button" class="back-btn" id="back-btn" aria-label="Обратно към началната страница">← Обратно към началната страница</button>
                 </div>
                 <div class="issue-header" id="issue-header">${headerHtml}</div>
-                ${shareHtml}
                 <div class="content" id="content">${contentHtml}</div>
                 <div id="issue-nav" class="issue-nav issue-nav-bottom" aria-label="Навигация между броеве">${navHtml}</div>
                 ${relatedHtml}

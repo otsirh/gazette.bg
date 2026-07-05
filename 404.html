@@ -735,51 +735,6 @@ body.issue-ready .back-bar-bottom { display: flex; }
     border-radius: var(--radius-sm);
 }
 
-/* ─── Issue view: share ─────────────────────────────── */
-
-.issue-share {
-    display: flex;
-    align-items: center;
-    flex-wrap: wrap;
-    gap: var(--gap-sm);
-    margin: 0 0 var(--gap-xl);
-}
-
-.issue-share:empty { display: none; }
-
-.issue-share-label {
-    font-family: var(--font-sans);
-    font-size: 0.6875rem;
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: 0.16em;
-    color: var(--muted);
-    margin-right: 0.15rem;
-}
-
-.share-link {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    width: 2.15rem;
-    height: 2.15rem;
-    border: 1px solid var(--line-strong);
-    border-radius: var(--radius-md);
-    color: var(--ink-soft);
-    text-decoration: none;
-    background: var(--paper);
-    transition: border-color 0.16s var(--ease), color 0.16s var(--ease), background 0.16s var(--ease), transform 0.16s var(--ease);
-}
-
-.share-link:hover {
-    border-color: var(--ink);
-    color: var(--paper);
-    background: var(--ink);
-    transform: translateY(-2px);
-}
-
-.share-icon { width: 1.05rem; height: 1.05rem; flex-shrink: 0; }
-
 /* ─── Not found ─────────────────────────────────────── */
 
 .not-found-section {
@@ -1258,7 +1213,6 @@ body.issue-ready .back-bar-bottom { display: flex; }
 @media print {
     .back-bar,
     .issue-nav,
-    .issue-share,
     .scroll-to-top { display: none !important; }
     body { background: #fff; color: #000; }
     .content { font-family: var(--font-serif); }
@@ -1315,7 +1269,6 @@ body.issue-ready .back-bar-bottom { display: flex; }
                     <button type="button" class="back-btn" id="back-btn" aria-label="Обратно към началната страница">← Обратно към началната страница</button>
                 </div>
                 <div class="issue-header" id="issue-header"></div>
-                <div class="issue-share" id="issue-share"></div>
                 <div class="content" id="content"></div>
                 <div id="issue-nav" class="issue-nav issue-nav-bottom" aria-label="Навигация между броеве"></div>
                 <section class="issue-related" id="issue-related" aria-label="Скорошни броеве"></section>
@@ -1328,6 +1281,6 @@ body.issue-ready .back-bar-bottom { display: flex; }
     </div>
     <button type="button" class="scroll-to-top" id="scroll-to-top" aria-label="Обратно нагоре" title="Обратно нагоре">↑</button>
     <script defer src="https://cdn.jsdelivr.net/npm/marked@17/lib/marked.umd.js"></script>
-    <script defer src="/src/js/app.js?v=2.9.3"></script>
+    <script defer src="/src/js/app.js?v=2.9.4"></script>
 </body>
 </html>
