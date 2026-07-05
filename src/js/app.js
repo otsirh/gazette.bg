@@ -154,32 +154,6 @@
     let lastFocusedCard = null;
     let currentTocId = null;
 
-    const SHARE_ICONS = {
-        fb: '<svg class="share-icon" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M13.5 21v-8h2.7l.4-3.1h-3.1V7.9c0-.9.3-1.5 1.6-1.5h1.7V3.6c-.3 0-1.3-.1-2.4-.1-2.4 0-4 1.5-4 4.1V9.9H7.7V13h2.7v8h3.1z"/></svg>',
-        li: '<svg class="share-icon" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M20.5 2h-17C2.7 2 2 2.7 2 3.5v17c0 .8.7 1.5 1.5 1.5h17c.8 0 1.5-.7 1.5-1.5v-17c0-.8-.7-1.5-1.5-1.5zM8 19H5V9h3v10zM6.5 7.7C5.5 7.7 4.7 7 4.7 6S5.5 4.3 6.5 4.3 8.3 5 8.3 6s-.8 1.7-1.8 1.7zM19 19h-3v-5c0-1.2-.4-2-1.5-2-.8 0-1.3.6-1.5 1.1-.1.2-.1.5-.1.7V19h-3V9h3v1.3c.4-.6 1.1-1.5 2.7-1.5 2 0 3.4 1.3 3.4 4V19z"/></svg>',
-        x: '<svg class="share-icon" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>'
-    };
-
-    function renderShareLinks(url, title) {
-        const u = encodeURIComponent(url);
-        const t = encodeURIComponent(title);
-        return `<span class="issue-share-label">Споделете:</span>`
-            + `<a class="share-link share-fb" href="https://www.facebook.com/sharer/sharer.php?u=${u}" target="_blank" rel="noopener" aria-label="Споделяне във Facebook" title="Споделяне във Facebook">${SHARE_ICONS.fb}</a>`
-            + `<a class="share-link share-li" href="https://www.linkedin.com/sharing/share-offsite/?url=${u}" target="_blank" rel="noopener" aria-label="Споделяне в LinkedIn" title="Споделяне в LinkedIn">${SHARE_ICONS.li}</a>`
-            + `<a class="share-link share-x" href="https://twitter.com/intent/tweet?url=${u}&text=${t}" target="_blank" rel="noopener" aria-label="Споделяне в X" title="Споделяне в X">${SHARE_ICONS.x}</a>`;
-    }
-
-    function updateShareLinks(year, issueNum, dateStr) {
-        const el = document.getElementById('issue-share');
-        if (!el) return;
-        if (!year || !issueNum) { el.innerHTML = ''; return; }
-        const url = `${location.origin}/issue/${encodeURIComponent(year)}/${encodeURIComponent(issueNum)}/`;
-        const titleDate = stripDateSuffix(formatDateBulgarian(dateStr || ''));
-        const title = `Държавен вестник, брой ${issueNum}${titleDate ? ' · ' + titleDate : ''} — обобщение`;
-        el.setAttribute('aria-label', 'Споделяне');
-        el.innerHTML = renderShareLinks(url, title);
-    }
-
     const HERO_TOPIC_LIMIT = 5;
 
     function renderIssueCard(item, variant) {
@@ -237,6 +211,7 @@
         if (yearKeys.length) {
             html += '<section class="archive-section">';
             html += '<h2 class="section-title">Архив</h2>';
+            html += '<div class="archive-search"><input type="search" id="archive-search" class="archive-search-input" placeholder="Търсене по тема, дата или брой…" aria-label="Търсене в архива" autocomplete="off" spellcheck="false" /></div>';
             yearKeys.forEach((year) => {
                 html += `<div class="year-group"><h3 class="year-title">${year}</h3><div class="issue-list">`;
                 byYear[year].forEach((item) => { html += renderIssueCard(item, 'row'); });
@@ -246,6 +221,50 @@
         }
 
         homeContent.innerHTML = html;
+        const searchInput = document.getElementById('archive-search');
+        if (searchInput && searchInput.value) applyArchiveFilter(searchInput.value);
+    }
+
+    // Live client-side filter over the archive rows. Matches an issue's number,
+    // date and preview text (its rendered textContent) against the query. Empty
+    // year groups collapse; a no-results note appears when nothing matches. The
+    // hero (latest issue) and About block are hidden while a query is active so
+    // the results are the only thing on screen.
+    function applyArchiveFilter(rawQuery) {
+        if (!homeContent) return;
+        const q = (rawQuery || '').trim().toLowerCase();
+        const heroSection = homeContent.querySelector('.hero-section');
+        const archiveSection = homeContent.querySelector('.archive-section');
+        const aboutSection = document.querySelector('.about-section');
+        const existingNote = homeContent.querySelector('.filter-empty');
+        if (existingNote) existingNote.remove();
+
+        if (!q) {
+            homeContent.querySelectorAll('.filter-hidden').forEach((el) => el.classList.remove('filter-hidden'));
+            if (aboutSection) aboutSection.classList.remove('filter-hidden');
+            return;
+        }
+
+        if (heroSection) heroSection.classList.add('filter-hidden');
+        if (aboutSection) aboutSection.classList.add('filter-hidden');
+
+        let anyVisible = false;
+        homeContent.querySelectorAll('.year-group').forEach((group) => {
+            let groupVisible = false;
+            group.querySelectorAll('.issue-card-row').forEach((row) => {
+                const match = row.textContent.toLowerCase().includes(q);
+                row.classList.toggle('filter-hidden', !match);
+                if (match) { groupVisible = true; anyVisible = true; }
+            });
+            group.classList.toggle('filter-hidden', !groupVisible);
+        });
+
+        if (archiveSection && !anyVisible) {
+            const note = document.createElement('p');
+            note.className = 'empty filter-empty';
+            note.textContent = 'Няма намерени броеве за „' + rawQuery.trim() + '“.';
+            archiveSection.appendChild(note);
+        }
     }
 
     function showHome() {
@@ -403,11 +422,9 @@
             const titleDate = stripDateSuffix(formattedDate);
             document.title = `Брой ${issueNum} · ${titleDate} — Обобщения на Държавен вестник`;
             issueHeaderEl.innerHTML = `<div class="meta">Брой ${escapeHtml(issueNum)}</div><div class="title">${escapeHtml(stripDateSuffix(formattedDate))}</div>`;
-            updateShareLinks(year, issueNum, date);
         } else {
             document.title = PAGE_TITLE_BASE;
             issueHeaderEl.innerHTML = '';
-            updateShareLinks(null, null, null);
         }
         const contentDisclaimer = '<p class="content-disclaimer">Текстът по-долу е неофициално обобщение, генерирано с AI, и може да съдържа грешки. За официален текст и правни цели използвайте <a href="https://dv.parliament.bg" target="_blank" rel="noopener">dv.parliament.bg</a>.</p>';
         try {
@@ -486,6 +503,9 @@
     async function init() {
         backBtns.forEach(function (btn) { btn.addEventListener('click', showHome); });
         mainEl.addEventListener('click', onMainClick);
+        homeView.addEventListener('input', function (e) {
+            if (e.target && e.target.id === 'archive-search') applyArchiveFilter(e.target.value);
+        });
         window.addEventListener('popstate', applyRoute);
         function onScroll() {
             updateScrollToTopVisibility();
