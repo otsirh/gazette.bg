@@ -211,6 +211,7 @@
         if (yearKeys.length) {
             html += '<section class="archive-section">';
             html += '<h2 class="section-title">Архив</h2>';
+            html += '<div class="archive-search"><input type="search" id="archive-search" class="archive-search-input" placeholder="Търсене по тема, дата или брой…" aria-label="Търсене в архива" autocomplete="off" spellcheck="false" /></div>';
             yearKeys.forEach((year) => {
                 html += `<div class="year-group"><h3 class="year-title">${year}</h3><div class="issue-list">`;
                 byYear[year].forEach((item) => { html += renderIssueCard(item, 'row'); });
@@ -220,6 +221,50 @@
         }
 
         homeContent.innerHTML = html;
+        const searchInput = document.getElementById('archive-search');
+        if (searchInput && searchInput.value) applyArchiveFilter(searchInput.value);
+    }
+
+    // Live client-side filter over the archive rows. Matches an issue's number,
+    // date and preview text (its rendered textContent) against the query. Empty
+    // year groups collapse; a no-results note appears when nothing matches. The
+    // hero (latest issue) and About block are hidden while a query is active so
+    // the results are the only thing on screen.
+    function applyArchiveFilter(rawQuery) {
+        if (!homeContent) return;
+        const q = (rawQuery || '').trim().toLowerCase();
+        const heroSection = homeContent.querySelector('.hero-section');
+        const archiveSection = homeContent.querySelector('.archive-section');
+        const aboutSection = document.querySelector('.about-section');
+        const existingNote = homeContent.querySelector('.filter-empty');
+        if (existingNote) existingNote.remove();
+
+        if (!q) {
+            homeContent.querySelectorAll('.filter-hidden').forEach((el) => el.classList.remove('filter-hidden'));
+            if (aboutSection) aboutSection.classList.remove('filter-hidden');
+            return;
+        }
+
+        if (heroSection) heroSection.classList.add('filter-hidden');
+        if (aboutSection) aboutSection.classList.add('filter-hidden');
+
+        let anyVisible = false;
+        homeContent.querySelectorAll('.year-group').forEach((group) => {
+            let groupVisible = false;
+            group.querySelectorAll('.issue-card-row').forEach((row) => {
+                const match = row.textContent.toLowerCase().includes(q);
+                row.classList.toggle('filter-hidden', !match);
+                if (match) { groupVisible = true; anyVisible = true; }
+            });
+            group.classList.toggle('filter-hidden', !groupVisible);
+        });
+
+        if (archiveSection && !anyVisible) {
+            const note = document.createElement('p');
+            note.className = 'empty filter-empty';
+            note.textContent = 'Няма намерени броеве за „' + rawQuery.trim() + '“.';
+            archiveSection.appendChild(note);
+        }
     }
 
     function showHome() {
@@ -458,6 +503,9 @@
     async function init() {
         backBtns.forEach(function (btn) { btn.addEventListener('click', showHome); });
         mainEl.addEventListener('click', onMainClick);
+        homeView.addEventListener('input', function (e) {
+            if (e.target && e.target.id === 'archive-search') applyArchiveFilter(e.target.value);
+        });
         window.addEventListener('popstate', applyRoute);
         function onScroll() {
             updateScrollToTopVisibility();

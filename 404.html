@@ -619,6 +619,69 @@ main .loading {
 
 .issue-card-row:hover .row-preview { color: var(--ink-soft); }
 
+/* ─── Home: archive search ──────────────────────────── */
+
+.archive-search {
+    position: relative;
+    margin: 0 0 var(--gap-lg);
+}
+
+.archive-search::before {
+    content: "";
+    position: absolute;
+    left: 0.15rem;
+    top: 50%;
+    width: 0.95rem;
+    height: 0.95rem;
+    margin-top: -0.55rem;
+    border: 1.5px solid var(--muted);
+    border-radius: 50%;
+    pointer-events: none;
+    transition: border-color 0.2s var(--ease);
+}
+
+.archive-search::after {
+    content: "";
+    position: absolute;
+    left: 0.95rem;
+    top: 50%;
+    width: 0.4rem;
+    height: 1.5px;
+    margin-top: 0.28rem;
+    background: var(--muted);
+    transform: rotate(45deg);
+    transform-origin: left center;
+    pointer-events: none;
+    transition: background 0.2s var(--ease);
+}
+
+.archive-search:focus-within::before { border-color: var(--ink); }
+.archive-search:focus-within::after { background: var(--ink); }
+
+.archive-search-input {
+    width: 100%;
+    padding: 0.6rem 0.2rem 0.6rem 1.9rem;
+    border: none;
+    border-bottom: 1px solid var(--line-strong);
+    border-radius: 0;
+    background: transparent;
+    color: var(--ink);
+    font-family: var(--font-serif);
+    font-size: 1.0625rem;
+    line-height: 1.4;
+    transition: border-color 0.2s var(--ease);
+    -webkit-appearance: none;
+    appearance: none;
+}
+
+.archive-search-input::placeholder { color: var(--muted); opacity: 1; }
+.archive-search-input:focus { outline: none; border-bottom-color: var(--ink); }
+.archive-search-input::-webkit-search-cancel-button { -webkit-appearance: none; appearance: none; }
+
+.filter-hidden { display: none !important; }
+
+.filter-empty { text-align: left !important; padding: var(--gap-lg) 0 !important; }
+
 /* ─── Issue view: back bar ──────────────────────────── */
 
 .back-bar {
@@ -1240,7 +1303,6 @@ body.issue-ready .back-bar-bottom { display: flex; }
                     </span>
                     <span class="brand-name">gazette<span class="brand-dot">.</span>bg</span>
                 </a>
-                <span class="masthead-badge">Неофициално · Обобщения с AI</span>
             </div>
             <p class="masthead-kicker">Обобщения на официалното издание</p>
             <h1 class="masthead-title"><a href="/" class="masthead-title-link">Държавен вестник</a></h1>
@@ -1259,9 +1321,7 @@ body.issue-ready .back-bar-bottom { display: flex; }
                 </section><!--HOME-CONTENT-END--></div>
                 <section class="about-section">
                     <h2 class="section-title">За Държавен вестник</h2>
-                    <p>Държавен вестник е официалното издание на Република България, в което се обнародват законите, актовете на Народното събрание, указите на президента, решенията и постановленията на Министерския съвет, актовете на министрите и редица други нормативни документи. Без обнародване в Държавен вестник законите и подзаконовите актове не пораждат правно действие. Изданието се поддържа от Народното събрание и излиза няколко пъти седмично, като всеки нов брой съдържа десетки правни актове с различна материя – от данъчни промени и социални мерки до назначения, концесии и устройствени планове.</p>
-                    <p>Този сайт предоставя кратки обобщения на всеки брой на Държавен вестник, генерирани автоматично с изкуствен интелект. Целта е да направим съдържанието на изданието по-достъпно за широката публика – вместо да четете десетки страници официален текст, можете да прегледате основните моменти за няколко минути и да решите кои актове ви засягат лично. Обобщенията се обновяват ежедневно, скоро след като нов брой бъде публикуван в официалния източник. Архивът покрива всички издадени броеве от началото на текущата година и нараства с всеки следващ брой.</p>
-                    <p>Важно е да се отбележи, че обобщенията тук са неофициални и могат да съдържат неточности или пропуски. Те не заместват самия Държавен вестник и не са пригодни за правни или административни цели. Ако се нуждаете от точния текст на конкретен акт – например при изготвяне на договор, подаване на жалба или справка пред държавна институция – винаги използвайте официалния източник на адрес <a href="https://dv.parliament.bg" target="_blank" rel="noopener">dv.parliament.bg</a>, където са публикувани пълните текстове на броевете в оригиналния им вид.</p>
+                    <p>Държавен вестник е официалното издание на Република България, в което се обнародват законите, постановленията и другите нормативни актове — без обнародване тук те не влизат в сила. Този сайт публикува кратки, неофициални обобщения на всеки брой, генерирани с изкуствен интелект, за да прегледате основното за минути. За точния официален текст използвайте <a href="https://dv.parliament.bg" target="_blank" rel="noopener">dv.parliament.bg</a>.</p>
                 </section>
             </div>
             <div id="issue-view">
@@ -1281,6 +1341,6 @@ body.issue-ready .back-bar-bottom { display: flex; }
     </div>
     <button type="button" class="scroll-to-top" id="scroll-to-top" aria-label="Обратно нагоре" title="Обратно нагоре">↑</button>
     <script defer src="https://cdn.jsdelivr.net/npm/marked@17/lib/marked.umd.js"></script>
-    <script defer src="/src/js/app.js?v=2.9.4"></script>
+    <script defer src="/src/js/app.js?v=2.9.5"></script>
 </body>
 </html>

@@ -231,6 +231,7 @@ function buildHomeContentHtml(catalog) {
     if (yearKeys.length) {
         html += '<section class="archive-section">';
         html += '<h2 class="section-title">Архив</h2>';
+        html += '<div class="archive-search"><input type="search" id="archive-search" class="archive-search-input" placeholder="Търсене по тема, дата или брой…" aria-label="Търсене в архива" autocomplete="off" spellcheck="false" /></div>';
         yearKeys.forEach((year) => {
             html += `<div class="year-group"><h3 class="year-title">${escapeHtml(year)}</h3><div class="issue-list">`;
             byYear[year].forEach((item) => { html += renderIssueCard(item, 'row'); });
