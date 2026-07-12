@@ -741,9 +741,34 @@ ${contents}
         }
     }
 
+    // "Архив" used to just jump the page down and leave you there, which reads as
+    // nothing happening. Someone who clicks it wants to find an issue — so land
+    // on the register with the cursor already in the search box. Not on a touch
+    // screen, where that would throw the keyboard in the reader's face.
+    function onFolioClick(e) {
+        const link = e.target.closest('.folio-link[href^="/#"]');
+        if (!link || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button !== 0) return;
+        if (document.body.classList.contains('issue-open')) return; // let it navigate home
+
+        const id = link.getAttribute('href').slice(2);
+        const target = document.getElementById(id);
+        if (!target) return;
+
+        e.preventDefault();
+        target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        if (location.hash !== '#' + id) history.pushState(null, '', '/#' + id);
+
+        const search = id === 'archive' ? document.getElementById('archive-search') : null;
+        if (search && window.matchMedia('(hover: hover)').matches) {
+            setTimeout(() => search.focus({ preventScroll: true }), 400);
+        }
+    }
+
     async function init() {
         backBtns.forEach((btn) => btn.addEventListener('click', showHome));
         mainEl.addEventListener('click', onMainClick);
+        const folio = document.querySelector('.folio');
+        if (folio) folio.addEventListener('click', onFolioClick);
         if (themeToggle) themeToggle.addEventListener('click', toggleTheme);
 
         // The head bootstrap already applied a stored theme; the meta tags still
