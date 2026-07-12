@@ -585,6 +585,119 @@ main .loading {
 
 .contents-list li.more::before { content: "+"; color: var(--muted); }
 
+/* ─── Who it's for: tags ────────────────────────────── */
+
+.tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.35rem;
+    margin: var(--gap-sm) 0 var(--gap-md);
+    padding: 0;
+    max-width: none;
+}
+
+.tag {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.18rem 0.45rem;
+    border: 1px solid var(--hairline);
+    font-family: var(--font-mono);
+    font-size: 0.625rem;
+    font-weight: 500;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--muted);
+    white-space: nowrap;
+}
+
+.issue-card-lead:hover .tag { border-color: var(--hairline); color: var(--ink-soft); }
+
+/* The reader should be able to skip a section without reading it, so the tags
+   sit directly under its heading. */
+.content .tags { margin: -0.25rem 0 var(--gap-md); }
+
+/* ─── Deadlines ─────────────────────────────────────── */
+
+.deadlines-section { margin-bottom: var(--gap-3xl); }
+
+.deadlines-note {
+    margin: -0.75rem 0 var(--gap-md);
+    font-size: 0.8125rem;
+    font-style: italic;
+    color: var(--muted);
+}
+
+.deadline-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+
+.deadline {
+    display: grid;
+    grid-template-columns: minmax(6.5rem, 7.5rem) minmax(0, 1fr);
+    column-gap: var(--gap-lg);
+    align-items: baseline;
+    padding: 0.7rem 0;
+    border-bottom: 1px solid var(--hairline-soft);
+}
+
+.deadline-left {
+    font-family: var(--font-mono);
+    font-size: 0.6875rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--muted);
+    font-variant-numeric: tabular-nums;
+}
+
+/* Three days or fewer is the difference between acting and finding out too
+   late — that one gets the ink. */
+.deadline.is-urgent .deadline-left { color: var(--accent); font-weight: 700; }
+
+.deadline-body { min-width: 0; }
+
+.deadline-what {
+    display: block;
+    font-family: var(--font-text);
+    font-size: 1.0625rem;
+    font-weight: 600;
+    line-height: 1.35;
+    color: var(--ink);
+    text-decoration: none;
+    transition: color 0.16s var(--ease);
+}
+
+.deadline-what:hover { color: var(--accent); }
+
+.deadline-who {
+    display: block;
+    margin-top: 0.15rem;
+    font-family: var(--font-mono);
+    font-size: 0.625rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--muted);
+}
+
+/* On the issue page the same list runs under the header, as a standing notice. */
+.issue-deadlines {
+    margin: 0 0 var(--gap-xl);
+    padding: var(--gap-md) 0 0;
+    border-top: 1px solid var(--hairline);
+}
+
+.issue-deadlines-title {
+    margin: 0 0 var(--gap-2xs);
+    font-family: var(--font-mono);
+    font-size: 0.6875rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.14em;
+    color: var(--accent);
+}
+
 /* ─── Archive: the contents register ────────────────── */
 
 .archive-section { scroll-margin-top: 4rem; }
@@ -1381,6 +1494,12 @@ body.issue-ready .back-bar-bottom { display: block; }
     .content { font-size: 1.0625rem; }
     .content h2:first-of-type + p::first-letter { font-size: 3em; }
 
+    /* The countdown reads first on a phone, above what it is a countdown for. */
+    .deadline {
+        grid-template-columns: minmax(0, 1fr);
+        row-gap: 0.2rem;
+    }
+
     .issue-nav-bottom { grid-template-columns: 1fr; gap: var(--gap-lg); }
     .issue-nav-group.is-next { text-align: left; }
 
@@ -1421,4 +1540,11 @@ body.issue-ready .back-bar-bottom { display: block; }
         font-size: 0.75em;
         color: #555;
     }
+}
+
+.deadlines-rest {
+    margin: var(--gap-md) 0 0;
+    font-size: 0.875rem;
+    font-style: italic;
+    color: var(--muted);
 }

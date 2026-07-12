@@ -60,16 +60,15 @@ function extractIssueMeta(filePath) {
     }
 }
 
-function getIssueDateFromJson(issueDirPath, issueNum) {
+// The issue's JSON carries the publication date and — once the summary has been
+// through the tagging pass — who it affects, the places it names, and the
+// deadlines it starts. All of it goes into the catalog: the site reads nothing else.
+function readIssueJson(issueDirPath, issueNum) {
     const metaPath = path.join(issueDirPath, `${issueNum}.json`);
     try {
-        if (fs.existsSync(metaPath)) {
-            const data = JSON.parse(fs.readFileSync(metaPath, 'utf8'));
-            const raw = data.date && String(data.date).trim() ? data.date.trim() : null;
-            return raw ? normalizeDate(raw) : null;
-        }
+        if (fs.existsSync(metaPath)) return JSON.parse(fs.readFileSync(metaPath, 'utf8'));
     } catch (_) {}
-    return null;
+    return {};
 }
 function buildCatalog() {
     const catalog = { years: {} };
@@ -100,12 +99,17 @@ function buildCatalog() {
             const filePath = path.join(issueDirPath, mdName);
             if (!fs.existsSync(filePath)) continue;
             const { lead, topics } = extractIssueMeta(filePath);
+            const meta = readIssueJson(issueDirPath, issueNum);
             catalog.years[year].push({
                 issue: issueNum,
-                date: getIssueDateFromJson(issueDirPath, issueNum) || '',
+                date: meta.date ? normalizeDate(String(meta.date).trim()) : '',
                 file: `issues/${year}/${folderName}/${mdName}`,
                 lead,
                 topics,
+                audiences: meta.audiences || [],
+                places: meta.places || [],
+                sections: meta.sections || [],
+                deadlines: meta.deadlines || [],
             });
         }
     }

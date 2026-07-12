@@ -12,6 +12,7 @@ import {
     getCoverageCheckPrompt,
 } from './ai-prompts.js';
 import { cleanMarkdown, findMixedScriptWords } from './clean-markdown.js';
+import { extractIssueMeta } from './issue-meta.js';
 import { appendLog, flushAlertEmail } from './logger.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -285,6 +286,39 @@ async function reportCoverage(inventory, summary, year, issue) {
     }
 }
 
+const BG_MONTHS = ['януари', 'февруари', 'март', 'април', 'май', 'юни', 'юли', 'август', 'септември', 'октомври', 'ноември', 'декември'];
+
+function issueDateToIso(str) {
+    const m = String(str || '').match(/^(\d{1,2})\s+([^\s]+)\s+(\d{4})/);
+    if (!m) return null;
+    const monthIdx = BG_MONTHS.indexOf(m[2].toLowerCase());
+    if (monthIdx < 0) return null;
+    return `${m[3]}-${String(monthIdx + 1).padStart(2, '0')}-${m[1].padStart(2, '0')}`;
+}
+
+// The summary is the product; this is a label on it. If labelling fails the
+// issue still publishes — it just goes out without tags and deadlines, and the
+// backfill script can fill them in later.
+async function writeIssueMeta(year, issue, markdown) {
+    const jsonPath = path.join(issueDirPath(year, issue), `${Number(issue)}.json`);
+    try {
+        const data = fs.existsSync(jsonPath) ? JSON.parse(fs.readFileSync(jsonPath, 'utf8')) : {};
+        const issueIso = issueDateToIso(data.date);
+        if (!issueIso) {
+            log(`No usable date for ${year}/${issue}; skipping tags and deadlines`, 'WARN');
+            return;
+        }
+        const meta = await extractIssueMeta({ apiKey, markdown, issueIso, year, issue });
+        logUsage('meta', meta.usage);
+        delete meta.usage;
+        fs.writeFileSync(jsonPath, JSON.stringify({ ...data, ...meta }, null, 4), 'utf8');
+        console.log(`  Tags: ${meta.audiences.join(', ') || '—'} | deadlines: ${meta.deadlines.length}`);
+    } catch (e) {
+        log(`Tags and deadlines failed for ${year}/${issue}: ${e.message}`, 'WARN');
+        console.error('  (tags and deadlines could not be extracted — the summary is published without them)');
+    }
+}
+
 async function main() {
     log('Run started', 'INFO');
     if (!apiKey) fail('Missing ANTHROPIC_API_KEY in .env');
@@ -345,6 +379,8 @@ async function main() {
                     log(`Deleted PDF ${pdf}`, 'INFO');
                 }
             }
+            await writeIssueMeta(year, issue, markdown);
+
             log(`Wrote ${outPath}`, 'OK');
             console.log(`✓ Wrote ${path.relative(ROOT, outPath)}`);
         } catch (e) {

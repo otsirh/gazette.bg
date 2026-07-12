@@ -154,6 +154,17 @@ function processRenderedContent(html) {
     return { html, tocItems };
 }
 
+// Drops a row of "who this is for" tags under every heading it has tags for, so
+// the reader can skip a section without reading it.
+function injectSectionTags(html, sections) {
+    if (!Array.isArray(sections) || !sections.length) return html;
+    const byTitle = new Map(sections.map((s) => [s.title.trim(), s.audiences || []]));
+    return html.replace(/<h2([^>]*)>([\s\S]*?)<\/h2>/gi, (match, attrs, inner) => {
+        const audiences = byTitle.get(htmlToText(inner));
+        return audiences && audiences.length ? match + renderTags(audiences) : match;
+    });
+}
+
 function buildTocHtml(tocItems) {
     const mainItems = tocItems.filter((item) => item.level <= 2);
     if (!mainItems.length) return '';
@@ -196,6 +207,7 @@ function renderLeadCard(item) {
 <p class="lead-dateline"><span>Последен брой</span><span class="rule"></span><span>Брой ${escapeHtml(String(item.issue))} · ${escapeHtml(formatDateLong(item.date))}</span></p>
 <a class="issue-card issue-card-lead" ${cardAttrs(item)}>
 <h2 class="lead-title">${escapeHtml(headline)}</h2>
+${renderTags(item.audiences)}
 <div class="${gridClass}">
 <div class="lead-main">${standfirstHtml}<span class="lead-read">Прочети обобщението →</span></div>
 ${contents}
@@ -228,6 +240,66 @@ function renderNavCard(item) {
         `<span class="num">Брой ${escapeHtml(String(item.issue))}</span>` +
         `<span class="date">${escapeHtml(formatDateShort(item.date))}</span>` +
         `</a>`;
+}
+
+/* ─── Tags and deadlines (mirrors src/js/app.js) ─── */
+
+function renderTags(audiences) {
+    if (!Array.isArray(audiences) || !audiences.length) return '';
+    return `<p class="tags">${audiences.map((a) => `<span class="tag">${escapeHtml(a)}</span>`).join('')}</p>`;
+}
+
+// A static "до 24 юли" is rendered here; the browser turns it into "след 4 дни"
+// and drops what has expired. Without JS the reader still sees the date.
+function renderDeadlineRow(d, item, withIssue = true) {
+    const href = `/issue/${item.year}/${item.issue}/`;
+    // Inside the issue itself, saying which issue it came from is noise.
+    const who = [d.who, withIssue ? `брой ${item.issue}` : ''].filter(Boolean).join(' · ');
+    return `<li class="deadline" data-expires="${escapeHtml(d.expires)}">` +
+        `<span class="deadline-left">до ${escapeHtml(formatDateShort(isoToBg(d.expires)))}</span>` +
+        `<span class="deadline-body">` +
+        `<a class="deadline-what" href="${escapeHtml(href)}" data-file="${escapeHtml(item.file)}" data-issue="${escapeHtml(String(item.issue))}" data-date="${escapeHtml(item.date)}" data-year="${escapeHtml(String(item.year))}">${escapeHtml(d.what)}</a>` +
+        `<span class="deadline-who">${escapeHtml(who)}</span>` +
+        `</span></li>`;
+}
+
+function collectDeadlines(all, todayIso) {
+    const rows = [];
+    for (const item of all) {
+        for (const d of item.deadlines || []) {
+            if (d.expires >= todayIso) rows.push({ d, item });
+        }
+    }
+    return rows.sort((a, b) => a.d.expires.localeCompare(b.d.expires));
+}
+
+// Only the soonest few are actionable; the rest would be a wall. The list is
+// sorted by date, so the top of it is exactly what is about to run out.
+const DEADLINES_SHOWN = 8;
+
+function renderDeadlinesSection(all, todayIso) {
+    const rows = collectDeadlines(all, todayIso);
+    if (!rows.length) return '';
+    const shown = rows.slice(0, DEADLINES_SHOWN);
+    const rest = rows.length - shown.length;
+    const restNote = rest > 0
+        ? `<p class="deadlines-rest">и още ${rest} ${rest === 1 ? 'срок' : 'срока'} с по-далечни дати — в самите броеве.</p>`
+        : '';
+    return '<section class="deadlines-section" id="deadlines">' +
+        '<div class="section-head"><h2 class="section-title">Срокове, които текат</h2>' +
+        `<span class="section-count" id="deadline-count">${rows.length} ${rows.length === 1 ? 'срок' : 'срока'}</span></div>` +
+        '<p class="deadlines-note">Изчислени от датата на броя. Срокът е ориентировъчен — за сигурност проверете самия брой.</p>' +
+        `<ul class="deadline-list">${shown.map(({ d, item }) => renderDeadlineRow(d, item)).join('')}</ul>` +
+        restNote +
+        '</section>';
+}
+
+const BG_MONTHS_LOWER = BG_MONTHS;
+
+function isoToBg(iso) {
+    const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso || '');
+    if (!m) return iso;
+    return `${parseInt(m[3], 10)} ${BG_MONTHS_LOWER[parseInt(m[2], 10) - 1]} ${m[1]}`;
 }
 
 function renderShare(item) {
@@ -299,6 +371,7 @@ function buildHomeContentHtml(catalog) {
 
     const older = all.slice(1);
     let html = renderLeadCard(all[0]);
+    html += renderDeadlinesSection(all, new Date().toISOString().slice(0, 10));
 
     if (older.length) {
         const byYear = {};
@@ -330,7 +403,8 @@ function buildIssueViewInner(item, prev, next) {
     const md = fs.readFileSync(path.join(ROOT, item.file), 'utf8');
     const rawHtml = marked.parse(md);
     const { html: processedHtml, tocItems } = processRenderedContent(rawHtml);
-    const contentHtml = CONTENT_DISCLAIMER + buildTocHtml(tocItems) + processedHtml + END_MARK;
+    const taggedHtml = injectSectionTags(processedHtml, item.sections);
+    const contentHtml = CONTENT_DISCLAIMER + buildTocHtml(tocItems) + taggedHtml + END_MARK;
 
     const topics = Array.isArray(item.topics) ? item.topics : [];
     const meta = ['Обобщение с AI'];
@@ -340,7 +414,15 @@ function buildIssueViewInner(item, prev, next) {
 
     const headerHtml = `<p class="issue-kicker"><span>Брой ${escapeHtml(String(item.issue))}</span><span class="rule"></span><span>Държавен вестник</span></p>` +
         `<h1 class="title">${escapeHtml(formatDateLong(item.date))}</h1>` +
-        `<p class="issue-meta" id="issue-meta">${metaHtml}</p>`;
+        `<p class="issue-meta" id="issue-meta">${metaHtml}</p>` +
+        renderTags(item.audiences);
+
+    // The deadlines this issue starts, in the issue itself — a reader who lands
+    // here from a search should not have to go back to the front page for them.
+    const openDeadlines = (item.deadlines || []).filter((d) => d.expires >= new Date().toISOString().slice(0, 10));
+    const deadlinesHtml = openDeadlines.length
+        ? `<section class="issue-deadlines"><p class="issue-deadlines-title">Срокове от този брой</p><ul class="deadline-list">${openDeadlines.map((d) => renderDeadlineRow(d, item, false)).join('')}</ul></section>`
+        : '';
 
     let navHtml = '';
     if (prev) navHtml += `<div class="issue-nav-group is-prev"><span class="nav-label">← Предишен брой</span>${renderNavCard(prev)}</div>`;
@@ -351,6 +433,7 @@ function buildIssueViewInner(item, prev, next) {
                     <button type="button" class="back-btn" id="back-btn" aria-label="Обратно към всички броеве">← Всички броеве</button>
                 </div>
                 <div class="issue-header" id="issue-header">${headerHtml}</div>
+                <div id="issue-deadlines">${deadlinesHtml}</div>
                 <div class="content" id="content">${contentHtml}</div>
                 <div class="issue-share" id="issue-share">${renderShare(item)}</div>
                 <div id="issue-nav" class="issue-nav issue-nav-bottom" aria-label="Навигация между броеве">${navHtml}</div>

@@ -235,6 +235,7 @@
 <p class="lead-dateline"><span>Последен брой</span><span class="rule"></span><span>Брой ${escapeHtml(String(item.issue))} · ${escapeHtml(formatDateLong(item.date))}</span></p>
 <a class="issue-card issue-card-lead" ${cardAttrs(item)}>
 <h2 class="lead-title">${escapeHtml(headline)}</h2>
+${renderTags(item.audiences)}
 <div class="${gridClass}">
 <div class="lead-main">${standfirstHtml}<span class="lead-read">Прочети обобщението →</span></div>
 ${contents}
@@ -267,6 +268,96 @@ ${contents}
             `<span class="num">Брой ${escapeHtml(String(item.issue))}</span>` +
             `<span class="date">${escapeHtml(formatDateShort(item.date))}</span>` +
             `</a>`;
+    }
+
+    /* ─── Tags and deadlines (mirrors scripts/build-issue-pages.js) ─── */
+
+    function renderTags(audiences) {
+        if (!Array.isArray(audiences) || !audiences.length) return '';
+        return `<p class="tags">${audiences.map((a) => `<span class="tag">${escapeHtml(a)}</span>`).join('')}</p>`;
+    }
+
+    function isoToday() {
+        const d = new Date();
+        return new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 10);
+    }
+
+    function daysUntil(iso) {
+        const then = new Date(iso + 'T00:00:00');
+        const now = new Date(isoToday() + 'T00:00:00');
+        return Math.round((then - now) / 86400000);
+    }
+
+    function formatIsoBg(iso) {
+        const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso || '');
+        return m ? `${parseInt(m[3], 10)} ${BG_MONTHS[parseInt(m[2], 10) - 1]}` : iso;
+    }
+
+    function renderDeadlineRow(d, item, withIssue = true) {
+        const href = `/issue/${item.year}/${item.issue}/`;
+        // Inside the issue itself, saying which issue it came from is noise.
+        const who = [d.who, withIssue ? `брой ${item.issue}` : ''].filter(Boolean).join(' · ');
+        return `<li class="deadline" data-expires="${escapeHtml(d.expires)}">` +
+            `<span class="deadline-left">до ${escapeHtml(formatIsoBg(d.expires))}</span>` +
+            `<span class="deadline-body">` +
+            `<a class="deadline-what" href="${escapeHtml(href)}" data-file="${escapeHtml(item.file)}" data-issue="${escapeHtml(String(item.issue))}" data-date="${escapeHtml(item.date)}" data-year="${escapeHtml(String(item.year))}">${escapeHtml(d.what)}</a>` +
+            `<span class="deadline-who">${escapeHtml(who)}</span>` +
+            `</span></li>`;
+    }
+
+    // Only the soonest few are actionable; the rest would be a wall.
+    const DEADLINES_SHOWN = 8;
+
+    function renderDeadlinesSection(all) {
+        const today = isoToday();
+        const rows = [];
+        all.forEach((item) => {
+            (item.deadlines || []).forEach((d) => {
+                if (d.expires >= today) rows.push({ d, item });
+            });
+        });
+        if (!rows.length) return '';
+        rows.sort((a, b) => a.d.expires.localeCompare(b.d.expires));
+        const shown = rows.slice(0, DEADLINES_SHOWN);
+        const rest = rows.length - shown.length;
+        const restNote = rest > 0
+            ? `<p class="deadlines-rest">и още ${rest} ${rest === 1 ? 'срок' : 'срока'} с по-далечни дати — в самите броеве.</p>`
+            : '';
+        return '<section class="deadlines-section" id="deadlines">' +
+            '<div class="section-head"><h2 class="section-title">Срокове, които текат</h2>' +
+            `<span class="section-count" id="deadline-count">${rows.length} ${rows.length === 1 ? 'срок' : 'срока'}</span></div>` +
+            '<p class="deadlines-note">Изчислени от датата на броя. Срокът е ориентировъчен — за сигурност проверете самия брой.</p>' +
+            `<ul class="deadline-list">${shown.map((r) => renderDeadlineRow(r.d, r.item)).join('')}</ul>` +
+            restNote +
+            '</section>';
+    }
+
+    // The pages are built once and read for weeks, so "до 24 юли" is what the
+    // server can honestly say. Only the browser knows what day it is — it turns
+    // that into "след 4 дни" and drops whatever has run out.
+    function refreshDeadlines(root) {
+        const scope = root || document;
+        const today = isoToday();
+        scope.querySelectorAll('.deadline').forEach((el) => {
+            const expires = el.dataset.expires;
+            if (!expires || expires < today) { el.remove(); return; }
+            const left = daysUntil(expires);
+            const label = el.querySelector('.deadline-left');
+            if (label) {
+                label.textContent = left === 0 ? 'днес изтича' : left === 1 ? 'утре изтича' : `след ${left} дни`;
+                label.title = 'до ' + formatIsoBg(expires);
+            }
+            el.classList.toggle('is-urgent', left <= 3);
+        });
+        scope.querySelectorAll('.deadline-list').forEach((list) => {
+            const section = list.closest('.deadlines-section, .issue-deadlines');
+            if (section && !list.querySelector('.deadline')) section.remove();
+        });
+        const count = document.getElementById('deadline-count');
+        if (count) {
+            const n = document.querySelectorAll('.deadlines-section .deadline').length;
+            count.textContent = n + ' ' + (n === 1 ? 'срок' : 'срока');
+        }
     }
 
     function renderArchive(items) {
@@ -305,7 +396,8 @@ ${contents}
         const previous = document.getElementById('archive-search');
         const pendingQuery = previous ? previous.value : '';
 
-        homeContent.innerHTML = renderLeadCard(all[0]) + renderArchive(all.slice(1));
+        homeContent.innerHTML = renderLeadCard(all[0]) + renderDeadlinesSection(all) + renderArchive(all.slice(1));
+        refreshDeadlines(homeContent);
 
         if (pendingQuery) {
             const searchInput = document.getElementById('archive-search');
@@ -421,6 +513,33 @@ ${contents}
         };
     }
 
+    // Drops a row of "who this is for" tags under every heading it has tags for,
+    // so the reader can skip a section without reading it.
+    function injectSectionTags(container, sections) {
+        if (!container || !Array.isArray(sections) || !sections.length) return;
+        const byTitle = new Map(sections.map((s) => [s.title.trim(), s.audiences || []]));
+        container.querySelectorAll('h2').forEach((h2) => {
+            const audiences = byTitle.get(h2.textContent.trim());
+            if (!audiences || !audiences.length) return;
+            const p = document.createElement('p');
+            p.className = 'tags';
+            p.innerHTML = audiences.map((a) => `<span class="tag">${escapeHtml(a)}</span>`).join('');
+            h2.insertAdjacentElement('afterend', p);
+        });
+    }
+
+    function renderIssueDeadlines(item) {
+        const el = document.getElementById('issue-deadlines');
+        if (!el) return;
+        const today = isoToday();
+        const open = (item.deadlines || []).filter((d) => d.expires >= today);
+        el.innerHTML = open.length
+            ? '<section class="issue-deadlines"><p class="issue-deadlines-title">Срокове от този брой</p>' +
+              `<ul class="deadline-list">${open.map((d) => renderDeadlineRow(d, item, false)).join('')}</ul></section>`
+            : '';
+        refreshDeadlines(el);
+    }
+
     function renderIssueHeader(item, minutes) {
         const topics = Array.isArray(item.topics) ? item.topics : [];
         const meta = ['Обобщение с AI'];
@@ -432,7 +551,8 @@ ${contents}
 
         return `<p class="issue-kicker"><span>Брой ${escapeHtml(String(item.issue))}</span><span class="rule"></span><span>Държавен вестник</span></p>` +
             `<h1 class="title">${escapeHtml(formatDateLong(item.date))}</h1>` +
-            `<p class="issue-meta" id="issue-meta">${metaHtml}</p>`;
+            `<p class="issue-meta" id="issue-meta">${metaHtml}</p>` +
+            renderTags(item.audiences);
     }
 
     function renderShare(item) {
@@ -501,6 +621,8 @@ ${contents}
         mainLoading.hidden = false;
         mainContent.innerHTML = '';
         if (issueShareEl) issueShareEl.innerHTML = '';
+        const deadlinesEl = document.getElementById('issue-deadlines');
+        if (deadlinesEl) deadlinesEl.innerHTML = '';
         const navEl = document.getElementById('issue-nav');
         if (navEl) navEl.innerHTML = '';
 
@@ -516,7 +638,9 @@ ${contents}
             const rawHtml = typeof marked !== 'undefined' ? marked.parse(md) : md;
             const { html: processedHtml, tocItems } = processRenderedContent(rawHtml);
             mainContent.innerHTML = CONTENT_DISCLAIMER + buildTocHtml(tocItems) + processedHtml + END_MARK;
+            injectSectionTags(mainContent, item.sections);
             issueHeaderEl.innerHTML = renderIssueHeader(item, readingMinutes(md));
+            renderIssueDeadlines(item);
             if (issueShareEl) issueShareEl.innerHTML = renderShare(item);
             currentTocId = null;
             updateCurrentTocItem();
@@ -653,6 +777,10 @@ ${contents}
 
         const initial = getIssueFromPath();
         const isPreRendered = !!(initial && mainContent && mainContent.children.length > 0);
+
+        // Pages are built once and read for weeks: whatever the build wrote as
+        // "до 24 юли" becomes "след 4 дни" here, and expired deadlines go away.
+        refreshDeadlines(document);
 
         if (isPreRendered) {
             currentIssue = { year: initial.year, issueNum: initial.issueNum };
