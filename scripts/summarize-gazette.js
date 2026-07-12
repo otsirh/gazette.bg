@@ -18,6 +18,10 @@ dotenv.config({ path: path.join(__dirname, '..', '.env') });
 
 const PAGES_PER_CHUNK = 12;
 const DELAY_BETWEEN_CHUNKS_MS = 10 * 1000;
+// Intermediate chunk extraction runs at medium effort (≈ Sonnet 4.6 at high, the
+// previous baseline); the single-pass and refine calls keep the default (high),
+// where prioritization and rule-adherence matter most for the final output.
+const CHUNK_EFFORT = 'medium';
 
 function delay(ms) {
     return new Promise((resolve) => setTimeout(resolve, ms));
@@ -27,8 +31,13 @@ const ROOT = path.join(__dirname, '..');
 const OFFICIAL_GAZETTES_DIR = path.join(ROOT, 'official-gazettes');
 const ISSUES_DIR = path.join(ROOT, 'issues');
 const SCRIPT_NAME = 'summarize-gazette';
-const MODEL = 'claude-sonnet-4-6';
-const MAX_TOKENS = 16000;
+const MODEL = 'claude-sonnet-5';
+// Hard ceiling on the whole response — adaptive thinking is billed against it
+// too, so the budget covers thinking + the summary text. Sonnet 5's tokenizer
+// also emits noticeably more tokens for the same Bulgarian text than Sonnet 4.6
+// did, so the old 16k ceiling now sits close to the edge for a dense issue.
+// Requests are streamed, so a high ceiling costs nothing until it's used.
+const MAX_TOKENS = 32000;
 
 const apiKey = process.env.ANTHROPIC_API_KEY;
 
@@ -54,9 +63,38 @@ function logUsage(label, usage) {
 }
 
 function extractText(message) {
+    if (message.stop_reason === 'refusal') {
+        const category = message.stop_details?.category;
+        throw new Error('Claude declined the request (stop_reason: refusal' + (category ? `, category: ${category}` : '') + ')');
+    }
+
+    // Check truncation before the missing-text check: thinking tokens count
+    // against max_tokens, so a cut-off response can carry no text block at all —
+    // and "No text in API response" would be a misleading diagnosis of it.
+    if (message.stop_reason === 'max_tokens') {
+        throw new Error(`Output hit max_tokens (${MAX_TOKENS}) — the summary would be truncated`);
+    }
+
     const textBlock = message.content?.find((c) => c.type === 'text');
     if (!textBlock || !textBlock.text) throw new Error('No text in API response');
     return textBlock.text;
+}
+
+async function runClaude(content, label, effort) {
+    // Stream so large-PDF + adaptive-thinking requests don't hit HTTP timeouts;
+    // finalMessage() aggregates the full response (usage, stop_reason, content).
+    const params = {
+        model: MODEL,
+        max_tokens: MAX_TOKENS,
+        thinking: { type: 'adaptive' },
+        system: CACHED_SYSTEM,
+        messages: [{ role: 'user', content }],
+    };
+    if (effort) params.output_config = { effort };
+    const stream = client.messages.stream(params);
+    const message = await stream.finalMessage();
+    logUsage(label, message.usage);
+    return extractText(message);
 }
 
 function log(message, level = 'INFO') {
@@ -69,6 +107,20 @@ function fail(message, cause) {
     console.error('[summarize-gazette]', message);
     if (cause) console.error(cause);
     flushAlertEmail().then(() => process.exit(1));
+}
+
+// Two kinds of failure need opposite handling. An unreachable or unauthorized
+// API means every remaining issue will fail the same way — stop and keep the
+// quota. A failure tied to one issue's content (a refusal, a response that
+// would be truncated, an unreadable PDF) says nothing about the next issue, so
+// skip that issue and carry on: its PDF stays on disk and the next run retries
+// it, while newer issues still reach the site.
+function isInfrastructureError(e) {
+    return e instanceof Anthropic.AuthenticationError
+        || e instanceof Anthropic.PermissionDeniedError
+        || e instanceof Anthropic.RateLimitError
+        || e instanceof Anthropic.InternalServerError
+        || e instanceof Anthropic.APIConnectionError;
 }
 
 function listOfficialPdfs() {
@@ -120,48 +172,26 @@ async function splitPdfIntoChunks(pdfBytes) {
 
 async function refineSummaryWithClaude(fullMarkdown, year, issue) {
     const userPrompt = getRefineUserPrompt(fullMarkdown, year, issue);
-    const message = await client.messages.create({
-        model: MODEL,
-        max_tokens: MAX_TOKENS,
-        thinking: { type: 'adaptive' },
-        system: CACHED_SYSTEM,
-        messages: [
-            {
-                role: 'user',
-                content: [{ type: 'text', text: userPrompt }],
-            },
-        ],
-    });
-    logUsage('refine', message.usage);
-    return extractText(message);
+    return runClaude([{ type: 'text', text: userPrompt }], 'refine');
 }
 
-async function summarizePdfBase64(base64, userPrompt, label = 'chunk') {
+async function summarizePdfBase64(base64, userPrompt, label = 'chunk', effort) {
     try {
-        const message = await client.messages.create({
-            model: MODEL,
-            max_tokens: MAX_TOKENS,
-            thinking: { type: 'adaptive' },
-            system: CACHED_SYSTEM,
-            messages: [
+        return await runClaude(
+            [
                 {
-                    role: 'user',
-                    content: [
-                        {
-                            type: 'document',
-                            source: {
-                                type: 'base64',
-                                media_type: 'application/pdf',
-                                data: base64,
-                            },
-                        },
-                        { type: 'text', text: userPrompt },
-                    ],
+                    type: 'document',
+                    source: {
+                        type: 'base64',
+                        media_type: 'application/pdf',
+                        data: base64,
+                    },
                 },
+                { type: 'text', text: userPrompt },
             ],
-        });
-        logUsage(label, message.usage);
-        return extractText(message);
+            label,
+            effort
+        );
     } catch (e) {
         if (e instanceof Anthropic.BadRequestError && /100 PDF pages/.test(e.message || '')) {
             throw new Error('PDF has more than 100 pages (API limit). Split the PDF or use a shorter document.');
@@ -194,7 +224,8 @@ async function summarizePdf(pdfPath, year, issue) {
         const md = await summarizePdfBase64(
             Buffer.from(chunks[i]).toString('base64'),
             prompt,
-            `chunk ${i + 1}/${chunks.length}`
+            `chunk ${i + 1}/${chunks.length}`,
+            CHUNK_EFFORT
         );
         parts.push(md.trim());
     }
@@ -229,6 +260,8 @@ async function main() {
         console.log('No PDFs to process.');
         return;
     }
+
+    const failures = [];
 
     for (const { year, issue } of entries) {
         const pdf = customPdfPath || pdfPath(year, issue);
@@ -267,12 +300,24 @@ async function main() {
             log(`Wrote ${outPath}`, 'OK');
             console.log(`✓ Wrote ${path.relative(ROOT, outPath)}`);
         } catch (e) {
+            // Nothing was written and the PDF is still on disk, so the issue is
+            // simply not published — never a half-written summary.
+            failures.push(`${year}/${issue}`);
             log(`Failed ${pdf}: ${e.message}`, 'ERROR');
             console.error(`✗ Failed ${year}/${issue}:`, e.message);
-            console.error('[summarize-gazette] Anthropic API failed. Stopping (exit 1).');
-            await flushAlertEmail();
-            process.exit(1);
+
+            if (isInfrastructureError(e)) {
+                console.error('[summarize-gazette] The API is unavailable. Stopping the run; the remaining issues will be retried next time.');
+                break;
+            }
+            console.error('[summarize-gazette] Skipping this issue. Its PDF is kept, so the next run retries it.');
         }
+    }
+
+    if (failures.length) {
+        log(`Run finished with ${failures.length} failed issue(s): ${failures.join(', ')}`, 'ERROR');
+        await flushAlertEmail();
+        process.exit(1);
     }
 }
 
