@@ -7,7 +7,6 @@ import Anthropic from '@anthropic-ai/sdk';
 import {
     SYSTEM_PROMPT,
     EXTRACT_SYSTEM_PROMPT,
-    getSummarizePrompt,
     getSummarizeChunkPrompt,
     getRefineUserPrompt,
     getCoverageCheckPrompt,
@@ -217,20 +216,16 @@ async function summarizePdfBase64(base64, userPrompt, label = 'chunk', effort, s
     }
 }
 
+// Every issue goes through the same two stages — inventory, then edit — however
+// small it is. A short issue used to be summarized in a single pass, which meant
+// it silently skipped both the recall-first extraction and the coverage check:
+// exactly the issues we had no visibility into. The extra call on a 16-page
+// issue costs cents.
 async function summarizePdf(pdfPath, year, issue) {
     const buf = fs.readFileSync(pdfPath);
     const { chunks, pageCount } = await splitPdfIntoChunks(buf);
 
-    if (chunks.length === 1) {
-        const md = await summarizePdfBase64(
-            Buffer.from(chunks[0]).toString('base64'),
-            getSummarizePrompt(year, issue),
-            'single'
-        );
-        return cleanMarkdown(md);
-    }
-
-    console.log(`  ${pageCount} pages → ${chunks.length} chunks (${PAGES_PER_CHUNK} pages each)`);
+    console.log(`  ${pageCount} pages → ${chunks.length} chunk(s) (${PAGES_PER_CHUNK} pages each)`);
     const parts = [];
     for (let i = 0; i < chunks.length; i++) {
         if (i > 0) await delay(DELAY_BETWEEN_CHUNKS_MS);
