@@ -6,9 +6,11 @@ import { PDFDocument } from 'pdf-lib';
 import Anthropic from '@anthropic-ai/sdk';
 import {
     SYSTEM_PROMPT,
+    EXTRACT_SYSTEM_PROMPT,
     getSummarizePrompt,
     getSummarizeChunkPrompt,
     getRefineUserPrompt,
+    getCoverageCheckPrompt,
 } from './ai-prompts.js';
 import { cleanMarkdown } from './clean-markdown.js';
 import { appendLog, flushAlertEmail } from './logger.js';
@@ -16,12 +18,18 @@ import { appendLog, flushAlertEmail } from './logger.js';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 dotenv.config({ path: path.join(__dirname, '..', '.env') });
 
-const PAGES_PER_CHUNK = 12;
+// The API rejects a PDF over 100 pages per request, so a ~170-page issue must
+// be split. Keep the parts as large as that limit safely allows: every part is
+// one more independent judgment about what to keep, and the fewer of those
+// there are — each seeing more of the issue — the less gets silently dropped.
+const PAGES_PER_CHUNK = 50;
 const DELAY_BETWEEN_CHUNKS_MS = 10 * 1000;
 // Intermediate chunk extraction runs at medium effort (≈ Sonnet 4.6 at high, the
 // previous baseline); the single-pass and refine calls keep the default (high),
 // where prioritization and rule-adherence matter most for the final output.
 const CHUNK_EFFORT = 'medium';
+// The coverage check just compares two lists — it needs no deliberation.
+const COVERAGE_EFFORT = 'low';
 
 function delay(ms) {
     return new Promise((resolve) => setTimeout(resolve, ms));
@@ -47,6 +55,14 @@ const CACHED_SYSTEM = [
     {
         type: 'text',
         text: SYSTEM_PROMPT,
+        cache_control: { type: 'ephemeral' },
+    },
+];
+
+const CACHED_EXTRACT_SYSTEM = [
+    {
+        type: 'text',
+        text: EXTRACT_SYSTEM_PROMPT,
         cache_control: { type: 'ephemeral' },
     },
 ];
@@ -80,14 +96,14 @@ function extractText(message) {
     return textBlock.text;
 }
 
-async function runClaude(content, label, effort) {
+async function runClaude(content, label, effort, system = CACHED_SYSTEM) {
     // Stream so large-PDF + adaptive-thinking requests don't hit HTTP timeouts;
     // finalMessage() aggregates the full response (usage, stop_reason, content).
     const params = {
         model: MODEL,
         max_tokens: MAX_TOKENS,
         thinking: { type: 'adaptive' },
-        system: CACHED_SYSTEM,
+        system,
         messages: [{ role: 'user', content }],
     };
     if (effort) params.output_config = { effort };
@@ -175,7 +191,7 @@ async function refineSummaryWithClaude(fullMarkdown, year, issue) {
     return runClaude([{ type: 'text', text: userPrompt }], 'refine');
 }
 
-async function summarizePdfBase64(base64, userPrompt, label = 'chunk', effort) {
+async function summarizePdfBase64(base64, userPrompt, label = 'chunk', effort, system) {
     try {
         return await runClaude(
             [
@@ -190,7 +206,8 @@ async function summarizePdfBase64(base64, userPrompt, label = 'chunk', effort) {
                 { type: 'text', text: userPrompt },
             ],
             label,
-            effort
+            effort,
+            system
         );
     } catch (e) {
         if (e instanceof Anthropic.BadRequestError && /100 PDF pages/.test(e.message || '')) {
@@ -225,16 +242,45 @@ async function summarizePdf(pdfPath, year, issue) {
             Buffer.from(chunks[i]).toString('base64'),
             prompt,
             `chunk ${i + 1}/${chunks.length}`,
-            CHUNK_EFFORT
+            CHUNK_EFFORT,
+            CACHED_EXTRACT_SYSTEM
         );
         parts.push(md.trim());
     }
 
-    const combined = parts.join('\n\n');
-    console.log(`  Sending full summary to Claude for final pass...`);
+    const inventory = parts.join('\n');
+    console.log(`  Inventory: ${inventory.split('\n').filter(Boolean).length} lines. Writing the summary...`);
     await delay(DELAY_BETWEEN_CHUNKS_MS);
-    const finalMarkdown = await refineSummaryWithClaude(combined, year, issue);
-    return cleanMarkdown(finalMarkdown);
+    const finalMarkdown = cleanMarkdown(await refineSummaryWithClaude(inventory, year, issue));
+
+    await reportCoverage(inventory, finalMarkdown, year, issue);
+
+    return finalMarkdown;
+}
+
+// The editor only ever sees the inventory, so anything it leaves out is invisible
+// to us as well. Read both back and say what fell out — a run that quietly covers
+// four of six issues looks identical to one that covers all six.
+async function reportCoverage(inventory, summary, year, issue) {
+    try {
+        const verdict = (await runClaude(
+            [{ type: 'text', text: getCoverageCheckPrompt(inventory, summary) }],
+            'coverage',
+            COVERAGE_EFFORT,
+            CACHED_EXTRACT_SYSTEM
+        )).trim();
+
+        if (/^НЯМА ПРОПУСКИ/i.test(verdict)) {
+            log(`Coverage check ${year}/${issue}: nothing dropped`, 'OK');
+            console.log('  Coverage: nothing dropped.');
+            return;
+        }
+        log(`Coverage check ${year}/${issue} — dropped from the summary:\n${verdict}`, 'WARN');
+        console.log('  Coverage — left out of the summary:\n' + verdict.split('\n').map((l) => '    ' + l).join('\n'));
+    } catch (e) {
+        // A failed check must not cost us a good summary.
+        log(`Coverage check failed for ${year}/${issue}: ${e.message}`, 'WARN');
+    }
 }
 
 async function main() {

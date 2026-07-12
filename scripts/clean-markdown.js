@@ -3,6 +3,28 @@ const EMPTY_MARKER = 'В този брой няма промени, които �
 const META_INTRO_RE = /^(В\s+(този|настоящия)\s+брой|Този\s+брой|Настоящият\s+брой)[^\n]*$/;
 const META_OUTRO_RE = /^(В\s+останалата\s+част|Останалата\s+част|Останалото\s+съдържание|Останалите\s+документи)[^\n]*$/;
 
+// Bulgarian quotes are a house rule the model mostly follows and occasionally
+// forgets. Straight quotes are cheaper to fix here than to police in the prompt.
+// Code spans are left alone — a quote inside `...` is code, not prose.
+function normalizeQuotes(text) {
+    return text
+        .split('\n')
+        .map((line) => line
+            .split('`')
+            .map((segment, i) => {
+                if (i % 2 === 1) return segment; // inside a code span
+                // Decide by what precedes the quote rather than by toggling an
+                // open/closed flag: the text may already contain Bulgarian
+                // quotes, and a flag would fall out of step with them.
+                return segment.replace(/"/g, (m, offset, s) => {
+                    const prev = s[offset - 1];
+                    return !prev || /[\s(\[{«„—–-]/.test(prev) ? '„' : '“';
+                });
+            })
+            .join('`'))
+        .join('\n');
+}
+
 function normalizeDashes(text) {
     return text
         .split('\n')
@@ -24,6 +46,7 @@ function cleanMarkdown(text) {
     t = t.replace(/(^|\n)[ \t]*-{3,}[ \t]*(?=\n|$)/g, '$1');
 
     t = normalizeDashes(t);
+    t = normalizeQuotes(t);
 
     const paragraphs = t.split(/\n{2,}/);
 
