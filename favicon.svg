@@ -1,7 +1,7 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" fill="none">
-  <rect width="32" height="32" rx="5" fill="#101013"/>
-  <rect x="7" y="7" width="4.5" height="18" rx="1" fill="#ffffff"/>
-  <rect x="15" y="10" width="11" height="1.9" rx="0.95" fill="rgba(255,255,255,0.92)"/>
-  <rect x="15" y="15" width="11" height="1.9" rx="0.95" fill="rgba(255,255,255,0.72)"/>
-  <rect x="15" y="20" width="8" height="1.9" rx="0.95" fill="rgba(255,255,255,0.5)"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
+  <rect width="32" height="32" fill="#14120d"/>
+  <!-- Favicon contexts never load webfonts, so this asks for the serifs that
+       are actually on the machine — the mark must not depend on Playfair. -->
+  <text x="16" y="21.5" font-family="Georgia, 'Times New Roman', serif" font-size="16" font-weight="700" text-anchor="middle" fill="#fbf8f2">ДВ</text>
+  <rect x="6" y="24.5" width="20" height="1.6" fill="#ad2c20"/>
 </svg>

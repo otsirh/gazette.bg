@@ -11,6 +11,7 @@
     "summarize-gazette": "node scripts/summarize-gazette.js",
     "process-issue-pdf": "node scripts/process-issue-pdf.js",
     "generate-og-image": "node scripts/generate-og-image.js",
+    "generate-favicon": "node scripts/generate-favicon.js",
     "update-gazette": "node scripts/update-gazette.js",
     "gazette": "npm run dev"
   },

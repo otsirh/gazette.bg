@@ -20,6 +20,8 @@ const BG_MONTHS_CAP = ['Януари', 'Февруари', 'Март', 'Апри
 
 const SITE_ORIGIN = 'https://gazette.bg';
 const PAGE_TITLE_BASE = 'Обобщения на Държавен вестник';
+const WORDS_PER_MINUTE = 180;
+const LEAD_TOPIC_LIMIT = 5;
 
 function escapeHtml(s) {
     return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
@@ -73,10 +75,14 @@ function formatDateBulgarian(str) {
     return day + ' ' + BG_MONTHS_CAP[month - 1] + ' ' + year;
 }
 
-function formatDateForHomepage(str) {
-    if (!str || typeof str !== 'string') return str;
-    const s = stripDateSuffix(str);
-    return lowercaseMonthInDate(s.replace(/\s+\d{4}\s*$/, '').trim());
+// Long form ("10 юли 2026") for datelines; short form drops the year for the
+// archive register, where the year is already the running head.
+function formatDateLong(str) {
+    return lowercaseMonthInDate(stripDateSuffix(formatDateBulgarian(str)));
+}
+
+function formatDateShort(str) {
+    return formatDateLong(str).replace(/\s+\d{4}\s*$/, '').trim();
 }
 
 function stripMarkdownInline(s) {
@@ -94,6 +100,15 @@ function slugify(text) {
         .replace(/[^\p{L}\p{N}-]/gu, '')
         .replace(/-+/g, '-')
         .replace(/^-|-$/g, '') || 'section';
+}
+
+function readingMinutes(markdown) {
+    const words = stripMarkdownInline(String(markdown)).split(/\s+/).filter(Boolean).length;
+    return Math.max(1, Math.round(words / WORDS_PER_MINUTE));
+}
+
+function pluralTopics(n) {
+    return n === 1 ? '1 тема' : n + ' теми';
 }
 
 // Level-2 markdown headings are the issue's topics — used to build a unique
@@ -142,7 +157,7 @@ function processRenderedContent(html) {
 function buildTocHtml(tocItems) {
     const mainItems = tocItems.filter((item) => item.level <= 2);
     if (!mainItems.length) return '';
-    let html = '<nav class="issue-toc" aria-label="Съдържание на броя"><div class="issue-toc-title">Съдържание</div><ul class="issue-toc-list">';
+    let html = '<nav class="issue-toc" aria-label="Съдържание на броя"><p class="issue-toc-title">Съдържание</p><ul class="issue-toc-list">';
     for (const item of mainItems) {
         html += `<li class="issue-toc-item"><a href="#${escapeHtml(item.id)}">${escapeHtml(item.text)}</a></li>`;
     }
@@ -150,37 +165,80 @@ function buildTocHtml(tocItems) {
     return html;
 }
 
-const HERO_TOPIC_LIMIT = 5;
+/* ─── Cards (mirrors src/js/app.js — keep the two in step) ─── */
 
-function renderIssueCard(item, variant) {
-    const variantClass = variant ? ' issue-card-' + variant : '';
-    const displayDate = formatDateForHomepage(formatDateBulgarian(item.date));
+function cardAttrs(item) {
     const href = `/issue/${encodeURIComponent(item.year)}/${encodeURIComponent(item.issue)}/`;
+    return `href="${escapeHtml(href)}" data-file="${escapeHtml(item.file)}" data-issue="${escapeHtml(String(item.issue))}" data-date="${escapeHtml(item.date)}" data-year="${escapeHtml(String(item.year))}"`;
+}
+
+// The front page. Headline is the issue's first topic; the lead sentence, when
+// there is one, runs underneath as the standfirst.
+function renderLeadCard(item) {
     const topics = Array.isArray(item.topics) ? item.topics : [];
-    const attrs = `href="${escapeHtml(href)}" data-file="${escapeHtml(item.file)}" data-issue="${escapeHtml(String(item.issue))}" data-date="${escapeHtml(item.date)}" data-year="${escapeHtml(String(item.year))}"`;
-    const num = `<span class="num">Брой ${escapeHtml(String(item.issue))}</span>`;
-    const date = `<span class="date">${escapeHtml(displayDate)}</span>`;
+    const headline = topics[0] || item.lead || `Брой ${item.issue}`;
+    const standfirst = item.lead && item.lead !== headline ? item.lead : '';
+    const rest = topics.slice(1);
 
-    if (variant === 'hero') {
-        let body = '';
-        if (item.lead) body += `<span class="issue-card-lead">${escapeHtml(item.lead)}</span>`;
-        if (topics.length) {
-            const shown = topics.slice(0, HERO_TOPIC_LIMIT);
-            const rest = topics.length - shown.length;
-            let items = shown.map((t) => `<li>${escapeHtml(t)}</li>`).join('');
-            if (rest > 0) items += `<li class="more">+ още ${rest} ${rest === 1 ? 'тема' : 'теми'}</li>`;
-            body += `<span class="issue-card-topics-label">В броя</span><ul class="issue-card-topics">${items}</ul>`;
-        }
-        return `<a class="issue-card${variantClass}" ${attrs}>${num}${date}${body}</a>`;
+    let contents = '';
+    if (rest.length) {
+        const shown = rest.slice(0, LEAD_TOPIC_LIMIT);
+        const hidden = rest.length - shown.length;
+        let items = shown.map((t) => `<li>${escapeHtml(t)}</li>`).join('');
+        if (hidden > 0) items += `<li class="more">още ${pluralTopics(hidden)}</li>`;
+        contents = `<div class="lead-contents"><p class="contents-label">Още в броя</p><ol class="contents-list">${items}</ol></div>`;
     }
 
-    if (variant === 'row') {
-        const preview = item.lead || topics[0] || '';
-        const previewHtml = preview ? `<span class="row-preview">${escapeHtml(preview)}</span>` : '';
-        return `<a class="issue-card${variantClass}" ${attrs}>${num}<span class="row-body">${date}${previewHtml}</span></a>`;
-    }
+    const standfirstHtml = standfirst ? `<p class="lead-standfirst">${escapeHtml(standfirst)}</p>` : '';
+    const gridClass = standfirst ? 'lead-grid' : 'lead-grid no-standfirst';
 
-    return `<a class="issue-card${variantClass}" ${attrs}>${num}${date}</a>`;
+    return `<section class="lead-section">
+<p class="lead-dateline"><span>Последен брой</span><span class="rule"></span><span>Брой ${escapeHtml(String(item.issue))} · ${escapeHtml(formatDateLong(item.date))}</span></p>
+<a class="issue-card issue-card-lead" ${cardAttrs(item)}>
+<h2 class="lead-title">${escapeHtml(headline)}</h2>
+<div class="${gridClass}">
+<div class="lead-main">${standfirstHtml}<span class="lead-read">Прочети обобщението →</span></div>
+${contents}
+</div>
+</a>
+</section>`;
+}
+
+// The register shows a bare number and one headline, but readers search for
+// things it does not print — "брой 63", the year, the lead sentence, a topic
+// further down the issue. Carry all of it in a hidden haystack.
+function searchHaystack(item) {
+    const topics = Array.isArray(item.topics) ? item.topics : [];
+    return [`Брой ${item.issue}`, formatDateLong(item.date), item.lead || '', ...topics]
+        .join(' ')
+        .toLowerCase();
+}
+
+function renderRowCard(item) {
+    const topics = Array.isArray(item.topics) ? item.topics : [];
+    const title = topics[0] || item.lead || `Брой ${item.issue}`;
+    return `<a class="issue-card issue-card-row" ${cardAttrs(item)} data-search="${escapeHtml(searchHaystack(item))}">` +
+        `<span class="num">${escapeHtml(String(item.issue))}</span>` +
+        `<span class="row-body"><span class="row-title">${escapeHtml(title)}</span><span class="date">${escapeHtml(formatDateShort(item.date))}</span></span>` +
+        `</a>`;
+}
+
+function renderNavCard(item) {
+    return `<a class="issue-card" ${cardAttrs(item)}>` +
+        `<span class="num">Брой ${escapeHtml(String(item.issue))}</span>` +
+        `<span class="date">${escapeHtml(formatDateShort(item.date))}</span>` +
+        `</a>`;
+}
+
+function renderShare(item) {
+    const url = `${SITE_ORIGIN}/issue/${item.year}/${item.issue}/`;
+    const u = encodeURIComponent(url);
+    const t = encodeURIComponent(`Държавен вестник, брой ${item.issue} — обобщение`);
+    return '<span class="share-label">Сподели</span>' +
+        `<button type="button" class="share-btn" id="share-copy" data-url="${escapeHtml(url)}">Копирай връзка</button>` +
+        `<a class="share-btn" href="https://www.facebook.com/sharer/sharer.php?u=${u}" target="_blank" rel="noopener">Facebook</a>` +
+        `<a class="share-btn" href="https://twitter.com/intent/tweet?url=${u}&amp;text=${t}" target="_blank" rel="noopener">X</a>` +
+        `<a class="share-btn" href="mailto:?subject=${t}&amp;body=${u}">Имейл</a>`;
 }
 
 function replaceHomeContent(html, content) {
@@ -188,17 +246,28 @@ function replaceHomeContent(html, content) {
 }
 
 function buildNotFoundHtml(cleanTemplate) {
+    const title = 'Страницата не е намерена — Държавен вестник';
+    const desc = 'Тази страница не съществува. Върнете се към началната страница, за да разгледате обобщенията на броевете на Държавен вестник.';
     const body = `<section class="not-found-section">
-                    <p class="not-found-eyebrow">404</p>
-                    <h2 class="not-found-title">Страницата не е намерена</h2>
-                    <p class="not-found-text">Възможно е броят, който търсите, никога да не е съществувал или връзката да е остаряла. Върнете се към началната страница, за да разгледате наличните броеве на Държавен вестник.</p>
-                    <p class="not-found-actions"><a class="not-found-link" href="/">← Към началната страница</a></p>
+                    <p class="not-found-eyebrow">Грешка 404</p>
+                    <h2 class="not-found-title">Тази страница я няма в изданието</h2>
+                    <p class="not-found-text">Възможно е броят, който търсите, никога да не е съществувал или връзката да е остаряла. Върнете се към началната страница, за да разгледате наличните броеве.</p>
+                    <p><a class="not-found-link" href="/">Към началната страница →</a></p>
                 </section>`;
     let html = cleanTemplate;
-    html = html.replace(/<title>[\s\S]*?<\/title>/, '<title>Страницата не е намерена — Държавен вестник</title>');
-    html = html.replace(/(<meta property="og:title" content=")[^"]*("\s*\/>)/, '$1Страницата не е намерена — Държавен вестник$2');
-    html = replaceHomeContent(html, body);
-    return html;
+    html = html.replace(/<title>[\s\S]*?<\/title>/, `<title>${title}</title>`);
+    html = html.replace(/(<meta property="og:title" content=")[^"]*("\s*\/>)/, `$1${escapeHtml(title)}$2`);
+    html = html.replace(/(<meta name="description" content=")[^"]*("\s*\/>)/, `$1${escapeHtml(desc)}$2`);
+    html = html.replace(/(<meta property="og:description" content=")[^"]*("\s*\/>)/, `$1${escapeHtml(desc)}$2`);
+
+    // 404.html is served under whatever URL the visitor asked for, so it must
+    // not claim the homepage as its canonical — that reads as a soft 404. Drop
+    // the canonical and og:url outright and keep the page out of the index.
+    html = html.replace(/\s*<link rel="canonical" href="[^"]*"\s*\/>/, '');
+    html = html.replace(/\s*<meta property="og:url" content="[^"]*"\s*\/>/, '');
+    html = html.replace('</head>', '    <meta name="robots" content="noindex" />\n</head>');
+
+    return replaceHomeContent(html, body);
 }
 
 function inlineCriticalCss(html) {
@@ -209,94 +278,89 @@ function inlineCriticalCss(html) {
     );
 }
 
-function buildHomeContentHtml(catalog) {
-    const all = getAllIssuesNewestFirst(catalog);
-    if (all.length === 0) {
-        return '<p class="empty">В момента няма налични броеве. Опитайте отново по-късно.</p>';
-    }
-    const latest = all[0];
-    const older = all.slice(1);
-    const byYear = {};
-    older.forEach((item) => {
-        if (!byYear[item.year]) byYear[item.year] = [];
-        byYear[item.year].push(item);
-    });
-    const yearKeys = Object.keys(byYear).sort((a, b) => Number(b) - Number(a));
-
-    let html = '<section class="hero-section">';
-    html += '<div class="section-eyebrow">Последен брой</div>';
-    html += renderIssueCard(latest, 'hero');
-    html += '</section>';
-
-    if (yearKeys.length) {
-        html += '<section class="archive-section">';
-        html += '<h2 class="section-title">Архив</h2>';
-        html += '<div class="archive-search"><input type="search" id="archive-search" class="archive-search-input" placeholder="Търсене по тема, дата или брой…" aria-label="Търсене в архива" autocomplete="off" spellcheck="false" /></div>';
-        yearKeys.forEach((year) => {
-            html += `<div class="year-group"><h3 class="year-title">${escapeHtml(year)}</h3><div class="issue-list">`;
-            byYear[year].forEach((item) => { html += renderIssueCard(item, 'row'); });
-            html += '</div></div>';
-        });
-        html += '</section>';
-    }
-    return html;
-}
-
 function getAllIssuesNewestFirst(catalog) {
     if (!catalog || !catalog.years) return [];
     const years = Object.keys(catalog.years).sort((a, b) => Number(b) - Number(a));
     const list = [];
     years.forEach((year) => {
-        const issues = catalog.years[year].slice().sort((a, b) => Number(b.issue) - Number(a.issue));
-        issues.forEach((item) => list.push({ ...item, year }));
+        catalog.years[year]
+            .slice()
+            .sort((a, b) => Number(b.issue) - Number(a.issue))
+            .forEach((item) => list.push({ ...item, year }));
     });
     return list;
 }
 
+function buildHomeContentHtml(catalog) {
+    const all = getAllIssuesNewestFirst(catalog);
+    if (!all.length) {
+        return '<p class="empty">В момента няма налични броеве. Опитайте отново по-късно.</p>';
+    }
+
+    const older = all.slice(1);
+    let html = renderLeadCard(all[0]);
+
+    if (older.length) {
+        const byYear = {};
+        older.forEach((item) => {
+            if (!byYear[item.year]) byYear[item.year] = [];
+            byYear[item.year].push(item);
+        });
+        const years = Object.keys(byYear).sort((a, b) => Number(b) - Number(a));
+        const total = older.length;
+
+        html += '<section class="archive-section" id="archive">';
+        html += `<div class="section-head"><h2 class="section-title">Архив</h2><span class="section-count">${total} ${total === 1 ? 'брой' : 'броя'}</span></div>`;
+        html += '<div class="archive-search"><input type="search" id="archive-search" class="archive-search-input" placeholder="Търсене по тема, дата или номер на брой…" aria-label="Търсене в архива" autocomplete="off" spellcheck="false" /></div>';
+        years.forEach((year) => {
+            html += `<div class="year-group"><h3 class="year-title"><span>${escapeHtml(year)}</span></h3><div class="issue-list">`;
+            byYear[year].forEach((item) => { html += renderRowCard(item); });
+            html += '</div></div>';
+        });
+        html += '</section>';
+    }
+
+    return html;
+}
+
 const CONTENT_DISCLAIMER = '<p class="content-disclaimer">Текстът по-долу е неофициално обобщение, генерирано с AI, и може да съдържа грешки. За официален текст и правни цели използвайте <a href="https://dv.parliament.bg" target="_blank" rel="noopener">dv.parliament.bg</a>.</p>';
+const END_MARK = '<p class="end-mark" aria-hidden="true">◼</p>';
 
-function buildIssueViewInner(item, prev, next, related) {
-    const formattedDate = formatDateBulgarian(item.date);
-    const titleDate = stripDateSuffix(formattedDate);
-    const headerHtml = `<div class="meta">Брой ${escapeHtml(String(item.issue))}</div><div class="title">${escapeHtml(titleDate)}</div>`;
-
-    const mdPath = path.join(ROOT, item.file);
-    const md = fs.readFileSync(mdPath, 'utf8');
+function buildIssueViewInner(item, prev, next) {
+    const md = fs.readFileSync(path.join(ROOT, item.file), 'utf8');
     const rawHtml = marked.parse(md);
     const { html: processedHtml, tocItems } = processRenderedContent(rawHtml);
-    const tocHtml = buildTocHtml(tocItems);
-    const contentHtml = CONTENT_DISCLAIMER + tocHtml + processedHtml;
+    const contentHtml = CONTENT_DISCLAIMER + buildTocHtml(tocItems) + processedHtml + END_MARK;
+
+    const topics = Array.isArray(item.topics) ? item.topics : [];
+    const meta = ['Обобщение с AI'];
+    if (topics.length) meta.push(pluralTopics(topics.length));
+    meta.push('≈ ' + readingMinutes(md) + ' мин четене');
+    const metaHtml = meta.map((m) => `<span>${escapeHtml(m)}</span>`).join('<span class="sep">·</span>');
+
+    const headerHtml = `<p class="issue-kicker"><span>Брой ${escapeHtml(String(item.issue))}</span><span class="rule"></span><span>Държавен вестник</span></p>` +
+        `<h1 class="title">${escapeHtml(formatDateLong(item.date))}</h1>` +
+        `<p class="issue-meta" id="issue-meta">${metaHtml}</p>`;
 
     let navHtml = '';
-    if (prev) {
-        navHtml += `<div class="issue-nav-group"><div class="issue-nav-title">← Предишен брой</div><div class="issue-cards">${renderIssueCard(prev)}</div></div>`;
-    }
-    if (next) {
-        navHtml += `<div class="issue-nav-group"><div class="issue-nav-title">Следващ брой →</div><div class="issue-cards">${renderIssueCard(next)}</div></div>`;
-    }
-    let relatedHtml = '';
-    if (related && related.length) {
-        let cards = '';
-        related.forEach((it) => { cards += renderIssueCard(it, 'row'); });
-        relatedHtml = `<section class="issue-related" id="issue-related" aria-label="Скорошни броеве"><h2 class="section-title">Скорошни броеве</h2><div class="issue-list">${cards}</div><p class="issue-related-all"><a href="/">Виж всички броеве →</a></p></section>`;
-    }
+    if (prev) navHtml += `<div class="issue-nav-group is-prev"><span class="nav-label">← Предишен брой</span>${renderNavCard(prev)}</div>`;
+    if (next) navHtml += `<div class="issue-nav-group is-next"><span class="nav-label">Следващ брой →</span>${renderNavCard(next)}</div>`;
 
     return `
                 <div class="back-bar">
-                    <button type="button" class="back-btn" id="back-btn" aria-label="Обратно към началната страница">← Обратно към началната страница</button>
+                    <button type="button" class="back-btn" id="back-btn" aria-label="Обратно към всички броеве">← Всички броеве</button>
                 </div>
                 <div class="issue-header" id="issue-header">${headerHtml}</div>
                 <div class="content" id="content">${contentHtml}</div>
+                <div class="issue-share" id="issue-share">${renderShare(item)}</div>
                 <div id="issue-nav" class="issue-nav issue-nav-bottom" aria-label="Навигация между броеве">${navHtml}</div>
-                ${relatedHtml}
                 <div class="back-bar back-bar-bottom">
-                    <button type="button" class="back-btn" id="back-btn-bottom" aria-label="Обратно към началната страница">← Обратно към началната страница</button>
+                    <button type="button" class="back-btn" id="back-btn-bottom" aria-label="Обратно към всички броеве">← Всички броеве</button>
                 </div>`;
 }
 
-function buildIssuePage(template, item, prev, next, related) {
-    const formattedDate = formatDateBulgarian(item.date);
-    const titleDate = stripDateSuffix(formattedDate);
+function buildIssuePage(template, item, prev, next) {
+    const titleDate = formatDateLong(item.date);
     const pageTitle = `Брой ${item.issue} · ${titleDate} — ${PAGE_TITLE_BASE}`;
     const canonicalUrl = `${SITE_ORIGIN}/issue/${item.year}/${item.issue}/`;
     const ogImage = `${SITE_ORIGIN}/og-image.png`;
@@ -345,7 +409,12 @@ function buildIssuePage(template, item, prev, next, related) {
     // Pre-apply the issue-open and issue-ready classes so initial paint shows the article.
     html = html.replace(/<body(\s|>)/, '<body class="issue-open issue-ready"$1');
 
-    const innerHtml = buildIssueViewInner(item, prev, next, related);
+    // The nameplate is only hidden by CSS here, so its <h1> stays in the markup.
+    // Demote it: an issue page's one heading is the article's own.
+    html = html.replace('<h1 class="masthead-title">', '<p class="masthead-title">')
+        .replace(/(<p class="masthead-title">[\s\S]*?)<\/h1>/, '$1</p>');
+
+    const innerHtml = buildIssueViewInner(item, prev, next);
     html = html.replace(/(<div id="issue-view">)[\s\S]*?(<\/div>\s*<div class="loading")/, `$1${innerHtml}\n            $2`);
 
     return html;
@@ -360,8 +429,7 @@ function issueDateToIso(str) {
     const bgMatch = str.match(/^(\d{1,2})\s+([^\s]+)\s+(\d{4})/);
     if (bgMatch) {
         const day = bgMatch[1].padStart(2, '0');
-        const monthName = bgMatch[2].toLowerCase();
-        const monthIdx = BG_MONTHS.indexOf(monthName);
+        const monthIdx = BG_MONTHS.indexOf(bgMatch[2].toLowerCase());
         if (monthIdx >= 0) {
             const mm = String(monthIdx + 1).padStart(2, '0');
             return `${bgMatch[3]}-${mm}-${day}`;
@@ -396,13 +464,12 @@ function build() {
     fs.mkdirSync(OUTPUT_DIR, { recursive: true });
 
     let count = 0;
-    for (const entry of all) {
-        const idx = all.findIndex((it) => it.year === entry.year && it.issue === entry.issue);
-        const prev = idx >= 0 && idx + 1 < all.length ? all[idx + 1] : null;
+    for (let idx = 0; idx < all.length; idx++) {
+        const entry = all[idx];
+        const prev = idx + 1 < all.length ? all[idx + 1] : null;
         const next = idx > 0 ? all[idx - 1] : null;
-        const related = all.filter((_, i) => i !== idx && i !== idx - 1 && i !== idx + 1).slice(0, 6);
 
-        const html = buildIssuePage(cleanTemplate, entry, prev, next, related);
+        const html = buildIssuePage(cleanTemplate, entry, prev, next);
         const dir = path.join(OUTPUT_DIR, String(entry.year), String(entry.issue));
         fs.mkdirSync(dir, { recursive: true });
         fs.writeFileSync(path.join(dir, 'index.html'), html, 'utf8');
