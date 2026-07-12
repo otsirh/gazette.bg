@@ -73,4 +73,13 @@ function cleanMarkdown(text) {
     return t.trim() + '\n';
 }
 
-export { cleanMarkdown, EMPTY_MARKER };
+// The model occasionally types a Bulgarian word with Latin letters — "obhвата"
+// for "обхвата", "professionalен" for "професионален". It reads as garbage and
+// no prompt reliably prevents it, so catch it here: a word that mixes the two
+// alphabets is always a mistake. Whole Latin tokens are fine (iBoxx, MWh, S&P).
+function findMixedScriptWords(text) {
+    const words = String(text).match(/[\p{L}]+/gu) || [];
+    return [...new Set(words.filter((w) => /\p{Script=Cyrillic}/u.test(w) && /\p{Script=Latin}/u.test(w)))];
+}
+
+export { cleanMarkdown, findMixedScriptWords, EMPTY_MARKER };

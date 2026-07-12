@@ -11,7 +11,7 @@ import {
     getRefineUserPrompt,
     getCoverageCheckPrompt,
 } from './ai-prompts.js';
-import { cleanMarkdown } from './clean-markdown.js';
+import { cleanMarkdown, findMixedScriptWords } from './clean-markdown.js';
 import { appendLog, flushAlertEmail } from './logger.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -247,6 +247,13 @@ async function summarizePdf(pdfPath, year, issue) {
     console.log(`  Inventory: ${inventory.split('\n').filter(Boolean).length} lines. Writing the summary...`);
     await delay(DELAY_BETWEEN_CHUNKS_MS);
     const finalMarkdown = cleanMarkdown(await refineSummaryWithClaude(inventory, year, issue));
+
+    // Publishing garbled words is worse than publishing nothing: the summary is
+    // dropped, the PDF stays, and the next run has another go at it.
+    const garbled = findMixedScriptWords(finalMarkdown);
+    if (garbled.length) {
+        throw new Error(`Summary mixes Cyrillic and Latin inside words: ${garbled.join(', ')}`);
+    }
 
     await reportCoverage(inventory, finalMarkdown, year, issue);
 
