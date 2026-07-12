@@ -672,11 +672,13 @@ main .loading {
     background: var(--hairline);
 }
 
-/* Two columns on a wide screen — a magazine contents spread.
-   Rows read top-to-bottom, then over to the next column. */
+/* Two columns on a wide screen — a magazine contents spread. Grid, not
+   multicol: issues must read across (63, 62 | 61, 60), not down each column,
+   which would put issue 62 beside issue 32. */
 .issue-list {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
     column-gap: var(--gap-2xl);
-    column-rule: 1px solid var(--hairline-soft);
 }
 
 .issue-card-row {
@@ -686,7 +688,6 @@ main .loading {
     align-items: baseline;
     padding: 0.7rem 0;
     border-bottom: 1px solid var(--hairline-soft);
-    break-inside: avoid;
     cursor: pointer;
     transition: color 0.16s var(--ease);
 }
@@ -1363,7 +1364,12 @@ body.issue-ready .back-bar-bottom { display: block; }
     .content > :not(.content-disclaimer):not(.issue-toc) { grid-column: 2; }
     .content > :not(.content-disclaimer):not(.issue-toc):first-of-type { margin-top: 0; }
 
-    .issue-list { column-count: 2; }
+    /* The hairline between the columns is painted on the container, since a
+       grid has no column-rule of its own. */
+    .issue-list {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        background: linear-gradient(var(--hairline-soft), var(--hairline-soft)) 50% 0 / 1px 100% no-repeat;
+    }
 }
 
 @media (min-width: 1240px) {

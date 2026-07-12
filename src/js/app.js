@@ -314,26 +314,20 @@ ${contents}
         }
     }
 
-    // Live filter over the archive register. Matches an issue's number, date
-    // and headline (its rendered textContent). Empty year groups collapse; the
-    // lead story and colophon step aside so results are the only thing on screen.
+    // Live filter over the archive register — and only over it. The lead story
+    // and the colophon stay put: a search box that sits inside the archive is
+    // expected to narrow the archive, not to rearrange the page around it.
     function applyArchiveFilter(rawQuery) {
         if (!homeContent) return;
         const q = (rawQuery || '').trim().toLowerCase();
-        const leadSection = homeContent.querySelector('.lead-section');
         const archiveSection = homeContent.querySelector('.archive-section');
-        const aboutSection = document.querySelector('.about-section');
         const existingNote = homeContent.querySelector('.filter-empty');
         if (existingNote) existingNote.remove();
 
         if (!q) {
             homeContent.querySelectorAll('.filter-hidden').forEach((el) => el.classList.remove('filter-hidden'));
-            if (aboutSection) aboutSection.classList.remove('filter-hidden');
             return;
         }
-
-        if (leadSection) leadSection.classList.add('filter-hidden');
-        if (aboutSection) aboutSection.classList.add('filter-hidden');
 
         let anyVisible = false;
         homeContent.querySelectorAll('.year-group').forEach((group) => {
