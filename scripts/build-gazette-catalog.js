@@ -61,8 +61,10 @@ function extractIssueMeta(filePath) {
 }
 
 // The issue's JSON carries the publication date and — once the summary has been
-// through the tagging pass — who it affects, the places it names, and the
-// deadlines it starts. All of it goes into the catalog: the site reads nothing else.
+// through the tagging pass — who it affects, the deadlines it starts, and the
+// places it names. Everything but the places goes into the catalog: every
+// visitor downloads it, and nothing on the site reads the places yet. They stay
+// in the issue files, ready if that changes.
 function readIssueJson(issueDirPath, issueNum) {
     const metaPath = path.join(issueDirPath, `${issueNum}.json`);
     try {
@@ -107,7 +109,6 @@ function buildCatalog() {
                 lead,
                 topics,
                 audiences: meta.audiences || [],
-                places: meta.places || [],
                 sections: meta.sections || [],
                 deadlines: meta.deadlines || [],
             });
