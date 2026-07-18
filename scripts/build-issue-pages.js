@@ -231,7 +231,8 @@ function searchHaystack(item) {
 function renderRowCard(item) {
     const topics = Array.isArray(item.topics) ? item.topics : [];
     const title = topics[0] || item.lead || `Брой ${item.issue}`;
-    return `<a class="issue-card issue-card-row" ${cardAttrs(item)} data-search="${escapeHtml(searchHaystack(item))}">` +
+    const auds = Array.isArray(item.audiences) ? item.audiences : [];
+    return `<a class="issue-card issue-card-row" ${cardAttrs(item)} data-search="${escapeHtml(searchHaystack(item))}" data-audiences="${escapeHtml(auds.join('|'))}">` +
         `<span class="num">${escapeHtml(String(item.issue))}</span>` +
         `<span class="row-body"><span class="row-title">${escapeHtml(title)}</span><span class="date">${escapeHtml(formatDateShort(item.date))}</span></span>` +
         `</a>`;

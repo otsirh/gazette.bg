@@ -27,6 +27,26 @@
     const WORDS_PER_MINUTE = 180;
     const COPY_LABEL = 'Копирай връзка';
 
+    // The closed audience vocabulary (mirrors scripts/issue-meta.js). Powers the
+    // "За мен" filter: the reader picks who they are and the archive narrows to
+    // the issues that touch them. The choice persists locally.
+    const AUDIENCES = [
+        'шофьор', 'собственик на имот', 'пенсионер', 'родител', 'ученик или студент',
+        'пациент', 'земеделец', 'фирма или самонает', 'работещ', 'потребител', 'жител на конкретно място',
+    ];
+    const AUDIENCE_KEY = 'gazette-audiences';
+
+    function loadSelectedAudiences() {
+        try {
+            const raw = JSON.parse(localStorage.getItem(AUDIENCE_KEY) || '[]');
+            return new Set(Array.isArray(raw) ? raw.filter((a) => AUDIENCES.includes(a)) : []);
+        } catch (e) { return new Set(); }
+    }
+    function saveSelectedAudiences() {
+        try { localStorage.setItem(AUDIENCE_KEY, JSON.stringify([...selectedAudiences])); } catch (e) { /* storage blocked */ }
+    }
+    const selectedAudiences = loadSelectedAudiences();
+
     // Honour prefers-reduced-motion for JS-driven scrolling: an explicit
     // behavior:'smooth' argument is not governed by CSS scroll-behavior, so the
     // stylesheet's reduced-motion block can't neutralise it — we must here.
@@ -283,7 +303,8 @@ ${contents}
     function renderRowCard(item) {
         const topics = Array.isArray(item.topics) ? item.topics : [];
         const title = topics[0] || item.lead || `Брой ${item.issue}`;
-        return `<a class="issue-card issue-card-row" ${cardAttrs(item)} data-search="${escapeHtml(searchHaystack(item))}">` +
+        const auds = Array.isArray(item.audiences) ? item.audiences : [];
+        return `<a class="issue-card issue-card-row" ${cardAttrs(item)} data-search="${escapeHtml(searchHaystack(item))}" data-audiences="${escapeHtml(auds.join('|'))}">` +
             `<span class="num">${escapeHtml(String(item.issue))}</span>` +
             `<span class="row-body"><span class="row-title">${escapeHtml(title)}</span><span class="date">${escapeHtml(formatDateShort(item.date))}</span></span>` +
             `</a>`;
@@ -418,6 +439,7 @@ ${contents}
         let html = '<section class="archive-section" id="archive">';
         html += `<div class="section-head"><h2 class="section-title">Архив</h2><span class="section-count">${total} ${total === 1 ? 'брой' : 'броя'}</span></div>`;
         html += '<div class="archive-search"><input type="search" id="archive-search" class="archive-search-input" placeholder="Търсене по тема, дата или номер на брой…" aria-label="Търсене в архива" autocomplete="off" spellcheck="false" /></div>';
+        html += renderAudienceFilter();
         years.forEach((year) => {
             html += `<div class="year-group"><h3 class="year-title"><span>${escapeHtml(year)}</span></h3><div class="issue-list">`;
             byYear[year].forEach((item) => { html += renderRowCard(item); });
@@ -443,25 +465,74 @@ ${contents}
 
         homeContent.innerHTML = renderLeadCard(all[0]) + renderDeadlinesSection(all) + renderArchive(all.slice(1));
         refreshDeadlines(homeContent);
+        syncAudienceChips();
 
         if (pendingQuery) {
             const searchInput = document.getElementById('archive-search');
             if (searchInput) searchInput.value = pendingQuery;
-            applyArchiveFilter(pendingQuery);
         }
+        if (pendingQuery || selectedAudiences.size) applyArchiveFilter();
+    }
+
+    // The "За мен" filter: a row of the audience vocabulary the reader can
+    // toggle. Sits inside the archive because that is what it narrows.
+    function renderAudienceFilter() {
+        const chips = AUDIENCES.map((a) =>
+            `<button type="button" class="aud-chip" data-aud="${escapeHtml(a)}" aria-pressed="false">${escapeHtml(a)}</button>`
+        ).join('');
+        return '<div class="audience-filter" role="group" aria-label="Покажи само това, което ме засяга">' +
+            '<span class="audience-filter-label">За мен</span>' +
+            chips +
+            '<button type="button" class="aud-clear" hidden>× изчисти</button>' +
+            '</div>';
+    }
+
+    // Reflect the saved selection on the freshly rendered chips.
+    function syncAudienceChips() {
+        if (!homeContent) return;
+        homeContent.querySelectorAll('.aud-chip').forEach((chip) => {
+            const on = selectedAudiences.has(chip.dataset.aud);
+            chip.classList.toggle('is-active', on);
+            chip.setAttribute('aria-pressed', String(on));
+        });
+        const clear = homeContent.querySelector('.aud-clear');
+        if (clear) clear.hidden = selectedAudiences.size === 0;
+    }
+
+    function onAudienceClick(e) {
+        if (e.target.closest('.aud-clear')) {
+            selectedAudiences.clear();
+            saveSelectedAudiences();
+            syncAudienceChips();
+            applyArchiveFilter();
+            return;
+        }
+        const chip = e.target.closest('.aud-chip');
+        if (!chip || !chip.dataset.aud) return;
+        const aud = chip.dataset.aud;
+        if (selectedAudiences.has(aud)) selectedAudiences.delete(aud);
+        else selectedAudiences.add(aud);
+        saveSelectedAudiences();
+        syncAudienceChips();
+        applyArchiveFilter();
     }
 
     // Live filter over the archive register — and only over it. The lead story
-    // and the colophon stay put: a search box that sits inside the archive is
-    // expected to narrow the archive, not to rearrange the page around it.
+    // and the colophon stay put: controls that sit inside the archive are
+    // expected to narrow the archive, not to rearrange the page around them.
+    // Two criteria combine (AND): the text query and the "За мен" audiences.
     function applyArchiveFilter(rawQuery) {
         if (!homeContent) return;
-        const q = (rawQuery || '').trim().toLowerCase();
+        const input = document.getElementById('archive-search');
+        const displayQ = (rawQuery != null ? rawQuery : (input ? input.value : '')).trim();
+        const q = displayQ.toLowerCase();
+        const auds = selectedAudiences;
+        const hasAud = auds.size > 0;
         const archiveSection = homeContent.querySelector('.archive-section');
         const existingNote = homeContent.querySelector('.filter-empty');
         if (existingNote) existingNote.remove();
 
-        if (!q) {
+        if (!q && !hasAud) {
             homeContent.querySelectorAll('.filter-hidden').forEach((el) => el.classList.remove('filter-hidden'));
             announce('');
             return;
@@ -471,8 +542,9 @@ ${contents}
         homeContent.querySelectorAll('.year-group').forEach((group) => {
             let groupVisible = false;
             group.querySelectorAll('.issue-card-row').forEach((row) => {
-                const hay = (row.dataset.search || '') + ' ' + row.textContent.toLowerCase();
-                const match = hay.includes(q);
+                const textMatch = !q || ((row.dataset.search || '') + ' ' + row.textContent.toLowerCase()).includes(q);
+                const audMatch = !hasAud || (row.dataset.audiences || '').split('|').some((a) => auds.has(a));
+                const match = textMatch && audMatch;
                 row.classList.toggle('filter-hidden', !match);
                 if (match) { groupVisible = true; anyVisible = true; }
             });
@@ -482,7 +554,9 @@ ${contents}
         if (archiveSection && !anyVisible) {
             const note = document.createElement('p');
             note.className = 'empty filter-empty';
-            note.textContent = 'Няма намерени броеве за „' + rawQuery.trim() + '“.';
+            note.textContent = displayQ
+                ? 'Няма намерени броеве за „' + displayQ + '“.'
+                : 'Няма броеве за избраните профили.';
             archiveSection.appendChild(note);
             announce('Няма намерени броеве.');
         } else {
@@ -849,6 +923,7 @@ ${contents}
         homeView.addEventListener('input', (e) => {
             if (e.target && e.target.id === 'archive-search') applyArchiveFilter(e.target.value);
         });
+        if (homeContent) homeContent.addEventListener('click', onAudienceClick);
         window.addEventListener('popstate', applyRoute);
         window.addEventListener('scroll', () => {
             updateScrollToTopVisibility();
