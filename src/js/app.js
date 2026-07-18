@@ -515,7 +515,7 @@ ${contents}
 
         let html = '<section class="archive-section" id="archive">';
         html += `<div class="section-head"><h2 class="section-title">Архив</h2><span class="section-count">${total} ${total === 1 ? 'брой' : 'броя'}</span></div>`;
-        html += '<div class="archive-search"><input type="search" id="archive-search" class="archive-search-input" placeholder="Търсене по тема, дата или номер на брой…" aria-label="Търсене в архива" autocomplete="off" spellcheck="false" /></div>';
+        html += '<div class="archive-search"><input type="search" id="archive-search" class="archive-search-input" placeholder="Търсене в текста на броевете…" aria-label="Търсене в текста на броевете" autocomplete="off" spellcheck="false" /></div>';
         html += renderAudienceFilter();
         years.forEach((year) => {
             html += `<div class="year-group"><h3 class="year-title"><span>${escapeHtml(year)}</span></h3><div class="issue-list">`;
@@ -594,10 +594,56 @@ ${contents}
         applyArchiveFilter();
     }
 
+    // The full text of every summary, keyed "year/issue". Fetched once, lazily,
+    // the first time the reader searches — so it never weighs on a normal visit.
+    let searchIndex = null;
+    let searchIndexLower = null;
+    let searchIndexLoading = false;
+    function ensureSearchIndex() {
+        if (searchIndex || searchIndexLoading) return;
+        searchIndexLoading = true;
+        fetch('/search-index.json')
+            .then((r) => (r.ok ? r.json() : null))
+            .then((idx) => {
+                if (!idx) return;
+                searchIndex = idx;
+                searchIndexLower = {};
+                for (const k in idx) searchIndexLower[k] = String(idx[k]).toLowerCase();
+                applyArchiveFilter(); // re-run with the current query now that the text is here
+            })
+            .catch(() => { /* full text just stays unavailable; metadata search still works */ });
+    }
+
+    // A ~140-char window around the first hit, with the match highlighted. Built
+    // from escaped parts so the <mark> is the only markup.
+    function buildSnippet(original, qLower) {
+        const lower = original.toLowerCase();
+        const i = lower.indexOf(qLower);
+        if (i < 0) return '';
+        const start = Math.max(0, i - 45);
+        const end = Math.min(original.length, i + qLower.length + 95);
+        const pre = (start > 0 ? '…' : '') + original.slice(start, i);
+        const mid = original.slice(i, i + qLower.length);
+        const post = original.slice(i + qLower.length, end) + (end < original.length ? '…' : '');
+        return escapeHtml(pre) + '<mark>' + escapeHtml(mid) + '</mark>' + escapeHtml(post);
+    }
+    function injectSnippet(row, qLower) {
+        const original = searchIndex && searchIndex[(row.dataset.year || '') + '/' + (row.dataset.issue || '')];
+        const body = row.querySelector('.row-body');
+        if (!original || !body) return;
+        const html = buildSnippet(original, qLower);
+        if (!html) return;
+        const el = document.createElement('span');
+        el.className = 'row-snippet';
+        el.innerHTML = html;
+        body.appendChild(el);
+    }
+
     // Live filter over the archive register — and only over it. The lead story
     // and the colophon stay put: controls that sit inside the archive are
     // expected to narrow the archive, not to rearrange the page around them.
-    // Two criteria combine (AND): the text query and the "За мен" audiences.
+    // Criteria combine (AND): the text query (metadata + full text) and the
+    // "За мен" audiences.
     function applyArchiveFilter(rawQuery) {
         if (!homeContent) return;
         const input = document.getElementById('archive-search');
@@ -608,6 +654,7 @@ ${contents}
         const archiveSection = homeContent.querySelector('.archive-section');
         const existingNote = homeContent.querySelector('.filter-empty');
         if (existingNote) existingNote.remove();
+        homeContent.querySelectorAll('.row-snippet').forEach((el) => el.remove());
 
         if (!q && !hasAud) {
             homeContent.querySelectorAll('.filter-hidden').forEach((el) => el.classList.remove('filter-hidden'));
@@ -619,11 +666,21 @@ ${contents}
         homeContent.querySelectorAll('.year-group').forEach((group) => {
             let groupVisible = false;
             group.querySelectorAll('.issue-card-row').forEach((row) => {
-                const textMatch = !q || ((row.dataset.search || '') + ' ' + row.textContent.toLowerCase()).includes(q);
+                // Metadata (instant) OR the full summary text (once the index has
+                // loaded). A body-only match also gets a highlighted snippet.
+                const metaMatch = !q || ((row.dataset.search || '') + ' ' + row.textContent.toLowerCase()).includes(q);
+                let bodyMatch = false;
+                if (q && searchIndexLower) {
+                    const body = searchIndexLower[(row.dataset.year || '') + '/' + (row.dataset.issue || '')];
+                    bodyMatch = !!(body && body.includes(q));
+                }
                 const audMatch = !hasAud || (row.dataset.audiences || '').split('|').some((a) => auds.has(a));
-                const match = textMatch && audMatch;
+                const match = (metaMatch || bodyMatch) && audMatch;
                 row.classList.toggle('filter-hidden', !match);
-                if (match) { groupVisible = true; anyVisible = true; }
+                if (match) {
+                    groupVisible = true; anyVisible = true;
+                    if (bodyMatch && q) injectSnippet(row, q);
+                }
             });
             group.classList.toggle('filter-hidden', !groupVisible);
         });
@@ -648,6 +705,7 @@ ${contents}
         let q = '';
         try { q = new URLSearchParams(location.search).get('q') || ''; } catch (_) { return; }
         if (!q) return;
+        ensureSearchIndex();
         const input = document.getElementById('archive-search');
         if (input) { input.value = q; applyArchiveFilter(q); }
         const archive = document.getElementById('archive');
@@ -1052,7 +1110,11 @@ ${contents}
         if (storedTheme) syncThemeColor(storedTheme);
         syncThemeToggleState(currentTheme());
         homeView.addEventListener('input', (e) => {
-            if (e.target && e.target.id === 'archive-search') applyArchiveFilter(e.target.value);
+            if (e.target && e.target.id === 'archive-search') { ensureSearchIndex(); applyArchiveFilter(e.target.value); }
+        });
+        // Start fetching the full-text index as soon as the reader means to search.
+        homeView.addEventListener('focusin', (e) => {
+            if (e.target && e.target.id === 'archive-search') ensureSearchIndex();
         });
         if (homeContent) homeContent.addEventListener('click', onAudienceClick);
         window.addEventListener('popstate', applyRoute);

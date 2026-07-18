@@ -13,6 +13,7 @@ const CATALOG_PATH = path.join(ROOT, 'catalog.json');
 const OUTPUT_DIR = path.join(ROOT, 'issue');
 const SITEMAP_PATH = path.join(ROOT, 'sitemap.xml');
 const RSS_PATH = path.join(ROOT, 'feed.xml');
+const SEARCH_INDEX_PATH = path.join(ROOT, 'search-index.json');
 const DEADLINES_PAGE_DIR = path.join(ROOT, 'deadlines');
 const PLACES_PAGE_DIR = path.join(ROOT, 'places');
 const MAP_PAGE_DIR = path.join(ROOT, 'map');
@@ -460,7 +461,7 @@ function buildHomeContentHtml(catalog) {
 
         html += '<section class="archive-section" id="archive">';
         html += `<div class="section-head"><h2 class="section-title">Архив</h2><span class="section-count">${total} ${total === 1 ? 'брой' : 'броя'}</span></div>`;
-        html += '<div class="archive-search"><input type="search" id="archive-search" class="archive-search-input" placeholder="Търсене по тема, дата или номер на брой…" aria-label="Търсене в архива" autocomplete="off" spellcheck="false" /></div>';
+        html += '<div class="archive-search"><input type="search" id="archive-search" class="archive-search-input" placeholder="Търсене в текста на броевете…" aria-label="Търсене в текста на броевете" autocomplete="off" spellcheck="false" /></div>';
         years.forEach((year) => {
             html += `<div class="year-group"><h3 class="year-title"><span>${escapeHtml(year)}</span></h3><div class="issue-list">`;
             byYear[year].forEach((item) => { html += renderRowCard(item); });
@@ -1020,6 +1021,31 @@ function buildStatsPage(cleanTemplate, catalog) {
     return replaceHomeContent(html, buildStatsPageInner(catalog));
 }
 
+// ─── Full-text search index ───
+// The searchable plain text of every summary, keyed by "year/issue". Fetched
+// lazily by the client on first search, so it never weighs on a normal visit.
+function toPlainText(md) {
+    return String(md)
+        .replace(/```[\s\S]*?```/g, ' ')
+        .replace(/`([^`]*)`/g, '$1')
+        .replace(/!\[[^\]]*\]\([^)]*\)/g, ' ')
+        .replace(/\[([^\]]*)\]\([^)]*\)/g, '$1')
+        .replace(/^#{1,6}\s+/gm, '')
+        .replace(/[*_>]/g, '')
+        .replace(/\s+/g, ' ')
+        .trim();
+}
+function buildSearchIndex(catalog) {
+    const index = {};
+    for (const item of getAllIssuesNewestFirst(catalog)) {
+        try {
+            index[`${item.year}/${item.issue}`] = toPlainText(fs.readFileSync(path.join(ROOT, item.file), 'utf8'));
+        } catch (_) {}
+    }
+    fs.writeFileSync(SEARCH_INDEX_PATH, JSON.stringify(index), 'utf8');
+    return index;
+}
+
 function build() {
     const catalog = JSON.parse(fs.readFileSync(CATALOG_PATH, 'utf8'));
     CATALOG = catalog;
@@ -1063,6 +1089,7 @@ function build() {
 
     fs.writeFileSync(SITEMAP_PATH, buildSitemapXml(catalog), 'utf8');
     fs.writeFileSync(RSS_PATH, buildRssXml(catalog), 'utf8');
+    buildSearchIndex(catalog);
     fs.writeFileSync(NOT_FOUND_PATH, buildNotFoundHtml(cleanTemplate), 'utf8');
 
     console.log(`[build-issue-pages] Wrote ${count} pages to ${OUTPUT_DIR}, updated ${TEMPLATE_PATH}, wrote ${SITEMAP_PATH}, ${RSS_PATH}, deadlines/, places/, map/, stats/ and ${NOT_FOUND_PATH}`);

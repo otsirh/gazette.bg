@@ -1016,6 +1016,25 @@ main .loading {
     color: var(--muted);
 }
 
+/* A full-text hit's context, shown under the register row with the match lit. */
+.row-snippet {
+    display: block;
+    margin-top: 0.35rem;
+    font-family: var(--font-text);
+    font-size: 0.85rem;
+    line-height: 1.4;
+    color: var(--muted);
+    font-weight: 400;
+}
+.row-snippet mark {
+    background: var(--accent-wash);
+    color: var(--accent);
+    font-weight: 600;
+    padding: 0 0.12em;
+    border-radius: 2px;
+}
+.issue-card-row:hover .row-snippet { color: var(--ink-soft); }
+
 .filter-hidden { display: none !important; }
 
 .filter-empty {
