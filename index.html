@@ -302,7 +302,7 @@ html.initial-issue-route #issue-view { display: block; }
     white-space: nowrap;
 }
 
-.folio-link:hover { color: var(--ink); border-bottom-color: var(--accent); }
+.folio-link:hover { color: var(--accent); border-bottom-color: var(--accent); }
 
 .theme-toggle {
     display: inline-flex;
@@ -404,7 +404,7 @@ body:not(.issue-open) .reading-progress { width: 0 !important; }
     align-items: center;
     justify-content: center;
     flex-wrap: wrap;
-    gap: 0.5rem var(--gap-md);
+    gap: var(--gap-xs) var(--gap-md);
     margin: var(--gap-lg) 0 0;
     padding: 0.55rem 0;
     border-top: 1px solid var(--rule);
@@ -588,7 +588,7 @@ main .loading {
 .contents-list li {
     counter-increment: contents;
     position: relative;
-    padding: 0.5rem 0 0.5rem 2.1rem;
+    padding: var(--gap-xs) 0 var(--gap-xs) 2.1rem;
     border-bottom: 1px dotted var(--hairline);
     font-size: 1rem;
     line-height: 1.4;
@@ -766,7 +766,7 @@ main .loading {
 
 .archive-search:focus-within::before { color: var(--accent); }
 .archive-search-input::placeholder { color: var(--muted); opacity: 1; }
-.archive-search-input:focus { outline: none; border-bottom-color: var(--accent); }
+.archive-search-input:focus { border-bottom-color: var(--accent); }
 .archive-search-input::-webkit-search-cancel-button { -webkit-appearance: none; appearance: none; }
 
 .year-group { margin-bottom: var(--gap-2xl); }
@@ -1205,7 +1205,7 @@ body.issue-ready .back-bar-bottom { display: block; }
 
 .content th,
 .content td {
-    padding: 0.5rem 0.75rem 0.5rem 0;
+    padding: var(--gap-xs) var(--gap-sm) var(--gap-xs) 0;
     text-align: left;
     border-bottom: 1px solid var(--hairline-soft);
 }
@@ -1257,7 +1257,7 @@ body.issue-ready .back-bar-bottom { display: block; }
     font-size: 0.6875rem;
     font-weight: 600;
     text-transform: uppercase;
-    letter-spacing: 0.1em;
+    letter-spacing: 0.14em;
     cursor: pointer;
     transition: color 0.18s var(--ease), border-color 0.18s var(--ease), background 0.18s var(--ease);
 }
@@ -1320,7 +1320,7 @@ body.issue-ready .back-bar-bottom { display: block; }
 /* ─── Not found ─────────────────────────────────────── */
 
 .not-found-section {
-    max-width: 34rem;
+    max-width: var(--measure);
     padding: var(--gap-3xl) 0;
 }
 
@@ -1354,7 +1354,10 @@ body.issue-ready .back-bar-bottom { display: block; }
     text-decoration: none;
     border-bottom: 1px solid currentColor;
     padding-bottom: 0.15rem;
+    transition: color 0.18s var(--ease);
 }
+
+.not-found-link:hover { color: var(--accent-hover); }
 
 /* ─── Footer ────────────────────────────────────────── */
 
@@ -1535,6 +1538,17 @@ body.issue-ready .back-bar-bottom { display: block; }
     .footer-links { flex-direction: column; align-items: flex-start; gap: var(--gap-sm); }
 
     .scroll-to-top { right: var(--gap-md); bottom: var(--gap-md); }
+}
+
+/* ─── Touch targets ─────────────────────────────────── */
+
+/* The compact print apparatus is sized for a mouse. On touch, enlarge the
+   hit area of the small standalone controls toward the ~44px tap minimum
+   without changing the mark itself. */
+@media (pointer: coarse) {
+    .theme-toggle { width: 2.5rem; height: 2.5rem; }
+    .scroll-to-top { width: 2.75rem; height: 2.75rem; }
+    .share-btn { padding: 0.6rem 0.85rem; }
 }
 
 /* ─── Reduced motion ────────────────────────────────── */
