@@ -1023,6 +1023,11 @@ ${contents}
             return;
         }
 
+        // The /places index is fully static; leave its pre-rendered content be.
+        if (document.body.classList.contains('places-route')) {
+            return;
+        }
+
         const initial = getIssueFromPath();
         const isPreRendered = !!(initial && mainContent && mainContent.children.length > 0);
 

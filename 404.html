@@ -1818,6 +1818,53 @@ body.deadlines-route .masthead { display: none; }
     height: 1px;
     background: var(--hairline);
 }
+
+/* ─── /places index ─────────────────────────────────── */
+
+body.places-route .masthead { display: none; }
+
+.place-letter-group { margin-bottom: var(--gap-xl); }
+.place-letter-group:last-child { margin-bottom: 0; }
+.place-letter {
+    margin: 0 0 var(--gap-xs);
+    font-family: var(--font-display);
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: var(--accent);
+    line-height: 1;
+}
+
+/* A back-of-book directory: several columns of names, each with the count of
+   issues that name it aligned to the right. */
+.place-index-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(13.5rem, 1fr));
+    gap: 0 var(--gap-xl);
+}
+.place-index-item a {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 0.6rem;
+    padding: 0.32rem 0;
+    border-bottom: 1px dotted var(--hairline);
+    color: var(--ink-soft);
+    text-decoration: none;
+    transition: color 0.18s var(--ease);
+}
+.place-index-item a:hover { color: var(--accent); }
+.place-index-item a:hover .place-index-count { color: var(--accent); }
+.place-index-name { min-width: 0; }
+.place-index-count {
+    flex: none;
+    font-family: var(--font-mono);
+    font-size: 0.6875rem;
+    color: var(--muted);
+    font-variant-numeric: tabular-nums;
+}
 </style><!--CRITICAL-CSS-END-->
     <script>
         (function () {
@@ -1841,6 +1888,7 @@ body.deadlines-route .masthead { display: none; }
             <nav class="folio-nav" aria-label="Основна навигация">
                 <a class="folio-link" href="/#archive">Архив</a>
                 <a class="folio-link" href="/deadlines/">Срокове</a>
+                <a class="folio-link" href="/places/" data-optional>Места</a>
                 <a class="folio-link" href="/#about" data-optional>За проекта</a>
                 <a class="folio-link" href="https://dv.parliament.bg" target="_blank" rel="noopener" data-optional>dv.parliament.bg ↗</a>
                 <button type="button" class="theme-toggle" id="theme-toggle" aria-label="Смяна на тъмна и светла тема" title="Смяна на тема">
@@ -1935,6 +1983,7 @@ body.deadlines-route .masthead { display: none; }
                 <a href="/">Начало</a>
                 <a href="/#archive">Архив</a>
                 <a href="/deadlines/">Срокове</a>
+                <a href="/places/">Места</a>
                 <a href="/#about">За проекта</a>
                 <a href="https://dv.parliament.bg" target="_blank" rel="noopener">Официален източник ↗</a>
                 <a href="/feed.xml">RSS</a>

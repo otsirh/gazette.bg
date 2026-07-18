@@ -14,6 +14,7 @@ const OUTPUT_DIR = path.join(ROOT, 'issue');
 const SITEMAP_PATH = path.join(ROOT, 'sitemap.xml');
 const RSS_PATH = path.join(ROOT, 'feed.xml');
 const DEADLINES_PAGE_DIR = path.join(ROOT, 'deadlines');
+const PLACES_PAGE_DIR = path.join(ROOT, 'places');
 const CSS_PATH = path.join(ROOT, 'src', 'css', 'styles.css');
 const NOT_FOUND_PATH = path.join(ROOT, '404.html');
 
@@ -590,6 +591,7 @@ function buildSitemapXml(catalog) {
     const urls = [];
     urls.push(`  <url>\n    <loc>${SITE_ORIGIN}/</loc>\n    <lastmod>${latestIso}</lastmod>\n    <changefreq>daily</changefreq>\n    <priority>1.0</priority>\n  </url>`);
     urls.push(`  <url>\n    <loc>${SITE_ORIGIN}/deadlines/</loc>\n    <lastmod>${today}</lastmod>\n    <changefreq>daily</changefreq>\n    <priority>0.8</priority>\n  </url>`);
+    urls.push(`  <url>\n    <loc>${SITE_ORIGIN}/places/</loc>\n    <lastmod>${latestIso}</lastmod>\n    <changefreq>weekly</changefreq>\n    <priority>0.6</priority>\n  </url>`);
     for (const item of all) {
         const iso = issueDateToIso(item.date) || today;
         const loc = `${SITE_ORIGIN}/issue/${encodeURIComponent(item.year)}/${encodeURIComponent(item.issue)}/`;
@@ -687,6 +689,66 @@ function buildDeadlinesPage(cleanTemplate, catalog) {
     return replaceHomeContent(html, buildDeadlinesPageInner(catalog, new Date().toISOString().slice(0, 10)));
 }
 
+// ─── Places index (/places/) ───
+// Every settlement, municipality or region named across all issues, A–Я, each
+// linking to the archive filtered to it. Reuses the sub-page back link / note.
+
+function collectPlaces(catalog) {
+    const counts = new Map();
+    for (const item of getAllIssuesNewestFirst(catalog)) {
+        for (const raw of item.places || []) {
+            const name = String(raw).trim();
+            if (name) counts.set(name, (counts.get(name) || 0) + 1);
+        }
+    }
+    return counts;
+}
+
+function buildPlacesPageInner(catalog) {
+    const counts = collectPlaces(catalog);
+    const places = [...counts.keys()].sort((a, b) => a.localeCompare(b, 'bg'));
+    const total = places.length;
+    const head = '<div class="deadlines-page-top"><a class="deadlines-back" href="/">← Начало</a></div>' +
+        '<div class="section-head"><h1 class="section-title">Места</h1>' +
+        `<span class="section-count">${total} ${total === 1 ? 'място' : 'места'}</span></div>` +
+        '<p class="deadlines-note">Всяко населено място, община или област, спомената в броевете. Изберете, за да видите кои броеве я засягат. Числото е в колко броя се споменава.</p>';
+    if (!total) {
+        return `<section class="places-page" id="places-page">${head}<p class="empty">Все още няма отбелязани места.</p></section>`;
+    }
+    const order = [];
+    const byLetter = new Map();
+    for (const name of places) {
+        const letter = name.charAt(0).toUpperCase();
+        if (!byLetter.has(letter)) { byLetter.set(letter, []); order.push(letter); }
+        byLetter.get(letter).push(name);
+    }
+    const groups = order.map((letter) => {
+        const items = byLetter.get(letter).map((name) => {
+            const c = counts.get(name);
+            return `<li class="place-index-item"><a href="/?q=${encodeURIComponent(name)}#archive"><span class="place-index-name">${escapeHtml(name)}</span><span class="place-index-count">${c}</span></a></li>`;
+        }).join('');
+        return `<div class="place-letter-group"><h2 class="place-letter">${escapeHtml(letter)}</h2><ul class="place-index-list">${items}</ul></div>`;
+    }).join('');
+    return `<section class="places-page" id="places-page">${head}${groups}</section>`;
+}
+
+function buildPlacesPage(cleanTemplate, catalog) {
+    const title = 'Места — Държавен вестник';
+    const desc = 'Азбучен указател на населените места, общини и области, споменати в броевете на Държавен вестник — изберете място, за да видите кои броеве го засягат.';
+    const canonicalUrl = `${SITE_ORIGIN}/places/`;
+    let html = cleanTemplate;
+    html = html.replace(/<title>[\s\S]*?<\/title>/, `<title>${escapeHtml(title)}</title>`);
+    html = html.replace(/(<meta name="description" content=")[^"]*("\s*\/>)/, `$1${escapeHtml(desc)}$2`);
+    html = html.replace(/(<meta property="og:title" content=")[^"]*("\s*\/>)/, `$1${escapeHtml(title)}$2`);
+    html = html.replace(/(<meta property="og:description" content=")[^"]*("\s*\/>)/, `$1${escapeHtml(desc)}$2`);
+    html = html.replace(/(<meta property="og:url" content=")[^"]*("\s*\/>)/, `$1${escapeHtml(canonicalUrl)}$2`);
+    html = html.replace(/(<link rel="canonical" href=")[^"]*("\s*\/>)/, `$1${escapeHtml(canonicalUrl)}$2`);
+    html = html.replace('<h1 class="masthead-title">', '<p class="masthead-title">')
+        .replace(/(<p class="masthead-title">[\s\S]*?)<\/h1>/, '$1</p>');
+    html = html.replace(/<body(\s|>)/, '<body class="places-route"$1');
+    return replaceHomeContent(html, buildPlacesPageInner(catalog));
+}
+
 function build() {
     const catalog = JSON.parse(fs.readFileSync(CATALOG_PATH, 'utf8'));
     const rawTemplate = fs.readFileSync(TEMPLATE_PATH, 'utf8');
@@ -718,11 +780,14 @@ function build() {
     fs.mkdirSync(DEADLINES_PAGE_DIR, { recursive: true });
     fs.writeFileSync(path.join(DEADLINES_PAGE_DIR, 'index.html'), buildDeadlinesPage(cleanTemplate, catalog), 'utf8');
 
+    fs.mkdirSync(PLACES_PAGE_DIR, { recursive: true });
+    fs.writeFileSync(path.join(PLACES_PAGE_DIR, 'index.html'), buildPlacesPage(cleanTemplate, catalog), 'utf8');
+
     fs.writeFileSync(SITEMAP_PATH, buildSitemapXml(catalog), 'utf8');
     fs.writeFileSync(RSS_PATH, buildRssXml(catalog), 'utf8');
     fs.writeFileSync(NOT_FOUND_PATH, buildNotFoundHtml(cleanTemplate), 'utf8');
 
-    console.log(`[build-issue-pages] Wrote ${count} pages to ${OUTPUT_DIR}, updated ${TEMPLATE_PATH}, wrote ${SITEMAP_PATH}, ${RSS_PATH}, deadlines/index.html and ${NOT_FOUND_PATH}`);
+    console.log(`[build-issue-pages] Wrote ${count} pages to ${OUTPUT_DIR}, updated ${TEMPLATE_PATH}, wrote ${SITEMAP_PATH}, ${RSS_PATH}, deadlines/index.html, places/index.html and ${NOT_FOUND_PATH}`);
     return count;
 }
 
