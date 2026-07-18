@@ -977,6 +977,41 @@ ${contents}
         }
     }
 
+    // The /map choropleth: hover/focus a province for a tooltip, click/enter to
+    // open the archive filtered to it. The ranked list below the map is the
+    // keyboard/screen-reader-friendly equivalent.
+    function initMap() {
+        const figure = document.querySelector('.map-figure');
+        const svg = document.querySelector('.bg-map');
+        const tip = document.getElementById('map-tooltip');
+        if (!figure || !svg || !tip) return;
+        const showTip = (el) => {
+            const name = el.getAttribute('data-name');
+            const count = el.getAttribute('data-count');
+            tip.textContent = `${name} · ${count} ${count === '1' ? 'брой' : 'броя'}`;
+            tip.hidden = false;
+        };
+        const go = (el) => {
+            const name = el.getAttribute('data-name');
+            if (name) location.href = `/?q=${encodeURIComponent(name)}#archive`;
+        };
+        svg.querySelectorAll('.province').forEach((el) => {
+            el.addEventListener('mouseenter', () => showTip(el));
+            el.addEventListener('focus', () => showTip(el));
+            el.addEventListener('blur', () => { tip.hidden = true; });
+            el.addEventListener('click', () => go(el));
+            el.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); go(el); }
+            });
+        });
+        svg.addEventListener('mousemove', (e) => {
+            const r = figure.getBoundingClientRect();
+            tip.style.left = (e.clientX - r.left) + 'px';
+            tip.style.top = (e.clientY - r.top) + 'px';
+        });
+        svg.addEventListener('mouseleave', () => { tip.hidden = true; });
+    }
+
     async function init() {
         backBtns.forEach((btn) => btn.addEventListener('click', showHome));
         mainEl.addEventListener('click', onMainClick);
@@ -1025,6 +1060,12 @@ ${contents}
 
         // The /places index is fully static; leave its pre-rendered content be.
         if (document.body.classList.contains('places-route')) {
+            return;
+        }
+
+        // The /map choropleth is pre-rendered; wire its hover/tap tooltip.
+        if (document.body.classList.contains('map-route')) {
+            initMap();
             return;
         }
 

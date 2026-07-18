@@ -126,6 +126,13 @@
     --accent-hover: #8e241b;
     --accent-wash: #f7ebe6;
 
+    /* Sequential map ramp (light theme): light → accent, by issue count. */
+    --mb-1: #f3d7cf;
+    --mb-2: #e2a99c;
+    --mb-3: #d07c68;
+    --mb-4: #bd4f39;
+    --mb-5: #a5271b;
+
     --font-display: 'Playfair Display', 'Iowan Old Style', Georgia, serif;
     --font-text: 'Source Serif 4', 'Iowan Old Style', Cambria, Georgia, serif;
     --font-mono: 'JetBrains Mono', ui-monospace, 'Cascadia Code', Menlo, monospace;
@@ -161,6 +168,12 @@
     --accent-hover: #f09184;
     --accent-wash: #2a1d19;
 
+    --mb-1: #33241f;
+    --mb-2: #5c352d;
+    --mb-3: #8a473c;
+    --mb-4: #b85a4c;
+    --mb-5: #e4776b;
+
     color-scheme: dark;
 }
 
@@ -178,6 +191,12 @@
         --accent: #e4776b;
         --accent-hover: #f09184;
         --accent-wash: #2a1d19;
+
+    --mb-1: #33241f;
+    --mb-2: #5c352d;
+    --mb-3: #8a473c;
+    --mb-4: #b85a4c;
+    --mb-5: #e4776b;
 
         color-scheme: dark;
     }
@@ -1867,6 +1886,118 @@ body.places-route .masthead { display: none; }
     color: var(--muted);
     font-variant-numeric: tabular-nums;
 }
+
+/* ─── /map choropleth ───────────────────────────────── */
+
+body.map-route .masthead { display: none; }
+
+.map-figure { position: relative; margin: var(--gap-lg) auto 0; max-width: 760px; }
+.bg-map { display: block; width: 100%; height: auto; }
+
+.province {
+    /* Provinces are separated by a thin paper-coloured gap, not a dark line. */
+    stroke: var(--paper);
+    stroke-width: 1.1;
+    stroke-linejoin: round;
+    cursor: pointer;
+    transition: stroke 0.15s var(--ease), filter 0.15s var(--ease);
+}
+.province.mb-0 { fill: var(--hairline-soft); }
+.province.mb-1 { fill: var(--mb-1); }
+.province.mb-2 { fill: var(--mb-2); }
+.province.mb-3 { fill: var(--mb-3); }
+.province.mb-4 { fill: var(--mb-4); }
+.province.mb-5 { fill: var(--mb-5); }
+.province:hover, .province:focus-visible {
+    stroke: var(--ink);
+    stroke-width: 2;
+    outline: none;
+}
+
+/* Count sits on any fill via an ink glyph with a paper halo — both are tokens,
+   so it stays legible in either theme on any bin. */
+.province-count {
+    font-family: var(--font-mono);
+    font-size: 13px;
+    font-weight: 700;
+    fill: var(--ink);
+    stroke: var(--paper);
+    stroke-width: 2.75px;
+    paint-order: stroke;
+    pointer-events: none;
+    font-variant-numeric: tabular-nums;
+}
+
+.map-tooltip {
+    position: absolute;
+    z-index: 5;
+    transform: translate(-50%, -145%);
+    padding: 0.3rem 0.55rem;
+    background: var(--ink);
+    color: var(--paper);
+    font-family: var(--font-mono);
+    font-size: 0.7rem;
+    letter-spacing: 0.02em;
+    white-space: nowrap;
+    border-radius: 3px;
+    pointer-events: none;
+}
+
+.map-legend {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.35rem;
+    margin: var(--gap-md) 0 0;
+}
+.map-legend-label {
+    font-family: var(--font-mono);
+    font-size: 0.625rem;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: var(--muted);
+}
+.map-swatch { width: 1.5rem; height: 0.7rem; border-radius: 1px; }
+.map-swatch.mb-1 { background: var(--mb-1); }
+.map-swatch.mb-2 { background: var(--mb-2); }
+.map-swatch.mb-3 { background: var(--mb-3); }
+.map-swatch.mb-4 { background: var(--mb-4); }
+.map-swatch.mb-5 { background: var(--mb-5); }
+
+/* Ranked list under the map — the accessible, keyboard-navigable equivalent,
+   doubling as a small bar chart. */
+.province-rank { margin-top: var(--gap-3xl); }
+.province-rank-title {
+    margin: 0 0 var(--gap-md);
+    font-family: var(--font-mono);
+    font-size: 0.6875rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.14em;
+    color: var(--muted);
+}
+.province-rank-list { list-style: none; margin: 0; padding: 0; }
+.province-rank-item a {
+    display: grid;
+    grid-template-columns: minmax(6rem, 9rem) 1fr 2rem;
+    align-items: center;
+    gap: var(--gap-md);
+    padding: 0.4rem 0;
+    border-bottom: 1px dotted var(--hairline);
+    text-decoration: none;
+    color: var(--ink-soft);
+    transition: color 0.18s var(--ease);
+}
+.province-rank-item a:hover { color: var(--accent); }
+.province-rank-bar { height: 0.5rem; background: var(--hairline-soft); border-radius: 1px; overflow: hidden; }
+.province-rank-bar > span { display: block; height: 100%; background: var(--accent); }
+.province-rank-count {
+    text-align: right;
+    font-family: var(--font-mono);
+    font-size: 0.75rem;
+    color: var(--muted);
+    font-variant-numeric: tabular-nums;
+}
 </style><!--CRITICAL-CSS-END-->
     <script>
         (function () {
@@ -1890,6 +2021,7 @@ body.places-route .masthead { display: none; }
                 <a class="folio-link" href="/#archive">Архив</a>
                 <a class="folio-link" href="/deadlines/">Срокове</a>
                 <a class="folio-link" href="/places/" data-optional>Места</a>
+                <a class="folio-link" href="/map/" data-optional>Карта</a>
                 <a class="folio-link" href="/#about" data-optional>За проекта</a>
                 <a class="folio-link" href="https://dv.parliament.bg" target="_blank" rel="noopener" data-optional>dv.parliament.bg ↗</a>
                 <button type="button" class="theme-toggle" id="theme-toggle" aria-label="Смяна на тъмна и светла тема" title="Смяна на тема">
@@ -1990,6 +2122,7 @@ body.places-route .masthead { display: none; }
                 <a href="/#archive">Архив</a>
                 <a href="/deadlines/">Срокове</a>
                 <a href="/places/">Места</a>
+                <a href="/map/">Карта</a>
                 <a href="/#about">За проекта</a>
                 <a href="https://dv.parliament.bg" target="_blank" rel="noopener">Официален източник ↗</a>
                 <a href="/feed.xml">RSS</a>

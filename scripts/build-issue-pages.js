@@ -15,6 +15,12 @@ const SITEMAP_PATH = path.join(ROOT, 'sitemap.xml');
 const RSS_PATH = path.join(ROOT, 'feed.xml');
 const DEADLINES_PAGE_DIR = path.join(ROOT, 'deadlines');
 const PLACES_PAGE_DIR = path.join(ROOT, 'places');
+const MAP_PAGE_DIR = path.join(ROOT, 'map');
+
+// Build-time geo data (never shipped to the browser except the province shapes):
+// settlement name -> province code(s), and the projected province outlines.
+const BG_SETTLEMENTS = JSON.parse(fs.readFileSync(path.join(__dirname, 'data', 'bg-settlements.json'), 'utf8'));
+const BG_PROVINCES = JSON.parse(fs.readFileSync(path.join(__dirname, 'data', 'bg-provinces.json'), 'utf8'));
 const CSS_PATH = path.join(ROOT, 'src', 'css', 'styles.css');
 const NOT_FOUND_PATH = path.join(ROOT, '404.html');
 
@@ -592,6 +598,7 @@ function buildSitemapXml(catalog) {
     urls.push(`  <url>\n    <loc>${SITE_ORIGIN}/</loc>\n    <lastmod>${latestIso}</lastmod>\n    <changefreq>daily</changefreq>\n    <priority>1.0</priority>\n  </url>`);
     urls.push(`  <url>\n    <loc>${SITE_ORIGIN}/deadlines/</loc>\n    <lastmod>${today}</lastmod>\n    <changefreq>daily</changefreq>\n    <priority>0.8</priority>\n  </url>`);
     urls.push(`  <url>\n    <loc>${SITE_ORIGIN}/places/</loc>\n    <lastmod>${latestIso}</lastmod>\n    <changefreq>weekly</changefreq>\n    <priority>0.6</priority>\n  </url>`);
+    urls.push(`  <url>\n    <loc>${SITE_ORIGIN}/map/</loc>\n    <lastmod>${latestIso}</lastmod>\n    <changefreq>weekly</changefreq>\n    <priority>0.6</priority>\n  </url>`);
     for (const item of all) {
         const iso = issueDateToIso(item.date) || today;
         const loc = `${SITE_ORIGIN}/issue/${encodeURIComponent(item.year)}/${encodeURIComponent(item.issue)}/`;
@@ -749,6 +756,117 @@ function buildPlacesPage(cleanTemplate, catalog) {
     return replaceHomeContent(html, buildPlacesPageInner(catalog));
 }
 
+// ─── Map (/map/) — a choropleth of the 28 provinces by issue count ───
+// A few names in the data aren't settlements EKATTE lists (Sofia quarters,
+// resort areas); map the clear ones by hand. Rivers, the country and rail-line
+// labels stay unmapped.
+const PLACE_PROVINCE_OVERRIDE = {
+    'Подуяне': 'SOF', 'Връбница': 'SOF', 'Кремиковци': 'SOF', 'Овча купел': 'SOF',
+    'Люлин-5': 'SOF', 'Витоша': 'SOF', 'Манастирски ливади': 'SOF', 'Враждебна': 'SOF',
+    'Слънчев бряг': 'BGS', 'Сарафово': 'BGS', 'Добричка': 'DOB',
+};
+
+// The provinces an issue touches. Unambiguous places fix the context; a place
+// that exists in several provinces is then resolved to one already present, else
+// to its town/first entry.
+function issueProvinces(item) {
+    const codes = new Set();
+    const ambiguous = [];
+    for (const raw of item.places || []) {
+        const name = String(raw).trim();
+        const entry = BG_SETTLEMENTS[name] || PLACE_PROVINCE_OVERRIDE[name];
+        if (!entry) continue;
+        if (typeof entry === 'string') codes.add(entry);
+        else ambiguous.push(entry);
+    }
+    for (const cand of ambiguous) {
+        const inContext = cand.find((c) => codes.has(c));
+        codes.add(inContext || cand[0]);
+    }
+    return codes;
+}
+
+function computeProvinceCounts(catalog) {
+    const counts = {};
+    for (const p of BG_PROVINCES.provinces) counts[p.code] = 0;
+    for (const item of getAllIssuesNewestFirst(catalog)) {
+        for (const code of issueProvinces(item)) counts[code] = (counts[code] || 0) + 1;
+    }
+    return counts;
+}
+
+// Five sequential bins by quantile, so colour tracks rank robustly as the data grows.
+function provinceBinThresholds(counts) {
+    const vals = Object.values(counts).filter((v) => v > 0).sort((a, b) => a - b);
+    if (!vals.length) return [0, 0, 0, 0];
+    const q = (p) => vals[Math.min(vals.length - 1, Math.floor(p * vals.length))];
+    return [q(0.2), q(0.4), q(0.6), q(0.8)];
+}
+function provinceBin(count, thresholds) {
+    if (count <= 0) return 0;
+    let bin = 1;
+    for (const t of thresholds) if (count > t) bin++;
+    return Math.min(bin, 5);
+}
+
+function buildMapPageInner(catalog) {
+    const g = BG_PROVINCES;
+    const counts = computeProvinceCounts(catalog);
+    const thresholds = provinceBinThresholds(counts);
+    const maxCount = Math.max(1, ...Object.values(counts));
+    const totalMapped = Object.values(counts).reduce((a, b) => a + b, 0);
+
+    const shapes = g.provinces.map((p) => {
+        const c = counts[p.code] || 0;
+        return `<path class="province mb-${provinceBin(c, thresholds)}" d="${p.d}" data-name="${escapeHtml(p.name)}" data-count="${c}" tabindex="0" role="button" aria-label="${escapeHtml(p.name)}: ${c} ${c === 1 ? 'брой' : 'броя'}"></path>`;
+    }).join('');
+    const labels = g.provinces.map((p) => {
+        const c = counts[p.code] || 0;
+        return `<text class="province-count" x="${p.cx}" y="${p.cy}" text-anchor="middle" dominant-baseline="central">${c}</text>`;
+    }).join('');
+    const svg = `<svg class="bg-map" viewBox="0 0 ${g.w} ${g.h}" role="img" aria-label="Карта на България — брой броеве по област">${shapes}${labels}</svg>`;
+
+    const legend = '<div class="map-legend"><span class="map-legend-label">по-малко</span>' +
+        [1, 2, 3, 4, 5].map((b) => `<span class="map-swatch mb-${b}"></span>`).join('') +
+        '<span class="map-legend-label">повече</span></div>';
+
+    const ranked = g.provinces.slice().sort((a, b) => (counts[b.code] || 0) - (counts[a.code] || 0));
+    const rows = ranked.map((p) => {
+        const c = counts[p.code] || 0;
+        return `<li class="province-rank-item"><a href="/?q=${encodeURIComponent(p.name)}#archive">` +
+            `<span class="province-rank-name">${escapeHtml(p.name)}</span>` +
+            `<span class="province-rank-bar"><span style="width:${Math.round((c / maxCount) * 100)}%"></span></span>` +
+            `<span class="province-rank-count">${c}</span></a></li>`;
+    }).join('');
+
+    const head = '<div class="deadlines-page-top"><a class="deadlines-back" href="/">← Начало</a></div>' +
+        '<div class="section-head"><h1 class="section-title">Карта</h1>' +
+        `<span class="section-count">28 области</span></div>` +
+        '<p class="deadlines-note">Колко броя на Държавен вестник засягат всяка област — по местата, които назовават. По-тъмното означава повече. Посочете или докоснете област за подробности.</p>';
+
+    return `<section class="map-page" id="map-page">${head}` +
+        `<div class="map-figure">${svg}<div class="map-tooltip" id="map-tooltip" hidden></div></div>${legend}` +
+        `<div class="province-rank"><h2 class="province-rank-title">Области по брой издания</h2><ol class="province-rank-list">${rows}</ol></div>` +
+        `</section>`;
+}
+
+function buildMapPage(cleanTemplate, catalog) {
+    const title = 'Карта — Държавен вестник';
+    const desc = 'Карта на България: колко броя на Държавен вестник засягат всяка област, по местата, които назовават — вижте къде е съсредоточена дейността.';
+    const canonicalUrl = `${SITE_ORIGIN}/map/`;
+    let html = cleanTemplate;
+    html = html.replace(/<title>[\s\S]*?<\/title>/, `<title>${escapeHtml(title)}</title>`);
+    html = html.replace(/(<meta name="description" content=")[^"]*("\s*\/>)/, `$1${escapeHtml(desc)}$2`);
+    html = html.replace(/(<meta property="og:title" content=")[^"]*("\s*\/>)/, `$1${escapeHtml(title)}$2`);
+    html = html.replace(/(<meta property="og:description" content=")[^"]*("\s*\/>)/, `$1${escapeHtml(desc)}$2`);
+    html = html.replace(/(<meta property="og:url" content=")[^"]*("\s*\/>)/, `$1${escapeHtml(canonicalUrl)}$2`);
+    html = html.replace(/(<link rel="canonical" href=")[^"]*("\s*\/>)/, `$1${escapeHtml(canonicalUrl)}$2`);
+    html = html.replace('<h1 class="masthead-title">', '<p class="masthead-title">')
+        .replace(/(<p class="masthead-title">[\s\S]*?)<\/h1>/, '$1</p>');
+    html = html.replace(/<body(\s|>)/, '<body class="map-route"$1');
+    return replaceHomeContent(html, buildMapPageInner(catalog));
+}
+
 function build() {
     const catalog = JSON.parse(fs.readFileSync(CATALOG_PATH, 'utf8'));
     const rawTemplate = fs.readFileSync(TEMPLATE_PATH, 'utf8');
@@ -783,11 +901,14 @@ function build() {
     fs.mkdirSync(PLACES_PAGE_DIR, { recursive: true });
     fs.writeFileSync(path.join(PLACES_PAGE_DIR, 'index.html'), buildPlacesPage(cleanTemplate, catalog), 'utf8');
 
+    fs.mkdirSync(MAP_PAGE_DIR, { recursive: true });
+    fs.writeFileSync(path.join(MAP_PAGE_DIR, 'index.html'), buildMapPage(cleanTemplate, catalog), 'utf8');
+
     fs.writeFileSync(SITEMAP_PATH, buildSitemapXml(catalog), 'utf8');
     fs.writeFileSync(RSS_PATH, buildRssXml(catalog), 'utf8');
     fs.writeFileSync(NOT_FOUND_PATH, buildNotFoundHtml(cleanTemplate), 'utf8');
 
-    console.log(`[build-issue-pages] Wrote ${count} pages to ${OUTPUT_DIR}, updated ${TEMPLATE_PATH}, wrote ${SITEMAP_PATH}, ${RSS_PATH}, deadlines/index.html, places/index.html and ${NOT_FOUND_PATH}`);
+    console.log(`[build-issue-pages] Wrote ${count} pages to ${OUTPUT_DIR}, updated ${TEMPLATE_PATH}, wrote ${SITEMAP_PATH}, ${RSS_PATH}, deadlines/, places/, map/ and ${NOT_FOUND_PATH}`);
     return count;
 }
 
