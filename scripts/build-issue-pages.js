@@ -18,6 +18,25 @@ const DEADLINES_PAGE_DIR = path.join(ROOT, 'deadlines');
 const PLACES_PAGE_DIR = path.join(ROOT, 'places');
 const MAP_PAGE_DIR = path.join(ROOT, 'map');
 const STATS_PAGE_DIR = path.join(ROOT, 'stats');
+const TRACKS_PAGE_DIR = path.join(ROOT, 'tracks');
+
+// The big recurring storylines, matched on the section title (the strongest,
+// least noisy signal). Euro = the currency change itself (в/към/на евро), not
+// incidental amounts; elections = actual votes, not every mention of a mayor.
+const TRACKERS = [
+    {
+        title: 'Преходът към еврото',
+        sub: 'Как преминаването от лева към евро мина сектор по сектор — такси, цени, заплати.',
+        // \b is ASCII-only in JS, so use a Unicode letter lookbehind: "в евро"
+        // matches, an amount like "милиона евро" does not.
+        match: /(?<![\p{L}])(в|към|на)\s+евро|еврото|еврозон|превалут/iu,
+    },
+    {
+        title: 'Изборите за 52-ро Народно събрание',
+        sub: 'От оставката и служебното правителство до вота на 19 април и новото Народно събрание — и местните частични избори.',
+        match: /избор|избир|изборн|гласув|(?<![\p{L}])вот|избирателн|предсрочн|служебн\p{L}*\s+правителств|народно\s+събрание|предизборн|референдум|за\s+кмет/iu,
+    },
+];
 
 const BG_MONTHS_SHORT = ['Яну', 'Фев', 'Мар', 'Апр', 'Май', 'Юни', 'Юли', 'Авг', 'Сеп', 'Окт', 'Ное', 'Дек'];
 // Mirrors scripts/issue-meta.js — the closed audience vocabulary.
@@ -661,6 +680,7 @@ function buildSitemapXml(catalog) {
     urls.push(`  <url>\n    <loc>${SITE_ORIGIN}/map/</loc>\n    <lastmod>${latestIso}</lastmod>\n    <changefreq>weekly</changefreq>\n    <priority>0.6</priority>\n  </url>`);
     urls.push(`  <url>\n    <loc>${SITE_ORIGIN}/stats/</loc>\n    <lastmod>${latestIso}</lastmod>\n    <changefreq>weekly</changefreq>\n    <priority>0.6</priority>\n  </url>`);
     urls.push(`  <url>\n    <loc>${SITE_ORIGIN}/glossary/</loc>\n    <lastmod>${latestIso}</lastmod>\n    <changefreq>monthly</changefreq>\n    <priority>0.5</priority>\n  </url>`);
+    urls.push(`  <url>\n    <loc>${SITE_ORIGIN}/tracks/</loc>\n    <lastmod>${latestIso}</lastmod>\n    <changefreq>weekly</changefreq>\n    <priority>0.6</priority>\n  </url>`);
     for (const item of all) {
         const iso = issueDateToIso(item.date) || today;
         const loc = `${SITE_ORIGIN}/issue/${encodeURIComponent(item.year)}/${encodeURIComponent(item.issue)}/`;
@@ -1040,6 +1060,48 @@ function buildStatsPage(cleanTemplate, catalog) {
     return replaceHomeContent(html, buildStatsPageInner(catalog));
 }
 
+// ─── Trackers (/tracks/) — big recurring storylines as timelines ───
+function buildTracksPageInner(catalog) {
+    const all = getAllIssuesNewestFirst(catalog).slice()
+        .sort((a, b) => (Number(a.year) - Number(b.year)) || (a.issue - b.issue)); // chronological
+    const head = '<div class="deadlines-page-top"><a class="deadlines-back" href="/">← Начало</a></div>' +
+        '<div class="section-head"><h1 class="section-title">Сюжети</h1></div>' +
+        '<p class="deadlines-note">Големите теми, които се връщат брой след брой — проследени във времето, от началото до сега.</p>';
+    const blocks = TRACKERS.map((t) => {
+        const steps = [];
+        for (const e of all) {
+            for (const s of e.sections || []) {
+                if (t.match.test(s.title)) {
+                    steps.push(`<li class="track-step"><a href="/issue/${e.year}/${e.issue}/#${encodeURIComponent(slugify(s.title))}">` +
+                        `<span class="track-step-meta">брой ${escapeHtml(String(e.issue))} · ${escapeHtml(formatDateShort(e.date))}</span>` +
+                        `<span class="track-step-what">${escapeHtml(s.title)}</span></a></li>`);
+                }
+            }
+        }
+        if (!steps.length) return '';
+        return `<div class="track"><h2 class="track-title">${escapeHtml(t.title)}</h2>` +
+            `<p class="track-sub">${escapeHtml(t.sub)}</p><ol class="track-timeline">${steps.join('')}</ol></div>`;
+    }).join('');
+    return `<section class="tracks-page" id="tracks-page">${head}${blocks}</section>`;
+}
+
+function buildTracksPage(cleanTemplate, catalog) {
+    const title = 'Сюжети — Държавен вестник';
+    const desc = 'Големите повтарящи се теми в Държавен вестник, проследени във времето — преходът към еврото и изборите за 52-ро Народно събрание.';
+    const canonicalUrl = `${SITE_ORIGIN}/tracks/`;
+    let html = cleanTemplate;
+    html = html.replace(/<title>[\s\S]*?<\/title>/, `<title>${escapeHtml(title)}</title>`);
+    html = html.replace(/(<meta name="description" content=")[^"]*("\s*\/>)/, `$1${escapeHtml(desc)}$2`);
+    html = html.replace(/(<meta property="og:title" content=")[^"]*("\s*\/>)/, `$1${escapeHtml(title)}$2`);
+    html = html.replace(/(<meta property="og:description" content=")[^"]*("\s*\/>)/, `$1${escapeHtml(desc)}$2`);
+    html = html.replace(/(<meta property="og:url" content=")[^"]*("\s*\/>)/, `$1${escapeHtml(canonicalUrl)}$2`);
+    html = html.replace(/(<link rel="canonical" href=")[^"]*("\s*\/>)/, `$1${escapeHtml(canonicalUrl)}$2`);
+    html = html.replace('<h1 class="masthead-title">', '<p class="masthead-title">')
+        .replace(/(<p class="masthead-title">[\s\S]*?)<\/h1>/, '$1</p>');
+    html = html.replace(/<body(\s|>)/, '<body class="tracks-route"$1');
+    return replaceHomeContent(html, buildTracksPageInner(catalog));
+}
+
 // ─── Glossary page (/glossary/) ───
 function buildGlossaryPageInner() {
     const entries = Object.entries(GLOSSARY).sort((a, b) => a[0].localeCompare(b[0], 'bg'));
@@ -1139,12 +1201,15 @@ function build() {
     fs.mkdirSync(GLOSSARY_PAGE_DIR, { recursive: true });
     fs.writeFileSync(path.join(GLOSSARY_PAGE_DIR, 'index.html'), buildGlossaryPage(cleanTemplate), 'utf8');
 
+    fs.mkdirSync(TRACKS_PAGE_DIR, { recursive: true });
+    fs.writeFileSync(path.join(TRACKS_PAGE_DIR, 'index.html'), buildTracksPage(cleanTemplate, catalog), 'utf8');
+
     fs.writeFileSync(SITEMAP_PATH, buildSitemapXml(catalog), 'utf8');
     fs.writeFileSync(RSS_PATH, buildRssXml(catalog), 'utf8');
     buildSearchIndex(catalog);
     fs.writeFileSync(NOT_FOUND_PATH, buildNotFoundHtml(cleanTemplate), 'utf8');
 
-    console.log(`[build-issue-pages] Wrote ${count} pages to ${OUTPUT_DIR}, updated ${TEMPLATE_PATH}, wrote ${SITEMAP_PATH}, ${RSS_PATH}, deadlines/, places/, map/, stats/, glossary/ and ${NOT_FOUND_PATH}`);
+    console.log(`[build-issue-pages] Wrote ${count} pages to ${OUTPUT_DIR}, updated ${TEMPLATE_PATH}, wrote ${SITEMAP_PATH}, ${RSS_PATH}, deadlines/, places/, map/, stats/, glossary/, tracks/ and ${NOT_FOUND_PATH}`);
     return count;
 }
 

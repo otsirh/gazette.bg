@@ -1193,6 +1193,11 @@ ${contents}
             return;
         }
 
+        // The /tracks storylines are fully static.
+        if (document.body.classList.contains('tracks-route')) {
+            return;
+        }
+
         const initial = getIssueFromPath();
         const isPreRendered = !!(initial && mainContent && mainContent.children.length > 0);
 
