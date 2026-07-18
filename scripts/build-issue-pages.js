@@ -264,6 +264,51 @@ function renderPlaces(places) {
 
 // A static "до 24 юли" is rendered here; the browser turns it into "след 4 дни"
 // and drops what has expired. Without JS the reader still sees the date.
+// A deadline as a downloadable all-day calendar event. Encoded as a data: URI
+// so the link works without JS and needs no server; DTSTAMP/UID derive from the
+// deadline date, so a rebuild produces byte-identical output (no churn).
+function icsEscape(s) {
+    return String(s).replace(/\\/g, '\\\\').replace(/;/g, '\\;').replace(/,/g, '\\,').replace(/\r?\n/g, '\\n');
+}
+// Fold to stay under the 75-octet line limit; 37 chars is safe even for
+// all-Cyrillic (2 bytes each), and continuation lines begin with a space.
+function icsFold(line) {
+    if (line.length <= 37) return line;
+    let out = line.slice(0, 37), rest = line.slice(37);
+    while (rest.length) { out += '\r\n ' + rest.slice(0, 36); rest = rest.slice(36); }
+    return out;
+}
+function icsAddDay(iso) {
+    const dt = new Date(iso + 'T00:00:00Z');
+    if (Number.isNaN(dt.getTime())) return iso;
+    dt.setUTCDate(dt.getUTCDate() + 1);
+    return dt.toISOString().slice(0, 10);
+}
+function deadlineIcs(d, item) {
+    const start = String(d.expires || '').replace(/-/g, '');
+    const end = icsAddDay(d.expires).replace(/-/g, '');
+    const url = `${SITE_ORIGIN}/issue/${item.year}/${item.issue}/`;
+    const uid = `${item.year}-${item.issue}-${d.expires}-${String(d.what || '').length}@gazette.bg`;
+    const details = [d.who, `Държавен вестник, брой ${item.issue}`, url].filter(Boolean).join(' · ');
+    return [
+        'BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//gazette.bg//srokove//BG', 'CALSCALE:GREGORIAN',
+        'BEGIN:VEVENT',
+        icsFold('UID:' + uid),
+        'DTSTAMP:' + start + 'T000000Z',
+        'DTSTART;VALUE=DATE:' + start,
+        'DTEND;VALUE=DATE:' + end,
+        icsFold('SUMMARY:Срок — ' + icsEscape(d.what || '')),
+        icsFold('DESCRIPTION:' + icsEscape(details)),
+        icsFold('URL:' + url),
+        'END:VEVENT', 'END:VCALENDAR', '',
+    ].join('\r\n');
+}
+function renderDeadlineCal(d, item) {
+    if (!d.expires) return '';
+    const href = 'data:text/calendar;charset=utf-8;base64,' + Buffer.from(deadlineIcs(d, item), 'utf8').toString('base64');
+    return `<a class="deadline-cal" download="dv-srok-${escapeHtml(String(item.issue))}.ics" href="${href}" aria-label="Добави срока в календара">＋ Календар</a>`;
+}
+
 function renderDeadlineRow(d, item, withIssue = true) {
     const href = `/issue/${item.year}/${item.issue}/`;
     // Inside the issue itself, saying which issue it came from is noise.
@@ -273,6 +318,7 @@ function renderDeadlineRow(d, item, withIssue = true) {
         `<span class="deadline-body">` +
         `<a class="deadline-what" href="${escapeHtml(href)}" data-file="${escapeHtml(item.file)}" data-issue="${escapeHtml(String(item.issue))}" data-date="${escapeHtml(item.date)}" data-year="${escapeHtml(String(item.year))}">${escapeHtml(d.what)}</a>` +
         `<span class="deadline-who">${escapeHtml(who)}</span>` +
+        renderDeadlineCal(d, item) +
         `</span></li>`;
 }
 
