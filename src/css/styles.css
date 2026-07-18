@@ -773,7 +773,11 @@ main .loading {
 
 .archive-search:focus-within::before { color: var(--accent); }
 .archive-search-input::placeholder { color: var(--muted); opacity: 1; }
-.archive-search-input:focus { border-bottom-color: var(--accent); }
+/* The field is an underline, not a box — so its focus indicator is a stronger
+   underline (accent colour + a second hairline), not the default all-sides
+   outline, which reads as broken around a bottom-border-only input. */
+.archive-search-input:focus { border-bottom-color: var(--accent); box-shadow: 0 1px 0 0 var(--accent); }
+.archive-search-input:focus-visible { outline: none; }
 .archive-search-input::-webkit-search-cancel-button { -webkit-appearance: none; appearance: none; }
 
 .year-group { margin-bottom: var(--gap-2xl); }
@@ -1092,6 +1096,9 @@ body.issue-ready .back-bar-bottom { display: block; }
 
 .content h1,
 .content h2 {
+    /* Clear any drop cap overhanging from a short previous section, so a new
+       heading never wraps beside a floated initial. */
+    clear: left;
     margin: var(--gap-2xl) 0 var(--gap-md);
     font-family: var(--font-display);
     font-size: clamp(1.5rem, 2.6vw, 1.9rem);
@@ -1129,12 +1136,12 @@ body.issue-ready .back-bar-bottom { display: block; }
 .content > .issue-toc + p em { font-style: normal; }
 
 /* Drop cap opens the body proper: the first paragraph under the first heading. */
-/* The opening drop cap belongs on the first real paragraph of the article.
-   A row of "who this is for" tags (also a <p>) is injected right after the
-   first heading, so match the paragraph after it too — otherwise the cap
-   lands on the tag row and silently never renders. */
-.content h2:first-of-type + p:not(.tags)::first-letter,
-.content h2:first-of-type + .tags + p::first-letter {
+/* Each section opens with a drop cap on its first real paragraph — a
+   consistent initial per topic rather than one lone cap on section one. A row
+   of "who this is for" tags (also a <p>) is injected right after each heading,
+   so match the paragraph after it too, else the cap lands on the tag row. */
+.content h2 + p:not(.tags)::first-letter,
+.content h2 + .tags + p::first-letter {
     float: left;
     font-family: var(--font-display);
     font-size: 3.4em;
@@ -1535,8 +1542,8 @@ body.issue-ready .back-bar-bottom { display: block; }
     .lead-standfirst::first-letter { font-size: 3.1em; }
 
     .content { font-size: 1.0625rem; }
-    .content h2:first-of-type + p:not(.tags)::first-letter,
-    .content h2:first-of-type + .tags + p::first-letter { font-size: 3em; }
+    .content h2 + p:not(.tags)::first-letter,
+    .content h2 + .tags + p::first-letter { font-size: 3em; }
 
     /* The countdown reads first on a phone, above what it is a countdown for. */
     .deadline {
