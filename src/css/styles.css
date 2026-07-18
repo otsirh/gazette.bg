@@ -87,7 +87,7 @@
     --paper-3: #f3eee3;
     --ink: #14120d;
     --ink-soft: #46413a;
-    --muted: #857f72;
+    --muted: #6f6a5e;
     --hairline: #ddd6c7;
     --hairline-soft: #ebe5d9;
     --rule: #14120d;
@@ -179,6 +179,41 @@ button, input, textarea, select { font: inherit; color: inherit; }
     outline: 2px solid var(--accent);
     outline-offset: 3px;
 }
+
+/* Available to assistive tech and search engines, out of sight for everyone
+   else. Used for heading context and the live-status region. */
+.visually-hidden {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    margin: -1px;
+    padding: 0;
+    border: 0;
+    clip: rect(0 0 0 0);
+    clip-path: inset(50%);
+    overflow: hidden;
+    white-space: nowrap;
+}
+
+/* Skip link: off-screen until focused, then a real jump target at top-left. */
+.skip-link {
+    position: fixed;
+    top: 0.5rem;
+    left: 0.5rem;
+    z-index: 100;
+    padding: 0.6rem 0.9rem;
+    background: var(--paper);
+    color: var(--ink);
+    border: 1px solid var(--rule);
+    font-family: var(--font-mono);
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    text-decoration: none;
+    transform: translateY(-160%);
+    transition: transform 0.18s var(--ease);
+}
+.skip-link:focus { transform: translateY(0); }
 
 a { color: inherit; }
 
@@ -711,7 +746,9 @@ main .loading {
     width: 100%;
     padding: 0.7rem 0 0.7rem 1.75rem;
     border: none;
-    border-bottom: 1px solid var(--hairline);
+    /* --muted, not --hairline: the underline is the field's only affordance,
+       so it must clear the 3:1 UI-boundary contrast, not read as a hairline. */
+    border-bottom: 1px solid var(--muted);
     background: transparent;
     color: var(--ink);
     font-family: var(--font-text);
@@ -1092,7 +1129,12 @@ body.issue-ready .back-bar-bottom { display: block; }
 .content > .issue-toc + p em { font-style: normal; }
 
 /* Drop cap opens the body proper: the first paragraph under the first heading. */
-.content h2:first-of-type + p::first-letter {
+/* The opening drop cap belongs on the first real paragraph of the article.
+   A row of "who this is for" tags (also a <p>) is injected right after the
+   first heading, so match the paragraph after it too — otherwise the cap
+   lands on the tag row and silently never renders. */
+.content h2:first-of-type + p:not(.tags)::first-letter,
+.content h2:first-of-type + .tags + p::first-letter {
     float: left;
     font-family: var(--font-display);
     font-size: 3.4em;
@@ -1493,7 +1535,8 @@ body.issue-ready .back-bar-bottom { display: block; }
     .lead-standfirst::first-letter { font-size: 3.1em; }
 
     .content { font-size: 1.0625rem; }
-    .content h2:first-of-type + p::first-letter { font-size: 3em; }
+    .content h2:first-of-type + p:not(.tags)::first-letter,
+    .content h2:first-of-type + .tags + p::first-letter { font-size: 3em; }
 
     /* The countdown reads first on a phone, above what it is a countdown for. */
     .deadline {

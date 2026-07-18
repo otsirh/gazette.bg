@@ -27,6 +27,24 @@
     const WORDS_PER_MINUTE = 180;
     const COPY_LABEL = 'Копирай връзка';
 
+    // Honour prefers-reduced-motion for JS-driven scrolling: an explicit
+    // behavior:'smooth' argument is not governed by CSS scroll-behavior, so the
+    // stylesheet's reduced-motion block can't neutralise it — we must here.
+    function prefersReducedMotion() {
+        return !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
+    }
+    function scrollBehavior() {
+        return prefersReducedMotion() ? 'auto' : 'smooth';
+    }
+
+    // A single polite live region announces state changes (issue loaded, load
+    // failed, empty search) to screen readers. Guard against re-announcing an
+    // unchanged message.
+    const statusRegion = document.getElementById('a11y-status');
+    function announce(message) {
+        if (statusRegion && statusRegion.textContent !== message) statusRegion.textContent = message;
+    }
+
     function escapeHtml(s) {
         return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
     }
@@ -121,10 +139,15 @@
         });
     }
 
+    function syncThemeToggleState(theme) {
+        if (themeToggle) themeToggle.setAttribute('aria-pressed', String(theme === 'dark'));
+    }
+
     function toggleTheme() {
         const next = currentTheme() === 'dark' ? 'light' : 'dark';
         document.documentElement.setAttribute('data-theme', next);
         syncThemeColor(next);
+        syncThemeToggleState(next);
         try { localStorage.setItem(THEME_KEY, next); } catch (e) { /* storage blocked — theme is per-page then */ }
     }
 
@@ -430,6 +453,7 @@ ${contents}
 
         if (!q) {
             homeContent.querySelectorAll('.filter-hidden').forEach((el) => el.classList.remove('filter-hidden'));
+            announce('');
             return;
         }
 
@@ -450,6 +474,9 @@ ${contents}
             note.className = 'empty filter-empty';
             note.textContent = 'Няма намерени броеве за „' + rawQuery.trim() + '“.';
             archiveSection.appendChild(note);
+            announce('Няма намерени броеве.');
+        } else {
+            announce('');
         }
     }
 
@@ -470,6 +497,11 @@ ${contents}
         if (lastFocusedCard && typeof lastFocusedCard.focus === 'function') {
             lastFocusedCard.focus();
             lastFocusedCard = null;
+        } else {
+            // Direct-load path (no originating card): move focus to the top of
+            // the home view instead of letting it fall to <body>.
+            const home = document.querySelector('.masthead-title a');
+            if (home && typeof home.focus === 'function') home.focus();
         }
     }
 
@@ -562,7 +594,7 @@ ${contents}
             .join('<span class="sep">·</span>');
 
         return `<p class="issue-kicker"><span>Брой ${escapeHtml(String(item.issue))}</span><span class="rule"></span><span>Държавен вестник</span></p>` +
-            `<h1 class="title">${escapeHtml(formatDateLong(item.date))}</h1>` +
+            `<h1 class="title"><span class="visually-hidden">Държавен вестник, брой ${escapeHtml(String(item.issue))} — </span>${escapeHtml(formatDateLong(item.date))}</h1>` +
             `<p class="issue-meta" id="issue-meta">${metaHtml}</p>` +
             renderTags(item.audiences);
     }
@@ -654,12 +686,14 @@ ${contents}
             issueHeaderEl.innerHTML = renderIssueHeader(item, readingMinutes(md));
             renderIssueDeadlines(item);
             if (issueShareEl) issueShareEl.innerHTML = renderShare(item);
+            announce(`Заредено: Държавен вестник, брой ${item.issue}.`);
             currentTocId = null;
             updateCurrentTocItem();
             if (location.hash) requestAnimationFrame(() => scrollToHashTarget('auto'));
             else if (backBtn) backBtn.focus();
         } catch (e) {
             mainContent.innerHTML = '<p>Този брой не може да бъде зареден в момента. Моля, опитайте отново или изберете друг брой от началната страница.</p>';
+            announce('Броят не можа да бъде зареден.');
         }
 
         const { prev, next } = getAdjacentIssues();
@@ -676,7 +710,7 @@ ${contents}
     function applyRoute() {
         const fromPath = getIssueFromPath();
         if (fromPath && currentIssue && currentIssue.year === fromPath.year && currentIssue.issueNum === fromPath.issueNum) {
-            if (!scrollToHashTarget('smooth')) window.scrollTo({ top: 0, behavior: 'smooth' });
+            if (!scrollToHashTarget(scrollBehavior())) window.scrollTo({ top: 0, behavior: scrollBehavior() });
             return;
         }
         if (fromPath) {
@@ -748,7 +782,7 @@ ${contents}
         const el = document.getElementById(id);
         if (el) {
             e.preventDefault();
-            el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            el.scrollIntoView({ behavior: scrollBehavior(), block: 'start' });
             if (location.hash !== href) history.pushState(null, '', href);
         }
     }
@@ -767,7 +801,7 @@ ${contents}
         if (!target) return;
 
         e.preventDefault();
-        target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        target.scrollIntoView({ behavior: scrollBehavior(), block: 'start' });
         if (location.hash !== '#' + id) history.pushState(null, '', '/#' + id);
 
         const search = id === 'archive' ? document.getElementById('archive-search') : null;
@@ -787,6 +821,7 @@ ${contents}
         // need to follow it.
         const storedTheme = document.documentElement.getAttribute('data-theme');
         if (storedTheme) syncThemeColor(storedTheme);
+        syncThemeToggleState(currentTheme());
         homeView.addEventListener('input', (e) => {
             if (e.target && e.target.id === 'archive-search') applyArchiveFilter(e.target.value);
         });
@@ -797,7 +832,7 @@ ${contents}
             updateReadingProgress();
         }, { passive: true });
         if (scrollToTopBtn) {
-            scrollToTopBtn.addEventListener('click', () => window.scrollTo({ top: 0, behavior: 'smooth' }));
+            scrollToTopBtn.addEventListener('click', () => window.scrollTo({ top: 0, behavior: scrollBehavior() }));
         }
         updateScrollToTopVisibility();
 

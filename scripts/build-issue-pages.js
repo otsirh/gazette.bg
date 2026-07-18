@@ -413,7 +413,7 @@ function buildIssueViewInner(item, prev, next) {
     const metaHtml = meta.map((m) => `<span>${escapeHtml(m)}</span>`).join('<span class="sep">·</span>');
 
     const headerHtml = `<p class="issue-kicker"><span>Брой ${escapeHtml(String(item.issue))}</span><span class="rule"></span><span>Държавен вестник</span></p>` +
-        `<h1 class="title">${escapeHtml(formatDateLong(item.date))}</h1>` +
+        `<h1 class="title"><span class="visually-hidden">Държавен вестник, брой ${escapeHtml(String(item.issue))} — </span>${escapeHtml(formatDateLong(item.date))}</h1>` +
         `<p class="issue-meta" id="issue-meta">${metaHtml}</p>` +
         renderTags(item.audiences);
 
@@ -434,7 +434,7 @@ function buildIssueViewInner(item, prev, next) {
                 </div>
                 <div class="issue-header" id="issue-header">${headerHtml}</div>
                 <div id="issue-deadlines">${deadlinesHtml}</div>
-                <div class="content" id="content">${contentHtml}</div>
+                <article class="content" id="content">${contentHtml}</article>
                 <div class="issue-share" id="issue-share">${renderShare(item)}</div>
                 <div id="issue-nav" class="issue-nav issue-nav-bottom" aria-label="Навигация между броеве">${navHtml}</div>
                 <div class="back-bar back-bar-bottom">
