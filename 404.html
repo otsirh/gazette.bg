@@ -2149,6 +2149,44 @@ body.stats-route .masthead { display: none; }
     .stat-bar-row { grid-template-columns: minmax(6rem, 8rem) 1fr 1.8rem; gap: var(--gap-sm); }
     .stat-bar-label { font-size: 0.85rem; }
 }
+
+/* ─── Glossary ──────────────────────────────────────── */
+
+/* An inline term with a known meaning — dotted underline signals the tooltip. */
+code.gloss {
+    text-decoration: underline dotted;
+    text-decoration-color: var(--muted);
+    text-underline-offset: 2px;
+    cursor: help;
+}
+
+body.glossary-route .masthead { display: none; }
+.glossary-list { margin: var(--gap-lg) 0 0; }
+.glossary-item {
+    display: grid;
+    grid-template-columns: minmax(6rem, 9rem) 1fr;
+    gap: var(--gap-md);
+    padding: 0.7rem 0;
+    border-bottom: 1px dotted var(--hairline);
+}
+.glossary-item:last-child { border-bottom: 0; }
+.glossary-term {
+    font-family: var(--font-mono);
+    font-size: 0.8rem;
+    font-weight: 700;
+    letter-spacing: 0.03em;
+    color: var(--accent);
+}
+.glossary-def {
+    margin: 0;
+    font-family: var(--font-text);
+    font-size: 1rem;
+    line-height: 1.4;
+    color: var(--ink-soft);
+}
+@media (max-width: 640px) {
+    .glossary-item { grid-template-columns: 1fr; gap: 0.15rem; }
+}
 </style><!--CRITICAL-CSS-END-->
     <script>
         (function () {
@@ -2272,6 +2310,7 @@ body.stats-route .masthead { display: none; }
                 <a href="/places/">Места</a>
                 <a href="/map/">Карта</a>
                 <a href="/stats/">Числа</a>
+                <a href="/glossary/">Речник</a>
                 <a href="/#about">За проекта</a>
                 <a href="https://dv.parliament.bg" target="_blank" rel="noopener">Официален източник ↗</a>
                 <a href="/feed.xml">RSS</a>

@@ -804,6 +804,29 @@ ${contents}
         });
     }
 
+    // Abbreviation glossary. Pre-rendered issue pages get the tooltips from the
+    // build; client-rendered ones fetch the map once and apply it here. A
+    // multi-word term falls back to its first word ("БНТ 4" → БНТ).
+    let glossary = null;
+    let glossaryLoading = false;
+    function glossifyContent(container) {
+        if (!container || !glossary) return;
+        container.querySelectorAll('code:not(.gloss)').forEach((code) => {
+            const term = code.textContent.trim();
+            const def = glossary[term] || glossary[term.split(/\s+/)[0]];
+            if (def) { code.classList.add('gloss'); code.title = def; }
+        });
+    }
+    function ensureGlossary() {
+        if (glossary) { glossifyContent(mainContent); return; }
+        if (glossaryLoading) return;
+        glossaryLoading = true;
+        fetch('/glossary.json')
+            .then((r) => (r.ok ? r.json() : null))
+            .then((g) => { if (g) { glossary = g; glossifyContent(mainContent); } })
+            .catch(() => { /* terms just render without tooltips */ });
+    }
+
     // Once the reader has picked a profile in "За мен", light up what touches
     // them inside a brief: the matching audience tags, and a marker on every
     // section that has one. Purely a reading aid — no profile, nothing shows.
@@ -934,6 +957,7 @@ ${contents}
             const { html: processedHtml, tocItems } = processRenderedContent(rawHtml);
             mainContent.innerHTML = CONTENT_DISCLAIMER + buildTocHtml(tocItems) + processedHtml + renderTopicThreads(item) + END_MARK;
             injectSectionTags(mainContent, item.sections);
+            ensureGlossary();
             issueHeaderEl.innerHTML = renderIssueHeader(item, readingMinutes(md));
             highlightRelevantSections(issueView);
             renderIssueDeadlines(item);
@@ -1161,6 +1185,11 @@ ${contents}
         // The /stats dashboard is fully static (values are labelled, native
         // <title> tooltips); leave its pre-rendered content be.
         if (document.body.classList.contains('stats-route')) {
+            return;
+        }
+
+        // The /glossary reference is fully static.
+        if (document.body.classList.contains('glossary-route')) {
             return;
         }
 

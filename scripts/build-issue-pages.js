@@ -26,10 +26,15 @@ const AUDIENCES = [
     'пациент', 'земеделец', 'фирма или самонает', 'работещ', 'потребител', 'жител на конкретно място',
 ];
 
+const GLOSSARY_PAGE_DIR = path.join(ROOT, 'glossary');
+
 // Build-time geo data (never shipped to the browser except the province shapes):
 // settlement name -> province code(s), and the projected province outlines.
 const BG_SETTLEMENTS = JSON.parse(fs.readFileSync(path.join(__dirname, 'data', 'bg-settlements.json'), 'utf8'));
 const BG_PROVINCES = JSON.parse(fs.readFileSync(path.join(__dirname, 'data', 'bg-provinces.json'), 'utf8'));
+// Abbreviation → meaning. Authored (root, also served to the client). Powers the
+// inline tooltips in the summaries and the /glossary reference page.
+const GLOSSARY = JSON.parse(fs.readFileSync(path.join(ROOT, 'glossary.json'), 'utf8'));
 const CSS_PATH = path.join(ROOT, 'src', 'css', 'styles.css');
 const NOT_FOUND_PATH = path.join(ROOT, '404.html');
 
@@ -509,11 +514,24 @@ function renderTopicThreads(item) {
     return `<aside class="topic-threads" aria-label="Свързано отразяване"><p class="topic-threads-title">Проследи темите</p><ul class="topic-threads-list">${rows.join('')}</ul></aside>`;
 }
 
+// An inline `code` term that is a known abbreviation gets its meaning on hover
+// (and via the /glossary page). A multi-word term falls back to its first word,
+// so "БНТ 4" still resolves to БНТ.
+function glossaryLookup(term) {
+    return GLOSSARY[term] || GLOSSARY[term.split(/\s+/)[0]] || null;
+}
+function glossifyHtml(html) {
+    return html.replace(/<code>([^<]+)<\/code>/g, (m, inner) => {
+        const def = glossaryLookup(inner.trim());
+        return def ? `<code class="gloss" title="${escapeHtml(def)}">${inner}</code>` : m;
+    });
+}
+
 function buildIssueViewInner(item, prev, next) {
     const md = fs.readFileSync(path.join(ROOT, item.file), 'utf8');
     const rawHtml = marked.parse(md);
     const { html: processedHtml, tocItems } = processRenderedContent(rawHtml);
-    const taggedHtml = injectSectionTags(processedHtml, item.sections);
+    const taggedHtml = glossifyHtml(injectSectionTags(processedHtml, item.sections));
     const contentHtml = CONTENT_DISCLAIMER + buildTocHtml(tocItems) + taggedHtml + renderTopicThreads(item) + END_MARK;
 
     const topics = Array.isArray(item.topics) ? item.topics : [];
@@ -642,6 +660,7 @@ function buildSitemapXml(catalog) {
     urls.push(`  <url>\n    <loc>${SITE_ORIGIN}/places/</loc>\n    <lastmod>${latestIso}</lastmod>\n    <changefreq>weekly</changefreq>\n    <priority>0.6</priority>\n  </url>`);
     urls.push(`  <url>\n    <loc>${SITE_ORIGIN}/map/</loc>\n    <lastmod>${latestIso}</lastmod>\n    <changefreq>weekly</changefreq>\n    <priority>0.6</priority>\n  </url>`);
     urls.push(`  <url>\n    <loc>${SITE_ORIGIN}/stats/</loc>\n    <lastmod>${latestIso}</lastmod>\n    <changefreq>weekly</changefreq>\n    <priority>0.6</priority>\n  </url>`);
+    urls.push(`  <url>\n    <loc>${SITE_ORIGIN}/glossary/</loc>\n    <lastmod>${latestIso}</lastmod>\n    <changefreq>monthly</changefreq>\n    <priority>0.5</priority>\n  </url>`);
     for (const item of all) {
         const iso = issueDateToIso(item.date) || today;
         const loc = `${SITE_ORIGIN}/issue/${encodeURIComponent(item.year)}/${encodeURIComponent(item.issue)}/`;
@@ -1021,6 +1040,36 @@ function buildStatsPage(cleanTemplate, catalog) {
     return replaceHomeContent(html, buildStatsPageInner(catalog));
 }
 
+// ─── Glossary page (/glossary/) ───
+function buildGlossaryPageInner() {
+    const entries = Object.entries(GLOSSARY).sort((a, b) => a[0].localeCompare(b[0], 'bg'));
+    const head = '<div class="deadlines-page-top"><a class="deadlines-back" href="/">← Начало</a></div>' +
+        '<div class="section-head"><h1 class="section-title">Речник</h1>' +
+        `<span class="section-count">${entries.length} съкращения</span></div>` +
+        '<p class="deadlines-note">Институциите и съкращенията, които се срещат в обобщенията. В текста на всеки брой същите термини имат обяснение при посочване.</p>';
+    const rows = entries.map(([term, def]) =>
+        `<div class="glossary-item"><dt class="glossary-term">${escapeHtml(term)}</dt><dd class="glossary-def">${escapeHtml(def)}</dd></div>`
+    ).join('');
+    return `<section class="glossary-page" id="glossary-page">${head}<dl class="glossary-list">${rows}</dl></section>`;
+}
+
+function buildGlossaryPage(cleanTemplate) {
+    const title = 'Речник на съкращенията — Държавен вестник';
+    const desc = 'Кратък речник на институциите и съкращенията, които се срещат в обобщенията на Държавен вестник — НЗОК, НАП, КФН, ВАС и други.';
+    const canonicalUrl = `${SITE_ORIGIN}/glossary/`;
+    let html = cleanTemplate;
+    html = html.replace(/<title>[\s\S]*?<\/title>/, `<title>${escapeHtml(title)}</title>`);
+    html = html.replace(/(<meta name="description" content=")[^"]*("\s*\/>)/, `$1${escapeHtml(desc)}$2`);
+    html = html.replace(/(<meta property="og:title" content=")[^"]*("\s*\/>)/, `$1${escapeHtml(title)}$2`);
+    html = html.replace(/(<meta property="og:description" content=")[^"]*("\s*\/>)/, `$1${escapeHtml(desc)}$2`);
+    html = html.replace(/(<meta property="og:url" content=")[^"]*("\s*\/>)/, `$1${escapeHtml(canonicalUrl)}$2`);
+    html = html.replace(/(<link rel="canonical" href=")[^"]*("\s*\/>)/, `$1${escapeHtml(canonicalUrl)}$2`);
+    html = html.replace('<h1 class="masthead-title">', '<p class="masthead-title">')
+        .replace(/(<p class="masthead-title">[\s\S]*?)<\/h1>/, '$1</p>');
+    html = html.replace(/<body(\s|>)/, '<body class="glossary-route"$1');
+    return replaceHomeContent(html, buildGlossaryPageInner());
+}
+
 // ─── Full-text search index ───
 // The searchable plain text of every summary, keyed by "year/issue". Fetched
 // lazily by the client on first search, so it never weighs on a normal visit.
@@ -1087,12 +1136,15 @@ function build() {
     fs.mkdirSync(STATS_PAGE_DIR, { recursive: true });
     fs.writeFileSync(path.join(STATS_PAGE_DIR, 'index.html'), buildStatsPage(cleanTemplate, catalog), 'utf8');
 
+    fs.mkdirSync(GLOSSARY_PAGE_DIR, { recursive: true });
+    fs.writeFileSync(path.join(GLOSSARY_PAGE_DIR, 'index.html'), buildGlossaryPage(cleanTemplate), 'utf8');
+
     fs.writeFileSync(SITEMAP_PATH, buildSitemapXml(catalog), 'utf8');
     fs.writeFileSync(RSS_PATH, buildRssXml(catalog), 'utf8');
     buildSearchIndex(catalog);
     fs.writeFileSync(NOT_FOUND_PATH, buildNotFoundHtml(cleanTemplate), 'utf8');
 
-    console.log(`[build-issue-pages] Wrote ${count} pages to ${OUTPUT_DIR}, updated ${TEMPLATE_PATH}, wrote ${SITEMAP_PATH}, ${RSS_PATH}, deadlines/, places/, map/, stats/ and ${NOT_FOUND_PATH}`);
+    console.log(`[build-issue-pages] Wrote ${count} pages to ${OUTPUT_DIR}, updated ${TEMPLATE_PATH}, wrote ${SITEMAP_PATH}, ${RSS_PATH}, deadlines/, places/, map/, stats/, glossary/ and ${NOT_FOUND_PATH}`);
     return count;
 }
 
