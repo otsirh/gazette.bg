@@ -1,0 +1,18 @@
+{
+  "note": "Terms the glossary maintainer must never auto-define. 'removed' are the ones a human deliberately took out (or never wants) — they must stay out even if they keep appearing in the issues. 'skipped' is filled automatically: acronyms the model judged not to be a certain institution/law/programme, kept here so they aren't re-queried every day. Clear an entry from 'skipped' to force a fresh look; keep 'removed' as the human veto.",
+  "removed": [
+    "SMS",
+    "BG-ALERT",
+    "POS",
+    "POS системи"
+  ],
+  "skipped": [
+    "СЕРИКС",
+    "SGLT2",
+    "DPP-4",
+    "МАН",
+    "ТОЛЕК",
+    "ТЦЕЛК",
+    "SAFE"
+  ]
+}

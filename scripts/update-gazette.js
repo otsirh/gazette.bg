@@ -49,7 +49,18 @@ async function main() {
         process.exit(code);
     }
 
-    console.log('\n[update-gazette] 4. Pre-render issue pages');
+    // Keep the abbreviations glossary current before rendering, so any newly
+    // defined term is glossified into this build. Deliberately non-fatal: the
+    // glossary is an enhancement, so a hiccup here must never block the new
+    // issues from shipping. (The script itself also always exits 0.)
+    console.log('\n[update-gazette] 4. Maintain the abbreviations glossary (non-fatal)');
+    const glossaryCode = run('Maintain glossary', path.join(SCRIPTS_DIR, 'maintain-glossary.js'));
+    if (glossaryCode !== 0) {
+        appendLog(SCRIPT_NAME, 'Glossary maintenance reported a non-zero exit; continuing anyway.', 'WARN');
+        console.warn('[update-gazette] Glossary maintenance had an issue; continuing to the build.');
+    }
+
+    console.log('\n[update-gazette] 5. Pre-render issue pages');
     code = run('Build issue pages', path.join(SCRIPTS_DIR, 'build-issue-pages.js'));
     if (code !== 0) {
         await flushAlertEmail();
