@@ -678,6 +678,15 @@ main .loading {
 
 .issue-card-lead:hover .tag { border-color: var(--hairline); color: var(--ink-soft); }
 
+/* A tag that matches the reader's "За мен" profile — filled, so their own
+   groups stand out among the "who this is for" pills. */
+.tag.is-for-you {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: var(--paper);
+    font-weight: 700;
+}
+
 /* The reader should be able to skip a section without reading it, so the tags
    sit directly under its heading. */
 .content .tags { margin: -0.25rem 0 var(--gap-md); }
@@ -1237,6 +1246,21 @@ body.issue-ready .back-bar-bottom { display: block; }
     letter-spacing: -0.01em;
     color: var(--ink);
     text-wrap: balance;
+}
+
+/* A section that touches the reader's "За мен" profile gets a small accent
+   flag above its heading. Sits in the heading's top margin, so it adds no
+   vertical shift. */
+.content h2.section-for-you::before {
+    content: "● За теб";
+    display: block;
+    font-family: var(--font-mono);
+    font-size: 0.6rem;
+    font-weight: 700;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin-bottom: 0.5rem;
 }
 
 .content h3 {

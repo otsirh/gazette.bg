@@ -719,6 +719,24 @@ ${contents}
         });
     }
 
+    // Once the reader has picked a profile in "За мен", light up what touches
+    // them inside a brief: the matching audience tags, and a marker on every
+    // section that has one. Purely a reading aid — no profile, nothing shows.
+    function highlightRelevantSections(root) {
+        if (!root) return;
+        root.querySelectorAll('.tag.is-for-you').forEach((t) => t.classList.remove('is-for-you'));
+        root.querySelectorAll('h2.section-for-you').forEach((h) => h.classList.remove('section-for-you'));
+        if (!selectedAudiences.size) return;
+        root.querySelectorAll('.tag').forEach((tag) => {
+            if (selectedAudiences.has(tag.textContent.trim())) tag.classList.add('is-for-you');
+        });
+        root.querySelectorAll('.content .tags').forEach((tagsRow) => {
+            const match = [...tagsRow.querySelectorAll('.tag')].some((t) => selectedAudiences.has(t.textContent.trim()));
+            const h2 = tagsRow.previousElementSibling;
+            if (match && h2 && h2.tagName === 'H2') h2.classList.add('section-for-you');
+        });
+    }
+
     function renderIssueDeadlines(item) {
         const el = document.getElementById('issue-deadlines');
         if (!el) return;
@@ -832,6 +850,7 @@ ${contents}
             mainContent.innerHTML = CONTENT_DISCLAIMER + buildTocHtml(tocItems) + processedHtml + END_MARK;
             injectSectionTags(mainContent, item.sections);
             issueHeaderEl.innerHTML = renderIssueHeader(item, readingMinutes(md));
+            highlightRelevantSections(issueView);
             renderIssueDeadlines(item);
             if (issueShareEl) issueShareEl.innerHTML = renderShare(item);
             announce(`Заредено: Държавен вестник, брой ${item.issue}.`);
@@ -1014,6 +1033,7 @@ ${contents}
         if (isPreRendered) {
             currentIssue = { year: initial.year, issueNum: initial.issueNum };
             currentTocId = null;
+            highlightRelevantSections(issueView);
             updateCurrentTocItem();
             updateScrollToTopVisibility();
             updateReadingProgress();
