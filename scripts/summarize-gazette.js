@@ -261,15 +261,38 @@ async function summarizePdf(pdfPath, year, issue) {
     return finalMarkdown;
 }
 
-// Turn the model's verdict into a clean list of omitted items. It answers in
-// one of two shapes: "НЯМА ПРОПУСКИ", or "ПРОПУСНАТО:" followed by one line each.
+// Strip a line's leading list/emphasis decoration: bullets, quote marks,
+// markdown *, and ordered-list markers ("1.", "2)"). Applied before matching so
+// a decorated verdict is read the same as a bare one.
+function stripLineDecoration(l) {
+    return l
+        .replace(/^[\s>*_`+\-–—•]+/, '')
+        .replace(/^\d+[.)]\s*/, '')
+        .replace(/^[\s>*_`+\-–—•]+/, '')
+        .trim();
+}
+
+// Classify the model's coverage verdict. It is asked to answer in exactly one
+// of two shapes — "НЯМА ПРОПУСКИ", or "ПРОПУСНАТО:" then one omission per line —
+// but real output can be decorated, prefixed with chatter, or empty. Return one
+// of three states so the caller never turns a broken answer into a reassuring
+// "nothing was left out":
+//   { status: 'clear' }                    → explicitly no omissions
+//   { status: 'omissions', items: [...] }  → one or more real omissions
+//   { status: 'unparseable' }              → empty/unrecognized — do not claim
 function parseCoverageVerdict(verdict) {
-    if (/^НЯМА ПРОПУСКИ/i.test(verdict)) return [];
-    return verdict
-        .replace(/^\s*ПРОПУСНАТО:\s*/i, '')
-        .split('\n')
-        .map((l) => l.replace(/^[\s>*+\-–—•]+/, '').trim())
-        .filter((l) => l && !/^ПРОПУСНАТО:?$/i.test(l));
+    const lines = String(verdict || '').split('\n').map(stripLineDecoration).filter(Boolean);
+    if (lines.length === 0) return { status: 'unparseable' };
+    // "НЯМА ПРОПУСКИ" anywhere (even after a preamble line) → nothing dropped.
+    if (lines.some((l) => /^НЯМА ПРОПУСКИ/i.test(l))) return { status: 'clear' };
+    // Otherwise the omissions follow a "ПРОПУСНАТО:" marker; anything before it
+    // is preamble and is dropped. No marker at all → shape we don't recognize.
+    const markerAt = lines.findIndex((l) => /^ПРОПУСНАТО\s*:?/i.test(l));
+    if (markerAt < 0) return { status: 'unparseable' };
+    const inline = lines[markerAt].replace(/^ПРОПУСНАТО\s*:?/i, '').trim();
+    const items = (inline ? [inline] : []).concat(lines.slice(markerAt + 1)).filter(Boolean);
+    if (items.length === 0) return { status: 'unparseable' };
+    return { status: 'omissions', items };
 }
 
 // Persist the coverage result onto the issue so the site can show it. Written
@@ -300,7 +323,19 @@ async function reportCoverage(inventory, summary, year, issue) {
             CACHED_EXTRACT_SYSTEM
         )).trim();
 
-        const omitted = parseCoverageVerdict(verdict);
+        const result = parseCoverageVerdict(verdict);
+
+        // An unparseable verdict must NOT become a reassuring "nothing was left
+        // out" panel — that is the opposite of what this feature exists for.
+        // Leave the issue without a coverage field (so no panel renders) and
+        // warn, exactly as the old code did before the result was ever shown.
+        if (result.status === 'unparseable') {
+            log(`Coverage check ${year}/${issue}: unrecognized verdict, not recorded:\n${verdict}`, 'WARN');
+            console.log('  Coverage: unrecognized verdict — not recorded.');
+            return;
+        }
+
+        const omitted = result.status === 'omissions' ? result.items : [];
         writeCoverageMeta(year, issue, omitted);
 
         if (omitted.length === 0) {
@@ -401,7 +436,21 @@ async function main() {
                 const metaPath = path.join(OFFICIAL_GAZETTES_DIR, String(year), `${issue}.json`);
                 const metaDest = path.join(issueDir, `${Number(issue)}.json`);
                 if (fs.existsSync(metaPath)) {
-                    fs.copyFileSync(metaPath, metaDest);
+                    // reportCoverage may already have written a coverage field
+                    // into metaDest; bringing in the official metadata must not
+                    // erase it. Merge instead of overwrite, falling back to a
+                    // plain copy if either file can't be parsed (a labelling
+                    // step must never lose a good summary).
+                    try {
+                        const incoming = JSON.parse(fs.readFileSync(metaPath, 'utf8'));
+                        const existing = fs.existsSync(metaDest) ? JSON.parse(fs.readFileSync(metaDest, 'utf8')) : {};
+                        const merged = existing.coverage && !incoming.coverage
+                            ? { ...incoming, coverage: existing.coverage }
+                            : incoming;
+                        fs.writeFileSync(metaDest, JSON.stringify(merged, null, 4), 'utf8');
+                    } catch (_) {
+                        fs.copyFileSync(metaPath, metaDest);
+                    }
                     fs.unlinkSync(metaPath);
                 }
                 if (fs.existsSync(pdf)) {
