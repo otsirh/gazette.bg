@@ -333,6 +333,33 @@ ${contents}
         return `<p class="issue-places"><span class="issue-places-label">Места в броя</span>${chips}</p>`;
     }
 
+    // "Проследи темите" — mirrors scripts/build-issue-pages.js. Resolves the
+    // compact [year, issue, sectionIndex] refs against the loaded catalog.
+    function resolveRelated(ref) {
+        if (!Array.isArray(ref) || !catalog || !catalog.years) return null;
+        const [year, issue, secIndex] = ref;
+        const entry = (catalog.years[String(year)] || []).find((e) => String(e.issue) === String(issue));
+        const sec = entry && (entry.sections || [])[secIndex];
+        if (!sec || !sec.title) return null;
+        return { year, issue, title: sec.title, date: entry.date, slug: slugify(sec.title) };
+    }
+
+    function renderTopicThreads(item) {
+        const sections = Array.isArray(item.sections) ? item.sections : [];
+        const rows = [];
+        for (const s of sections) {
+            if (!Array.isArray(s.related) || !s.related.length) continue;
+            const links = s.related.map((ref) => {
+                const t = resolveRelated(ref);
+                if (!t) return '';
+                return `<a class="thread-link" href="/issue/${t.year}/${t.issue}/#${encodeURIComponent(t.slug)}" title="${escapeHtml(t.title)}">брой ${escapeHtml(String(t.issue))} · ${escapeHtml(formatDateShort(t.date))}</a>`;
+            }).filter(Boolean).join('');
+            if (links) rows.push(`<li class="thread"><span class="thread-topic">${escapeHtml(s.title)}</span><span class="thread-links">${links}</span></li>`);
+        }
+        if (!rows.length) return '';
+        return `<aside class="topic-threads" aria-label="Свързано отразяване"><p class="topic-threads-title">Проследи темите</p><ul class="topic-threads-list">${rows.join('')}</ul></aside>`;
+    }
+
     function isoToday() {
         const d = new Date();
         return new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 10);
@@ -847,7 +874,7 @@ ${contents}
             const md = await r.text();
             const rawHtml = typeof marked !== 'undefined' ? marked.parse(md) : md;
             const { html: processedHtml, tocItems } = processRenderedContent(rawHtml);
-            mainContent.innerHTML = CONTENT_DISCLAIMER + buildTocHtml(tocItems) + processedHtml + END_MARK;
+            mainContent.innerHTML = CONTENT_DISCLAIMER + buildTocHtml(tocItems) + processedHtml + renderTopicThreads(item) + END_MARK;
             injectSectionTags(mainContent, item.sections);
             issueHeaderEl.innerHTML = renderIssueHeader(item, readingMinutes(md));
             highlightRelevantSections(issueView);

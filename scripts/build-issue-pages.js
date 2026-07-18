@@ -467,12 +467,45 @@ function buildHomeContentHtml(catalog) {
 const CONTENT_DISCLAIMER = '<p class="content-disclaimer">Текстът по-долу е неофициално обобщение, генерирано с AI, и може да съдържа грешки. За официален текст и правни цели използвайте <a href="https://dv.parliament.bg" target="_blank" rel="noopener">dv.parliament.bg</a>.</p>';
 const END_MARK = '<p class="end-mark" aria-hidden="true">◼</p>';
 
+// Set once per build so the renderer can resolve related-topic refs.
+let CATALOG = null;
+
+// A compact [year, issue, sectionIndex] ref → the target section's title, date
+// and slug, read from the catalog (nothing is duplicated into the ref).
+function resolveRelated(ref) {
+    if (!Array.isArray(ref) || !CATALOG) return null;
+    const [year, issue, secIndex] = ref;
+    const entry = ((CATALOG.years || {})[String(year)] || []).find((e) => e.issue === issue);
+    const sec = entry && (entry.sections || [])[secIndex];
+    if (!sec || !sec.title) return null;
+    return { year, issue, title: sec.title, date: entry.date, slug: slugify(sec.title) };
+}
+
+// "Проследи темите" — a closing block that lets a reader follow each topic in
+// this issue across the other issues that cover it. Sits after the article so
+// it never disturbs the section headings or the drop cap.
+function renderTopicThreads(item) {
+    const sections = Array.isArray(item.sections) ? item.sections : [];
+    const rows = [];
+    for (const s of sections) {
+        if (!Array.isArray(s.related) || !s.related.length) continue;
+        const links = s.related.map((ref) => {
+            const t = resolveRelated(ref);
+            if (!t) return '';
+            return `<a class="thread-link" href="/issue/${t.year}/${t.issue}/#${encodeURIComponent(t.slug)}" title="${escapeHtml(t.title)}">брой ${escapeHtml(String(t.issue))} · ${escapeHtml(formatDateShort(t.date))}</a>`;
+        }).filter(Boolean).join('');
+        if (links) rows.push(`<li class="thread"><span class="thread-topic">${escapeHtml(s.title)}</span><span class="thread-links">${links}</span></li>`);
+    }
+    if (!rows.length) return '';
+    return `<aside class="topic-threads" aria-label="Свързано отразяване"><p class="topic-threads-title">Проследи темите</p><ul class="topic-threads-list">${rows.join('')}</ul></aside>`;
+}
+
 function buildIssueViewInner(item, prev, next) {
     const md = fs.readFileSync(path.join(ROOT, item.file), 'utf8');
     const rawHtml = marked.parse(md);
     const { html: processedHtml, tocItems } = processRenderedContent(rawHtml);
     const taggedHtml = injectSectionTags(processedHtml, item.sections);
-    const contentHtml = CONTENT_DISCLAIMER + buildTocHtml(tocItems) + taggedHtml + END_MARK;
+    const contentHtml = CONTENT_DISCLAIMER + buildTocHtml(tocItems) + taggedHtml + renderTopicThreads(item) + END_MARK;
 
     const topics = Array.isArray(item.topics) ? item.topics : [];
     const meta = ['Обобщение с AI'];
@@ -869,6 +902,7 @@ function buildMapPage(cleanTemplate, catalog) {
 
 function build() {
     const catalog = JSON.parse(fs.readFileSync(CATALOG_PATH, 'utf8'));
+    CATALOG = catalog;
     const rawTemplate = fs.readFileSync(TEMPLATE_PATH, 'utf8');
     // Strip any pre-rendered home content so the template is clean for issue pages
     // and as the base for a fresh homepage build. Inline the stylesheet so it

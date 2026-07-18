@@ -1420,6 +1420,59 @@ body.issue-ready .back-bar-bottom { display: block; }
     line-height: 1;
 }
 
+/* ─── Проследи темите (related coverage) ────────────── */
+
+.topic-threads {
+    margin: var(--gap-2xl) 0 0;
+    padding: var(--gap-lg) 0 0;
+    border-top: 1px solid var(--hairline);
+}
+.topic-threads-title {
+    margin: 0 0 var(--gap-sm);
+    font-family: var(--font-mono);
+    font-size: 0.6875rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.14em;
+    color: var(--accent);
+}
+.topic-threads-list { list-style: none; margin: 0; padding: 0; }
+.thread {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 0.35rem var(--gap-md);
+    padding: 0.65rem 0;
+    border-bottom: 1px dotted var(--hairline);
+}
+.thread:last-child { border-bottom: 0; }
+.thread-topic {
+    flex: 1 1 55%;
+    min-width: 0;
+    font-family: var(--font-display);
+    font-size: 1.05rem;
+    font-weight: 600;
+    line-height: 1.3;
+    color: var(--ink);
+}
+.thread-links { display: flex; flex-wrap: wrap; gap: 0.35rem; }
+.thread-link {
+    font-family: var(--font-mono);
+    font-size: 0.625rem;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--ink-soft);
+    text-decoration: none;
+    padding: 0.2rem 0.45rem;
+    border: 1px solid var(--hairline);
+    border-radius: 2px;
+    white-space: nowrap;
+    transition: color 0.18s var(--ease), border-color 0.18s var(--ease);
+}
+.thread-link:hover { color: var(--accent); border-color: var(--accent); }
+
 /* ─── Share ─────────────────────────────────────────── */
 
 .issue-share:empty { display: none; }
