@@ -261,9 +261,36 @@ async function summarizePdf(pdfPath, year, issue) {
     return finalMarkdown;
 }
 
+// Turn the model's verdict into a clean list of omitted items. It answers in
+// one of two shapes: "НЯМА ПРОПУСКИ", or "ПРОПУСНАТО:" followed by one line each.
+function parseCoverageVerdict(verdict) {
+    if (/^НЯМА ПРОПУСКИ/i.test(verdict)) return [];
+    return verdict
+        .replace(/^\s*ПРОПУСНАТО:\s*/i, '')
+        .split('\n')
+        .map((l) => l.replace(/^[\s>*+\-–—•]+/, '').trim())
+        .filter((l) => l && !/^ПРОПУСНАТО:?$/i.test(l));
+}
+
+// Persist the coverage result onto the issue so the site can show it. Written
+// straight into the issue JSON before the tags pass runs; that pass merges with
+// `{ ...data, ...meta }`, so it preserves this field. A separate field, never
+// part of the summary text — this is a label on the summary, not the summary.
+function writeCoverageMeta(year, issue, omitted) {
+    try {
+        const jsonPath = path.join(issueDirPath(year, issue), `${Number(issue)}.json`);
+        const data = fs.existsSync(jsonPath) ? JSON.parse(fs.readFileSync(jsonPath, 'utf8')) : {};
+        data.coverage = { checked: true, omitted };
+        fs.writeFileSync(jsonPath, JSON.stringify(data, null, 4), 'utf8');
+    } catch (e) {
+        log(`Could not save coverage for ${year}/${issue}: ${e.message}`, 'WARN');
+    }
+}
+
 // The editor only ever sees the inventory, so anything it leaves out is invisible
 // to us as well. Read both back and say what fell out — a run that quietly covers
-// four of six issues looks identical to one that covers all six.
+// four of six issues looks identical to one that covers all six. The result is
+// both logged (visibility for us) and saved onto the issue (honesty for readers).
 async function reportCoverage(inventory, summary, year, issue) {
     try {
         const verdict = (await runClaude(
@@ -273,13 +300,16 @@ async function reportCoverage(inventory, summary, year, issue) {
             CACHED_EXTRACT_SYSTEM
         )).trim();
 
-        if (/^НЯМА ПРОПУСКИ/i.test(verdict)) {
+        const omitted = parseCoverageVerdict(verdict);
+        writeCoverageMeta(year, issue, omitted);
+
+        if (omitted.length === 0) {
             log(`Coverage check ${year}/${issue}: nothing dropped`, 'OK');
             console.log('  Coverage: nothing dropped.');
             return;
         }
         log(`Coverage check ${year}/${issue} — dropped from the summary:\n${verdict}`, 'WARN');
-        console.log('  Coverage — left out of the summary:\n' + verdict.split('\n').map((l) => '    ' + l).join('\n'));
+        console.log('  Coverage — left out of the summary:\n' + omitted.map((l) => '    - ' + l).join('\n'));
     } catch (e) {
         // A failed check must not cost us a good summary.
         log(`Coverage check failed for ${year}/${issue}: ${e.message}`, 'WARN');

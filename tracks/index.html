@@ -1492,6 +1492,63 @@ body.issue-ready .back-bar-bottom { display: block; }
 }
 .thread-link:hover { color: var(--accent); border-color: var(--accent); }
 
+/* ─── Какво не влезе в обобщението (coverage) ────────── */
+
+.coverage-note {
+    margin: var(--gap-2xl) 0 0;
+    padding: var(--gap-lg);
+    border: 1px solid var(--hairline);
+    border-radius: 4px;
+    background: var(--paper-2);
+}
+.coverage-label {
+    margin: 0 0 0.35rem;
+    font-family: var(--font-mono);
+    font-size: 0.6875rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.14em;
+    color: var(--muted);
+}
+.coverage-note.has-omissions .coverage-label { color: var(--accent); }
+.coverage-title {
+    margin: 0 0 var(--gap-sm);
+    font-family: var(--font-display);
+    font-size: 1.15rem;
+    font-weight: 700;
+    line-height: 1.25;
+    color: var(--ink);
+}
+.coverage-intro {
+    margin: 0 0 var(--gap-md);
+    font-size: 0.9rem;
+    line-height: 1.55;
+    color: var(--ink-soft);
+}
+.coverage-intro a {
+    color: var(--accent);
+    border-bottom: 1px solid var(--hairline);
+    text-decoration: none;
+}
+.coverage-intro a:hover { border-bottom-color: var(--accent); }
+.coverage-list {
+    margin: 0;
+    padding-left: 1.15rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.45rem;
+    font-size: 0.95rem;
+    line-height: 1.5;
+    color: var(--ink);
+}
+.coverage-list li::marker { color: var(--accent); }
+.coverage-clear {
+    margin: 0;
+    font-size: 0.9rem;
+    line-height: 1.55;
+    color: var(--ink-soft);
+}
+
 /* ─── Share ─────────────────────────────────────────── */
 
 .issue-share:empty { display: none; }

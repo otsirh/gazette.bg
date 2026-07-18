@@ -360,6 +360,26 @@ ${contents}
         return `<aside class="topic-threads" aria-label="Свързано отразяване"><p class="topic-threads-title">Проследи темите</p><ul class="topic-threads-list">${rows.join('')}</ul></aside>`;
     }
 
+    // "Какво не влезе в това обобщение" — mirrors renderCoverage in the build so
+    // a client-navigated issue shows the same honesty panel as the pre-rendered
+    // page. Only issues that carry a coverage verdict render anything.
+    function renderCoverage(item) {
+        const cov = item.coverage;
+        if (!cov || !cov.checked) return '';
+        const omitted = Array.isArray(cov.omitted) ? cov.omitted : [];
+        const label = '<p class="coverage-label">Проверка за пълнота</p>';
+        if (omitted.length === 0) {
+            return `<aside class="coverage-note is-clear" aria-label="Проверка за пълнота">${label}` +
+                `<p class="coverage-clear">Нищо съществено от този брой не е останало извън обобщението. ` +
+                `Обобщението подбира важното за гражданите; назначения, вътрешни правилници и съобщения до конкретни лица нарочно не се включват.</p></aside>`;
+        }
+        const rows = omitted.map((o) => `<li>${escapeHtml(o)}</li>`).join('');
+        return `<aside class="coverage-note has-omissions" aria-label="Какво не влезе в обобщението">${label}` +
+            `<p class="coverage-title">Какво не влезе в това обобщение</p>` +
+            `<p class="coverage-intro">Обобщението подбира най-важното за гражданите. За прозрачност, ето какво друго от този брой засяга хора, но преценихме за по-маловажно и не включихме. Пълният официален текст е на <a href="https://dv.parliament.bg" target="_blank" rel="noopener">dv.parliament.bg</a>.</p>` +
+            `<ul class="coverage-list">${rows}</ul></aside>`;
+    }
+
     function isoToday() {
         const d = new Date();
         return new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 10);
@@ -955,7 +975,7 @@ ${contents}
             const md = await r.text();
             const rawHtml = typeof marked !== 'undefined' ? marked.parse(md) : md;
             const { html: processedHtml, tocItems } = processRenderedContent(rawHtml);
-            mainContent.innerHTML = CONTENT_DISCLAIMER + buildTocHtml(tocItems) + processedHtml + renderTopicThreads(item) + END_MARK;
+            mainContent.innerHTML = CONTENT_DISCLAIMER + buildTocHtml(tocItems) + processedHtml + renderTopicThreads(item) + renderCoverage(item) + END_MARK;
             injectSectionTags(mainContent, item.sections);
             ensureGlossary();
             issueHeaderEl.innerHTML = renderIssueHeader(item, readingMinutes(md));

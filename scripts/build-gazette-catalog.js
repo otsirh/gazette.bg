@@ -193,6 +193,9 @@ function buildCatalog() {
                 places: meta.places || [],
                 sections: meta.sections || [],
                 deadlines: meta.deadlines || [],
+                // Only carried once the coverage check has run for this issue
+                // (new issues going forward); older issues simply omit it.
+                ...(meta.coverage ? { coverage: meta.coverage } : {}),
             });
         }
     }

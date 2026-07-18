@@ -533,6 +533,29 @@ function renderTopicThreads(item) {
     return `<aside class="topic-threads" aria-label="Свързано отразяване"><p class="topic-threads-title">Проследи темите</p><ul class="topic-threads-list">${rows.join('')}</ul></aside>`;
 }
 
+// "Какво не влезе в това обобщение" — the honesty panel. Every issue is checked
+// after summarizing: the model compares the raw inventory of the issue against
+// the finished summary and reports what affects ordinary people but was left
+// out. We save that verdict and show it here. Only rendered for issues that have
+// actually been checked (the field exists) — older issues, checked before we
+// started recording it, show nothing rather than a false "nothing was dropped".
+function renderCoverage(item) {
+    const cov = item.coverage;
+    if (!cov || !cov.checked) return '';
+    const omitted = Array.isArray(cov.omitted) ? cov.omitted : [];
+    const label = '<p class="coverage-label">Проверка за пълнота</p>';
+    if (omitted.length === 0) {
+        return `<aside class="coverage-note is-clear" aria-label="Проверка за пълнота">${label}` +
+            `<p class="coverage-clear">Нищо съществено от този брой не е останало извън обобщението. ` +
+            `Обобщението подбира важното за гражданите; назначения, вътрешни правилници и съобщения до конкретни лица нарочно не се включват.</p></aside>`;
+    }
+    const rows = omitted.map((o) => `<li>${escapeHtml(o)}</li>`).join('');
+    return `<aside class="coverage-note has-omissions" aria-label="Какво не влезе в обобщението">${label}` +
+        `<p class="coverage-title">Какво не влезе в това обобщение</p>` +
+        `<p class="coverage-intro">Обобщението подбира най-важното за гражданите. За прозрачност, ето какво друго от този брой засяга хора, но преценихме за по-маловажно и не включихме. Пълният официален текст е на <a href="https://dv.parliament.bg" target="_blank" rel="noopener">dv.parliament.bg</a>.</p>` +
+        `<ul class="coverage-list">${rows}</ul></aside>`;
+}
+
 // An inline `code` term that is a known abbreviation gets its meaning on hover
 // (and via the /glossary page). A multi-word term falls back to its first word,
 // so "БНТ 4" still resolves to БНТ.
@@ -551,7 +574,7 @@ function buildIssueViewInner(item, prev, next) {
     const rawHtml = marked.parse(md);
     const { html: processedHtml, tocItems } = processRenderedContent(rawHtml);
     const taggedHtml = glossifyHtml(injectSectionTags(processedHtml, item.sections));
-    const contentHtml = CONTENT_DISCLAIMER + buildTocHtml(tocItems) + taggedHtml + renderTopicThreads(item) + END_MARK;
+    const contentHtml = CONTENT_DISCLAIMER + buildTocHtml(tocItems) + taggedHtml + renderTopicThreads(item) + renderCoverage(item) + END_MARK;
 
     const topics = Array.isArray(item.topics) ? item.topics : [];
     const meta = ['Обобщение с AI'];
