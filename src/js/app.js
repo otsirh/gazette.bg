@@ -379,7 +379,7 @@ ${contents}
         const uid = `${item.year}-${item.issue}-${d.expires}-${String(d.what || '').length}@gazette.bg`;
         const details = [d.who, `Държавен вестник, брой ${item.issue}`, url].filter(Boolean).join(' · ');
         return [
-            'BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//gazette.bg//srokove//BG', 'CALSCALE:GREGORIAN',
+            'BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//gazette.bg//deadlines//BG', 'CALSCALE:GREGORIAN',
             'BEGIN:VEVENT',
             icsFold('UID:' + uid),
             'DTSTAMP:' + start + 'T000000Z',
@@ -394,7 +394,7 @@ ${contents}
     function renderDeadlineCal(d, item) {
         if (!d.expires) return '';
         const href = 'data:text/calendar;charset=utf-8;base64,' + utf8ToBase64(deadlineIcs(d, item));
-        return `<a class="deadline-cal" download="dv-srok-${escapeHtml(String(item.issue))}.ics" href="${href}" aria-label="Добави срока в календара">＋ Календар</a>`;
+        return `<a class="deadline-cal" download="gazette-deadline-${escapeHtml(String(item.issue))}.ics" href="${href}" aria-label="Добави срока в календара">＋ Календар</a>`;
     }
 
     function renderDeadlineRow(d, item, withIssue = true) {
@@ -425,9 +425,10 @@ ${contents}
         rows.sort((a, b) => a.d.expires.localeCompare(b.d.expires));
         const shown = rows.slice(0, DEADLINES_SHOWN);
         const rest = rows.length - shown.length;
-        const restNote = rest > 0
-            ? `<p class="deadlines-rest">и още ${rest} ${rest === 1 ? 'срок' : 'срока'} с по-далечни дати — в самите броеве.</p>`
-            : '';
+        const moreLabel = rest > 0
+            ? `Всички срокове · още ${rest} ${rest === 1 ? 'срок' : 'срока'} →`
+            : 'Всички срокове →';
+        const restNote = `<p class="deadlines-rest"><a class="deadlines-more" href="/deadlines/">${moreLabel}</a></p>`;
         return '<section class="deadlines-section" id="deadlines">' +
             '<div class="section-head"><h2 class="section-title">Срокове, които текат</h2>' +
             `<span class="section-count" id="deadline-count">${rows.length} ${rows.length === 1 ? 'срок' : 'срока'}</span></div>` +
@@ -464,7 +465,7 @@ ${contents}
             el.classList.toggle('is-urgent', left <= 3);
         });
         scope.querySelectorAll('.deadline-list').forEach((list) => {
-            const section = list.closest('.deadlines-section, .issue-deadlines');
+            const section = list.closest('.deadlines-section, .issue-deadlines, .month-group');
             if (section && !list.querySelector('.deadline')) section.remove();
         });
         const count = document.getElementById('deadline-count');
@@ -992,6 +993,14 @@ ${contents}
         // not-found message lives in, which would paint a blank page.
         if (document.querySelector('.not-found-section')) {
             document.documentElement.classList.remove('initial-issue-route');
+            return;
+        }
+
+        // The /deadlines page is fully pre-rendered and static. Just live-update
+        // its deadline labels (and drop any that expired since the build); do
+        // not fetch the catalog or render the home view over it.
+        if (document.body.classList.contains('deadlines-route')) {
+            refreshDeadlines(document);
             return;
         }
 

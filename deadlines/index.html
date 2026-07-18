@@ -1,0 +1,1922 @@
+<!DOCTYPE html>
+<html lang="bg">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="description" content="Всички отворени срокове от Държавен вестник, групирани по месец — възражения, обжалвания и заявления, докато все още можеш да ги подадеш." />
+    <meta name="theme-color" media="(prefers-color-scheme: light)" content="#fbf8f2" />
+    <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#100f0c" />
+    <link rel="icon" href="/favicon.ico" sizes="any" />
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <link rel="apple-touch-icon" href="/favicon.svg" />
+    <title>Срокове, които текат — Държавен вестник</title>
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="Срокове, които текат — Държавен вестник" />
+    <meta property="og:description" content="Всички отворени срокове от Държавен вестник, групирани по месец — възражения, обжалвания и заявления, докато все още можеш да ги подадеш." />
+    <meta property="og:url" content="https://gazette.bg/deadlines/" />
+    <link rel="canonical" href="https://gazette.bg/deadlines/" />
+    <link rel="alternate" type="application/rss+xml" title="Държавен вестник — обобщения на броеве" href="/feed.xml" />
+    <meta property="og:locale" content="bg_BG" />
+    <meta property="og:site_name" content="Държавен вестник — обобщения на броеве" />
+    <meta property="og:image" content="https://gazette.bg/og-image.png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:type" content="image/png" />
+    <meta property="og:image:alt" content="Държавен вестник — кратки обобщения на броеве, генерирани с AI" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:image" content="https://gazette.bg/og-image.png" />
+    <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"Organization","@id":"https://gazette.bg/#org","name":"gazette.bg","url":"https://gazette.bg/","logo":{"@type":"ImageObject","url":"https://gazette.bg/favicon.svg"},"description":"Независим проект, който публикува кратки обобщения на броеве на Държавен вестник, генерирани с изкуствен интелект."},{"@type":"WebSite","@id":"https://gazette.bg/#website","name":"Държавен вестник — обобщения на броеве","alternateName":"gazette.bg","url":"https://gazette.bg/","description":"Кратки обобщения на всеки брой на Държавен вестник, генерирани с изкуствен интелект.","inLanguage":"bg","publisher":{"@id":"https://gazette.bg/#org"}}]}</script>
+    <link rel="preload" as="font" type="font/woff2" href="/fonts/source-serif-4-cyrillic.woff2" crossorigin />
+    <link rel="preload" as="font" type="font/woff2" href="/fonts/playfair-display-cyrillic.woff2" crossorigin />
+    <link rel="preload" as="font" type="font/woff2" href="/fonts/jetbrains-mono-cyrillic.woff2" crossorigin />
+    <!--CRITICAL-CSS-START--><style>/* ═══════════════════════════════════════════════════════
+   gazette.bg — editorial / print-inspired design system
+
+   The page is modelled on a printed periodical: a folio bar
+   running across the top, a nameplate, a front page whose
+   lead story is the newest issue, and a contents register
+   for the archive. Three faces do all the work —
+   Playfair Display for display (Didone, high contrast),
+   Source Serif 4 for reading text, JetBrains Mono for the
+   printed apparatus: folios, issue numbers, labels, rules.
+   ═══════════════════════════════════════════════════════ */
+
+/* ─── Faces ─────────────────────────────────────────── */
+
+@font-face {
+    font-family: 'Playfair Display';
+    font-style: normal;
+    font-weight: 400 900;
+    font-display: swap;
+    src: url('/fonts/playfair-display-cyrillic.woff2') format('woff2');
+    unicode-range: U+0301, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116;
+}
+@font-face {
+    font-family: 'Playfair Display';
+    font-style: normal;
+    font-weight: 400 900;
+    font-display: swap;
+    src: url('/fonts/playfair-display-latin.woff2') format('woff2');
+    unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+@font-face {
+    font-family: 'Source Serif 4';
+    font-style: normal;
+    font-weight: 400 700;
+    font-display: swap;
+    src: url('/fonts/source-serif-4-cyrillic.woff2') format('woff2');
+    unicode-range: U+0301, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116;
+}
+@font-face {
+    font-family: 'Source Serif 4';
+    font-style: normal;
+    font-weight: 400 700;
+    font-display: swap;
+    src: url('/fonts/source-serif-4-latin.woff2') format('woff2');
+    unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+@font-face {
+    font-family: 'Source Serif 4';
+    font-style: italic;
+    font-weight: 400 700;
+    font-display: swap;
+    src: url('/fonts/source-serif-4-italic-cyrillic.woff2') format('woff2');
+    unicode-range: U+0301, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116;
+}
+@font-face {
+    font-family: 'Source Serif 4';
+    font-style: italic;
+    font-weight: 400 700;
+    font-display: swap;
+    src: url('/fonts/source-serif-4-italic-latin.woff2') format('woff2');
+    unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+@font-face {
+    font-family: 'JetBrains Mono';
+    font-style: normal;
+    font-weight: 400 800;
+    font-display: swap;
+    src: url('/fonts/jetbrains-mono-cyrillic.woff2') format('woff2');
+    unicode-range: U+0301, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116;
+}
+@font-face {
+    font-family: 'JetBrains Mono';
+    font-style: normal;
+    font-weight: 400 800;
+    font-display: swap;
+    src: url('/fonts/jetbrains-mono-latin.woff2') format('woff2');
+    unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+/* ─── Ink & paper ───────────────────────────────────── */
+
+:root {
+    --paper: #fbf8f2;
+    --paper-2: #ffffff;
+    --paper-3: #f3eee3;
+    --ink: #14120d;
+    --ink-soft: #46413a;
+    --muted: #6f6a5e;
+    --hairline: #ddd6c7;
+    --hairline-soft: #ebe5d9;
+    --rule: #14120d;
+    --accent: #ad2c20;
+    --accent-hover: #8e241b;
+    --accent-wash: #f7ebe6;
+
+    --font-display: 'Playfair Display', 'Iowan Old Style', Georgia, serif;
+    --font-text: 'Source Serif 4', 'Iowan Old Style', Cambria, Georgia, serif;
+    --font-mono: 'JetBrains Mono', ui-monospace, 'Cascadia Code', Menlo, monospace;
+
+    --gap-2xs: 0.375rem;
+    --gap-xs: 0.5rem;
+    --gap-sm: 0.75rem;
+    --gap-md: 1rem;
+    --gap-lg: 1.5rem;
+    --gap-xl: 2rem;
+    --gap-2xl: 3rem;
+    --gap-3xl: 4.5rem;
+    --gap-4xl: 6.5rem;
+
+    --maxw: 1180px;
+    --measure: 34rem;
+    --ease: cubic-bezier(0.32, 0.08, 0.24, 1);
+
+    color-scheme: light;
+}
+
+:root[data-theme='dark'] {
+    --paper: #100f0c;
+    --paper-2: #17160f;
+    --paper-3: #1c1a14;
+    --ink: #f2ede3;
+    --ink-soft: #c9c2b4;
+    --muted: #8e8779;
+    --hairline: #2e2a22;
+    --hairline-soft: #24211a;
+    --rule: #f2ede3;
+    --accent: #e4776b;
+    --accent-hover: #f09184;
+    --accent-wash: #2a1d19;
+
+    color-scheme: dark;
+}
+
+@media (prefers-color-scheme: dark) {
+    :root:not([data-theme='light']) {
+        --paper: #100f0c;
+        --paper-2: #17160f;
+        --paper-3: #1c1a14;
+        --ink: #f2ede3;
+        --ink-soft: #c9c2b4;
+        --muted: #8e8779;
+        --hairline: #2e2a22;
+        --hairline-soft: #24211a;
+        --rule: #f2ede3;
+        --accent: #e4776b;
+        --accent-hover: #f09184;
+        --accent-wash: #2a1d19;
+
+        color-scheme: dark;
+    }
+}
+
+* { box-sizing: border-box; }
+
+html {
+    scroll-behavior: smooth;
+    -webkit-text-size-adjust: 100%;
+}
+
+body {
+    margin: 0;
+    background: var(--paper);
+    color: var(--ink);
+    font-family: var(--font-text);
+    font-size: 1.0625rem;
+    line-height: 1.65;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+    font-feature-settings: "kern", "liga", "calt", "onum";
+}
+
+button, input, textarea, select { font: inherit; color: inherit; }
+
+::selection { background: var(--ink); color: var(--paper); }
+
+:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 3px;
+}
+
+/* Available to assistive tech and search engines, out of sight for everyone
+   else. Used for heading context and the live-status region. */
+.visually-hidden {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    margin: -1px;
+    padding: 0;
+    border: 0;
+    clip: rect(0 0 0 0);
+    clip-path: inset(50%);
+    overflow: hidden;
+    white-space: nowrap;
+}
+
+/* Skip link: off-screen until focused, then a real jump target at top-left. */
+.skip-link {
+    position: fixed;
+    top: 0.5rem;
+    left: 0.5rem;
+    z-index: 100;
+    padding: 0.6rem 0.9rem;
+    background: var(--paper);
+    color: var(--ink);
+    border: 1px solid var(--rule);
+    font-family: var(--font-mono);
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    text-decoration: none;
+    transform: translateY(-160%);
+    transition: transform 0.18s var(--ease);
+}
+.skip-link:focus { transform: translateY(0); }
+
+a { color: inherit; }
+
+/* Small caps label used everywhere the printed page would set
+   a caption, folio, or standing head. */
+.label,
+.lead-dateline,
+.section-count,
+.contents-label,
+.year-title,
+.issue-kicker,
+.issue-meta,
+.issue-toc-title,
+.nav-label,
+.share-label,
+.colophon-label,
+.not-found-eyebrow {
+    font-family: var(--font-mono);
+    font-size: 0.6875rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.14em;
+    font-variant-numeric: tabular-nums;
+}
+
+/* ─── View state ────────────────────────────────────── */
+
+body.issue-open .masthead,
+body.issue-open #home-view { display: none; }
+
+#issue-view { display: none; }
+.issue-nav:empty { display: none; }
+html.initial-issue-route .masthead { display: none; }
+html.initial-issue-route #home-view { display: none; }
+html.initial-issue-route #issue-view { display: block; }
+
+/* ─── Folio bar (running head) ──────────────────────── */
+
+.folio {
+    position: sticky;
+    top: 0;
+    z-index: 30;
+    background: var(--paper);
+    border-bottom: 1px solid var(--rule);
+}
+
+.folio-inner {
+    max-width: var(--maxw);
+    margin: 0 auto;
+    padding: 0 var(--gap-xl);
+    height: 2.85rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--gap-md);
+}
+
+.folio-brand {
+    display: inline-flex;
+    align-items: baseline;
+    gap: 0.4rem;
+    text-decoration: none;
+    font-family: var(--font-mono);
+    font-size: 0.75rem;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--ink);
+    white-space: nowrap;
+}
+
+.folio-brand .brand-dot { color: var(--accent); }
+
+.folio-nav {
+    display: flex;
+    align-items: center;
+    gap: var(--gap-lg);
+}
+
+.folio-link {
+    font-family: var(--font-mono);
+    font-size: 0.6875rem;
+    font-weight: 500;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    text-decoration: none;
+    color: var(--muted);
+    padding: 0.2rem 0;
+    border-bottom: 1px solid transparent;
+    transition: color 0.18s var(--ease), border-color 0.18s var(--ease);
+    white-space: nowrap;
+}
+
+.folio-link:hover { color: var(--accent); border-bottom-color: var(--accent); }
+
+.theme-toggle {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 1.85rem;
+    height: 1.85rem;
+    padding: 0;
+    background: transparent;
+    border: 1px solid var(--hairline);
+    border-radius: 50%;
+    color: var(--muted);
+    cursor: pointer;
+    transition: color 0.18s var(--ease), border-color 0.18s var(--ease), transform 0.18s var(--ease);
+}
+
+.theme-toggle:hover { color: var(--ink); border-color: var(--ink); transform: rotate(-15deg); }
+.theme-toggle svg { width: 0.95rem; height: 0.95rem; display: block; }
+.theme-toggle .icon-moon { display: none; }
+:root[data-theme='dark'] .theme-toggle .icon-moon { display: block; }
+:root[data-theme='dark'] .theme-toggle .icon-sun { display: none; }
+
+@media (prefers-color-scheme: dark) {
+    :root:not([data-theme='light']) .theme-toggle .icon-moon { display: block; }
+    :root:not([data-theme='light']) .theme-toggle .icon-sun { display: none; }
+}
+
+/* Reading progress — a hairline of ink that fills as you read. */
+.reading-progress {
+    position: absolute;
+    left: 0;
+    bottom: -1px;
+    height: 2px;
+    width: 0;
+    background: var(--accent);
+    transition: width 0.1s linear;
+}
+
+body:not(.issue-open) .reading-progress { width: 0 !important; }
+
+/* ─── Nameplate ─────────────────────────────────────── */
+
+.masthead {
+    border-bottom: 1px solid var(--rule);
+    background: var(--paper);
+}
+
+.masthead-inner {
+    max-width: var(--maxw);
+    margin: 0 auto;
+    padding: var(--gap-2xl) var(--gap-xl) var(--gap-xl);
+    text-align: center;
+}
+
+.masthead-kicker {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--gap-md);
+    margin: 0 0 var(--gap-lg);
+    font-family: var(--font-mono);
+    font-size: 0.625rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.28em;
+    color: var(--muted);
+}
+
+.masthead-kicker::before,
+.masthead-kicker::after {
+    content: "";
+    width: clamp(1.5rem, 8vw, 5rem);
+    height: 1px;
+    background: var(--hairline);
+}
+
+.masthead-title {
+    margin: 0;
+    font-family: var(--font-display);
+    font-size: clamp(2.6rem, 9vw, 6rem);
+    font-weight: 800;
+    line-height: 0.95;
+    letter-spacing: -0.02em;
+    color: var(--ink);
+}
+
+.masthead-title a {
+    text-decoration: none;
+    color: inherit;
+    transition: color 0.2s var(--ease);
+}
+
+.masthead-title a:hover { color: var(--accent); }
+
+/* The edition line: thin rules top and bottom, mono between —
+   the strip a newspaper prints under its nameplate. */
+.masthead-edition {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-wrap: wrap;
+    gap: var(--gap-xs) var(--gap-md);
+    margin: var(--gap-lg) 0 0;
+    padding: 0.55rem 0;
+    border-top: 1px solid var(--rule);
+    border-bottom: 1px solid var(--rule);
+    font-family: var(--font-mono);
+    font-size: 0.6875rem;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: var(--ink-soft);
+}
+
+.masthead-edition .sep { color: var(--hairline); }
+.masthead-edition .edition-accent { color: var(--accent); font-weight: 700; }
+
+.masthead-tagline {
+    max-width: 44rem;
+    margin: var(--gap-xl) auto 0;
+    font-family: var(--font-text);
+    font-size: clamp(1.0625rem, 1.6vw, 1.25rem);
+    font-style: italic;
+    line-height: 1.55;
+    color: var(--ink-soft);
+}
+
+/* ─── Layout ────────────────────────────────────────── */
+
+.layout {
+    max-width: var(--maxw);
+    margin: 0 auto;
+    width: 100%;
+    padding: 0 var(--gap-xl);
+}
+
+main {
+    padding: var(--gap-2xl) 0 var(--gap-3xl);
+    min-width: 0;
+}
+
+main .empty,
+main .loading {
+    padding: var(--gap-2xl) 0;
+    color: var(--muted);
+    font-style: italic;
+}
+
+/* ─── Standing heads ────────────────────────────────── */
+
+.section-head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: var(--gap-md);
+    margin: 0 0 var(--gap-lg);
+    padding-bottom: var(--gap-sm);
+    border-bottom: 2px solid var(--rule);
+}
+
+.section-title {
+    margin: 0;
+    font-family: var(--font-display);
+    font-size: 1.75rem;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+    color: var(--ink);
+}
+
+.section-count { color: var(--muted); white-space: nowrap; }
+
+/* ─── Front page: the lead story ────────────────────── */
+
+.lead-section { margin-bottom: var(--gap-3xl); }
+
+.lead-dateline {
+    display: flex;
+    align-items: center;
+    gap: var(--gap-sm);
+    margin-bottom: var(--gap-md);
+    color: var(--accent);
+}
+
+.lead-dateline .rule {
+    flex: 1 1 auto;
+    height: 1px;
+    background: var(--accent);
+    opacity: 0.35;
+}
+
+.issue-card { text-decoration: none; color: inherit; display: block; }
+
+.issue-card-lead {
+    padding-top: var(--gap-xs);
+    cursor: pointer;
+}
+
+.lead-title {
+    margin: 0;
+    font-family: var(--font-display);
+    font-size: clamp(1.95rem, 4.4vw, 3.4rem);
+    font-weight: 700;
+    line-height: 1.08;
+    letter-spacing: -0.015em;
+    color: var(--ink);
+    text-wrap: balance;
+    transition: color 0.2s var(--ease);
+}
+
+.issue-card-lead:hover .lead-title { color: var(--accent); }
+
+.lead-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr);
+    gap: var(--gap-xl) var(--gap-2xl);
+    margin-top: var(--gap-lg);
+    padding-top: var(--gap-lg);
+    border-top: 1px solid var(--hairline);
+}
+
+/* Some issues carry no lead sentence. Without a standfirst the left column
+   would be an empty well, so the contents take the full measure and the
+   read-on line drops beneath them. */
+.lead-grid.no-standfirst {
+    grid-template-columns: minmax(0, 1fr);
+    gap: var(--gap-md);
+}
+
+.lead-grid.no-standfirst .lead-main { order: 2; }
+
+.lead-standfirst {
+    margin: 0;
+    font-size: 1.125rem;
+    line-height: 1.6;
+    color: var(--ink-soft);
+}
+
+/* Drop cap — the one on the front page sets the tone for the site. */
+.lead-standfirst::first-letter {
+    float: left;
+    font-family: var(--font-display);
+    font-size: 3.6em;
+    font-weight: 700;
+    line-height: 0.82;
+    padding: 0.06em 0.1em 0 0;
+    color: var(--accent);
+}
+
+.lead-read {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.45rem;
+    margin-top: var(--gap-lg);
+    font-family: var(--font-mono);
+    font-size: 0.6875rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.14em;
+    color: var(--accent);
+    border-bottom: 1px solid currentColor;
+    padding-bottom: 0.15rem;
+}
+
+.issue-card-lead:hover .lead-read { color: var(--accent-hover); }
+
+/* Contents of the lead issue, set as a numbered register. */
+.lead-contents { min-width: 0; }
+
+.contents-label {
+    margin: 0 0 var(--gap-sm);
+    padding-bottom: var(--gap-xs);
+    border-bottom: 1px solid var(--hairline);
+    color: var(--muted);
+}
+
+.contents-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    counter-reset: contents;
+}
+
+.contents-list li {
+    counter-increment: contents;
+    position: relative;
+    padding: var(--gap-xs) 0 var(--gap-xs) 2.1rem;
+    border-bottom: 1px dotted var(--hairline);
+    font-size: 1rem;
+    line-height: 1.4;
+    color: var(--ink-soft);
+}
+
+.contents-list li::before {
+    content: counter(contents, decimal-leading-zero);
+    position: absolute;
+    left: 0;
+    top: 0.72rem;
+    font-family: var(--font-mono);
+    font-size: 0.625rem;
+    font-weight: 600;
+    color: var(--accent);
+    font-variant-numeric: tabular-nums;
+}
+
+.contents-list li.more {
+    border-bottom: none;
+    font-style: italic;
+    color: var(--muted);
+}
+
+.contents-list li.more::before { content: "+"; color: var(--muted); }
+
+/* ─── Who it's for: tags ────────────────────────────── */
+
+.tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.35rem;
+    margin: var(--gap-sm) 0 var(--gap-md);
+    padding: 0;
+    max-width: none;
+}
+
+.tag {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.18rem 0.45rem;
+    border: 1px solid var(--hairline);
+    font-family: var(--font-mono);
+    font-size: 0.625rem;
+    font-weight: 500;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--muted);
+    white-space: nowrap;
+}
+
+.issue-card-lead:hover .tag { border-color: var(--hairline); color: var(--ink-soft); }
+
+/* The reader should be able to skip a section without reading it, so the tags
+   sit directly under its heading. */
+.content .tags { margin: -0.25rem 0 var(--gap-md); }
+
+/* Places (the "where") — a labelled row of links to the pre-filtered archive,
+   set as underlined text rather than the bordered "who" pills so the two axes
+   read as different things. */
+.issue-places {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 0.3rem 0.65rem;
+    margin: 0 0 var(--gap-md);
+    padding: 0;
+}
+.issue-places-label {
+    font-family: var(--font-mono);
+    font-size: 0.625rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.14em;
+    color: var(--muted);
+    margin-right: 0.1rem;
+}
+.place-chip {
+    font-family: var(--font-text);
+    font-size: 0.95rem;
+    color: var(--ink-soft);
+    text-decoration: none;
+    border-bottom: 1px solid var(--hairline);
+    transition: color 0.18s var(--ease), border-color 0.18s var(--ease);
+}
+.place-chip:hover { color: var(--accent); border-bottom-color: var(--accent); }
+
+/* ─── Deadlines ─────────────────────────────────────── */
+
+.deadlines-section { margin-bottom: var(--gap-3xl); }
+
+.deadlines-note {
+    margin: -0.75rem 0 var(--gap-md);
+    font-size: 0.8125rem;
+    font-style: italic;
+    color: var(--muted);
+}
+
+.deadline-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+
+.deadline {
+    display: grid;
+    grid-template-columns: minmax(6.5rem, 7.5rem) minmax(0, 1fr);
+    column-gap: var(--gap-lg);
+    align-items: baseline;
+    padding: 0.7rem 0;
+    border-bottom: 1px solid var(--hairline-soft);
+}
+
+.deadline-left {
+    font-family: var(--font-mono);
+    font-size: 0.6875rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--muted);
+    font-variant-numeric: tabular-nums;
+}
+
+/* Three days or fewer is the difference between acting and finding out too
+   late — that one gets the ink. */
+.deadline.is-urgent .deadline-left { color: var(--accent); font-weight: 700; }
+
+.deadline-body { min-width: 0; }
+
+.deadline-what {
+    display: block;
+    font-family: var(--font-text);
+    font-size: 1.0625rem;
+    font-weight: 600;
+    line-height: 1.35;
+    color: var(--ink);
+    text-decoration: none;
+    transition: color 0.16s var(--ease);
+}
+
+.deadline-what:hover { color: var(--accent); }
+
+.deadline-who {
+    display: block;
+    margin-top: 0.15rem;
+    font-family: var(--font-mono);
+    font-size: 0.625rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--muted);
+}
+
+/* A quiet secondary action — drop the deadline into your own calendar. */
+.deadline-cal {
+    display: inline-block;
+    margin-top: 0.4rem;
+    font-family: var(--font-mono);
+    font-size: 0.625rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.09em;
+    color: var(--muted);
+    text-decoration: none;
+    border-bottom: 1px solid transparent;
+    transition: color 0.18s var(--ease), border-color 0.18s var(--ease);
+}
+.deadline-cal:hover { color: var(--accent); border-bottom-color: var(--accent); }
+
+/* On the issue page the same list runs under the header, as a standing notice. */
+.issue-deadlines {
+    margin: 0 0 var(--gap-xl);
+    padding: var(--gap-md) 0 0;
+    border-top: 1px solid var(--hairline);
+}
+
+.issue-deadlines-title {
+    margin: 0 0 var(--gap-2xs);
+    font-family: var(--font-mono);
+    font-size: 0.6875rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.14em;
+    color: var(--accent);
+}
+
+/* ─── Archive: the contents register ────────────────── */
+
+.archive-section { scroll-margin-top: 4rem; }
+
+.archive-search {
+    position: relative;
+    margin: 0 0 var(--gap-xl);
+}
+
+.archive-search-input {
+    width: 100%;
+    padding: 0.7rem 0 0.7rem 1.75rem;
+    border: none;
+    /* --muted, not --hairline: the underline is the field's only affordance,
+       so it must clear the 3:1 UI-boundary contrast, not read as a hairline. */
+    border-bottom: 1px solid var(--muted);
+    background: transparent;
+    color: var(--ink);
+    font-family: var(--font-text);
+    font-size: 1.0625rem;
+    font-style: italic;
+    transition: border-color 0.2s var(--ease);
+    -webkit-appearance: none;
+    appearance: none;
+}
+
+.archive-search::before {
+    content: "⌕";
+    position: absolute;
+    left: 0;
+    top: 50%;
+    transform: translateY(-55%);
+    font-size: 1.25rem;
+    color: var(--muted);
+    pointer-events: none;
+    transition: color 0.2s var(--ease);
+}
+
+.archive-search:focus-within::before { color: var(--accent); }
+.archive-search-input::placeholder { color: var(--muted); opacity: 1; }
+/* The field is an underline, not a box — so its focus indicator is a stronger
+   underline (accent colour + a second hairline), not the default all-sides
+   outline, which reads as broken around a bottom-border-only input. */
+.archive-search-input:focus { border-bottom-color: var(--accent); box-shadow: 0 1px 0 0 var(--accent); }
+.archive-search-input:focus-visible { outline: none; }
+.archive-search-input::-webkit-search-cancel-button { -webkit-appearance: none; appearance: none; }
+
+/* "За мен" — toggle the audience chips to narrow the register to what
+   touches you. Active chips fill with the accent; the choice persists. */
+.audience-filter {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.4rem;
+    margin: var(--gap-md) 0 var(--gap-xl);
+}
+.audience-filter-label {
+    font-family: var(--font-mono);
+    font-size: 0.625rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.14em;
+    color: var(--muted);
+    margin-right: 0.2rem;
+}
+.aud-chip {
+    font-family: var(--font-mono);
+    font-size: 0.625rem;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--ink-soft);
+    background: transparent;
+    border: 1px solid var(--hairline);
+    padding: 0.24rem 0.5rem;
+    border-radius: 2px;
+    cursor: pointer;
+    transition: color 0.18s var(--ease), border-color 0.18s var(--ease), background 0.18s var(--ease);
+}
+.aud-chip:hover { border-color: var(--ink-soft); color: var(--ink); }
+.aud-chip.is-active {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: var(--paper);
+}
+.aud-clear {
+    font-family: var(--font-mono);
+    font-size: 0.625rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--muted);
+    background: transparent;
+    border: 0;
+    padding: 0.24rem 0.3rem;
+    cursor: pointer;
+    transition: color 0.18s var(--ease);
+}
+.aud-clear:hover { color: var(--accent); }
+
+.year-group { margin-bottom: var(--gap-2xl); }
+.year-group:last-child { margin-bottom: 0; }
+
+.year-title {
+    display: flex;
+    align-items: center;
+    gap: var(--gap-md);
+    margin: 0 0 var(--gap-xs);
+    color: var(--muted);
+}
+
+.year-title::after {
+    content: "";
+    flex: 1 1 auto;
+    height: 1px;
+    background: var(--hairline);
+}
+
+/* Two columns on a wide screen — a magazine contents spread. Grid, not
+   multicol: issues must read across (63, 62 | 61, 60), not down each column,
+   which would put issue 62 beside issue 32. */
+.issue-list {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    column-gap: var(--gap-2xl);
+}
+
+.issue-card-row {
+    display: grid;
+    grid-template-columns: 2.4rem minmax(0, 1fr);
+    column-gap: var(--gap-md);
+    align-items: baseline;
+    padding: 0.7rem 0;
+    border-bottom: 1px solid var(--hairline-soft);
+    cursor: pointer;
+    transition: color 0.16s var(--ease);
+}
+
+.issue-card-row:hover { color: var(--accent); }
+
+.issue-card-row .num {
+    font-family: var(--font-mono);
+    font-size: 0.6875rem;
+    font-weight: 700;
+    color: var(--accent);
+    font-variant-numeric: tabular-nums;
+    letter-spacing: 0.02em;
+}
+
+.issue-card-row .row-body { min-width: 0; }
+
+/* Two lines is enough to identify an issue; the rest is in the summary. */
+.issue-card-row .row-title {
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    font-family: var(--font-text);
+    font-size: 1.0625rem;
+    font-weight: 600;
+    line-height: 1.35;
+    color: var(--ink);
+    transition: color 0.16s var(--ease);
+}
+
+.issue-card-row:hover .row-title { color: var(--accent); }
+
+.issue-card-row .date {
+    display: block;
+    margin-top: 0.2rem;
+    font-family: var(--font-mono);
+    font-size: 0.625rem;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--muted);
+}
+
+.filter-hidden { display: none !important; }
+
+.filter-empty {
+    padding: var(--gap-lg) 0 !important;
+    font-style: italic;
+    color: var(--muted);
+}
+
+/* ─── Colophon (about) ──────────────────────────────── */
+
+.about-section {
+    margin-top: var(--gap-3xl);
+    padding-top: var(--gap-xl);
+    border-top: 2px solid var(--rule);
+    scroll-margin-top: 4rem;
+}
+
+.colophon {
+    display: grid;
+    grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr);
+    gap: var(--gap-2xl);
+    margin-top: var(--gap-lg);
+}
+
+.colophon-body p {
+    margin: 0 0 var(--gap-md);
+    max-width: 40rem;
+    color: var(--ink-soft);
+}
+
+.colophon-body p:last-child { margin-bottom: 0; }
+
+.colophon-body a,
+.footer-note a {
+    color: var(--ink);
+    text-decoration: none;
+    border-bottom: 1px solid var(--accent);
+    transition: color 0.18s var(--ease);
+}
+
+.colophon-body a:hover,
+.footer-note a:hover { color: var(--accent); }
+
+.colophon-facts {
+    display: flex;
+    flex-direction: column;
+    gap: var(--gap-md);
+    margin: 0;
+}
+
+.colophon-fact {
+    padding-bottom: var(--gap-md);
+    border-bottom: 1px solid var(--hairline-soft);
+}
+
+.colophon-fact:last-child { border-bottom: none; padding-bottom: 0; }
+
+.colophon-label {
+    display: block;
+    margin-bottom: 0.15rem;
+    color: var(--muted);
+}
+
+.colophon-value {
+    margin: 0;
+    font-family: var(--font-display);
+    font-size: 1.25rem;
+    font-weight: 600;
+    color: var(--ink);
+}
+
+/* ─── Issue page ────────────────────────────────────── */
+
+.back-bar { padding: var(--gap-lg) 0 0; }
+
+.back-bar-bottom {
+    display: none;
+    margin-top: var(--gap-2xl);
+    padding: var(--gap-lg) 0 0;
+    border-top: 1px solid var(--hairline);
+}
+
+body.issue-ready .back-bar-bottom { display: block; }
+
+.back-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.45rem;
+    padding: 0;
+    background: none;
+    border: none;
+    border-bottom: 1px solid transparent;
+    font-family: var(--font-mono);
+    font-size: 0.6875rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.14em;
+    color: var(--muted);
+    cursor: pointer;
+    transition: color 0.18s var(--ease), border-color 0.18s var(--ease);
+}
+
+.back-btn:hover { color: var(--accent); border-bottom-color: var(--accent); }
+
+.issue-header {
+    margin: var(--gap-lg) 0 var(--gap-xl);
+    padding-bottom: var(--gap-lg);
+    border-bottom: 2px solid var(--rule);
+}
+
+.issue-kicker {
+    display: flex;
+    align-items: center;
+    gap: var(--gap-sm);
+    margin: 0 0 var(--gap-md);
+    color: var(--accent);
+}
+
+.issue-kicker .rule {
+    flex: 1 1 auto;
+    height: 1px;
+    background: var(--accent);
+    opacity: 0.35;
+}
+
+.issue-header .title {
+    margin: 0;
+    font-family: var(--font-display);
+    font-size: clamp(2.25rem, 6vw, 4rem);
+    font-weight: 700;
+    line-height: 1.02;
+    letter-spacing: -0.02em;
+    color: var(--ink);
+}
+
+.issue-meta {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.4rem var(--gap-sm);
+    margin: var(--gap-md) 0 0;
+    color: var(--muted);
+}
+
+.issue-meta .sep { color: var(--hairline); }
+
+/* ─── Article ───────────────────────────────────────── */
+
+.content {
+    font-family: var(--font-text);
+    font-size: 1.125rem;
+    line-height: 1.72;
+    color: var(--ink-soft);
+    hyphens: auto;
+}
+
+.content [id] { scroll-margin-top: 4.5rem; }
+
+.content-disclaimer {
+    margin: 0 0 var(--gap-xl);
+    padding-left: var(--gap-md);
+    border-left: 2px solid var(--accent);
+    font-family: var(--font-mono);
+    font-size: 0.6875rem;
+    line-height: 1.7;
+    letter-spacing: 0.01em;
+    color: var(--muted);
+}
+
+.content .content-disclaimer a {
+    color: var(--ink-soft);
+    text-decoration: none;
+    border-bottom: 1px solid var(--hairline);
+    background: none;
+}
+
+.content .content-disclaimer a:hover { color: var(--accent); border-bottom-color: var(--accent); }
+
+/* Table of contents — the article's own register. */
+.issue-toc {
+    margin: 0 0 var(--gap-xl);
+    padding: var(--gap-md) 0;
+    border-top: 1px solid var(--rule);
+    border-bottom: 1px solid var(--rule);
+}
+
+.issue-toc-title {
+    margin: 0 0 var(--gap-sm);
+    color: var(--muted);
+}
+
+/* Scoped under .content so these beat the generic article list and link
+   rules further down (same specificity would otherwise let source order win). */
+.content .issue-toc-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    max-width: none;
+    counter-reset: toc;
+}
+
+.content .issue-toc-item {
+    counter-increment: toc;
+    position: relative;
+    margin: 0;
+    padding: 0.22rem 0 0.22rem 2rem;
+    font-size: 0.9375rem;
+    line-height: 1.4;
+}
+
+.content .issue-toc-item::before {
+    content: counter(toc, decimal-leading-zero);
+    position: absolute;
+    left: 0;
+    top: 0.42rem;
+    font-family: var(--font-mono);
+    font-size: 0.625rem;
+    font-weight: 600;
+    color: var(--muted);
+    font-variant-numeric: tabular-nums;
+    transition: color 0.18s var(--ease);
+}
+
+.content .issue-toc-item:has(a.is-current)::before { color: var(--accent); }
+
+.content .issue-toc-item a {
+    color: var(--ink-soft);
+    text-decoration: none;
+    border-bottom: 1px solid transparent;
+    background: none;
+    transition: color 0.18s var(--ease), border-color 0.18s var(--ease);
+}
+
+.content .issue-toc-item a:hover { color: var(--accent); border-bottom-color: var(--accent); }
+.content .issue-toc-item a.is-current { color: var(--ink); font-weight: 600; }
+
+.content h1,
+.content h2 {
+    /* Clear any drop cap overhanging from a short previous section, so a new
+       heading never wraps beside a floated initial. */
+    clear: left;
+    margin: var(--gap-2xl) 0 var(--gap-md);
+    font-family: var(--font-display);
+    font-size: clamp(1.5rem, 2.6vw, 1.9rem);
+    font-weight: 700;
+    line-height: 1.18;
+    letter-spacing: -0.01em;
+    color: var(--ink);
+    text-wrap: balance;
+}
+
+.content h3 {
+    margin: var(--gap-xl) 0 0.4rem;
+    font-family: var(--font-display);
+    font-size: 1.25rem;
+    font-weight: 600;
+    color: var(--ink);
+}
+
+.content p {
+    margin: 0 0 var(--gap-md);
+    max-width: var(--measure);
+}
+
+/* The lead paragraph — set larger, in italic, the way a
+   standfirst is set under a headline in print. */
+.content > .issue-toc + p {
+    margin-bottom: var(--gap-xl);
+    font-size: clamp(1.2rem, 2.2vw, 1.375rem);
+    font-style: italic;
+    line-height: 1.5;
+    color: var(--ink);
+    max-width: 38rem;
+}
+
+.content > .issue-toc + p em { font-style: normal; }
+
+/* Drop cap opens the body proper: the first paragraph under the first heading. */
+/* Each section opens with a drop cap on its first real paragraph — a
+   consistent initial per topic rather than one lone cap on section one. A row
+   of "who this is for" tags (also a <p>) is injected right after each heading,
+   so match the paragraph after it too, else the cap lands on the tag row. */
+.content h2 + p:not(.tags)::first-letter,
+.content h2 + .tags + p::first-letter {
+    float: left;
+    font-family: var(--font-display);
+    font-size: 3.4em;
+    font-weight: 700;
+    line-height: 0.84;
+    padding: 0.06em 0.1em 0 0;
+    color: var(--ink);
+}
+
+.content ul,
+.content ol {
+    margin: 0 0 var(--gap-md);
+    padding-left: 1.2rem;
+    max-width: var(--measure);
+}
+
+.content li { margin: 0.3rem 0; padding-left: 0.3rem; }
+.content li::marker { color: var(--accent); }
+
+.content strong { color: var(--ink); font-weight: 700; }
+.content em { font-style: italic; }
+
+.content a {
+    color: var(--ink);
+    text-decoration: none;
+    border-bottom: 1px solid var(--accent);
+    transition: color 0.18s var(--ease), background 0.18s var(--ease);
+}
+
+.content a:hover { color: var(--accent); background: var(--accent-wash); }
+
+/* Pull quote. */
+.content blockquote {
+    margin: var(--gap-xl) 0;
+    padding: var(--gap-md) 0;
+    border-top: 1px solid var(--hairline);
+    border-bottom: 1px solid var(--hairline);
+    max-width: var(--measure);
+    font-family: var(--font-display);
+    font-size: 1.3rem;
+    font-style: italic;
+    line-height: 1.4;
+    color: var(--ink);
+}
+
+.content blockquote p { margin: 0; max-width: none; }
+
+.content hr {
+    max-width: var(--measure);
+    margin: var(--gap-xl) 0;
+    border: none;
+    border-top: 1px solid var(--hairline);
+}
+
+.content code {
+    font-family: var(--font-mono);
+    font-size: 0.85em;
+    background: var(--paper-3);
+    padding: 0.1em 0.35em;
+}
+
+.content pre {
+    max-width: var(--measure);
+    margin: var(--gap-md) 0;
+    padding: var(--gap-md);
+    overflow-x: auto;
+    background: var(--paper-3);
+    border-left: 2px solid var(--hairline);
+}
+
+.content pre code { background: none; padding: 0; }
+
+.content table {
+    width: 100%;
+    max-width: var(--measure);
+    margin: var(--gap-lg) 0;
+    border-collapse: collapse;
+    font-size: 0.9375rem;
+}
+
+.content th,
+.content td {
+    padding: var(--gap-xs) var(--gap-sm) var(--gap-xs) 0;
+    text-align: left;
+    border-bottom: 1px solid var(--hairline-soft);
+}
+
+.content th {
+    font-family: var(--font-mono);
+    font-size: 0.625rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--muted);
+    border-bottom: 1px solid var(--rule);
+}
+
+/* End mark — the printed square that closes an article. */
+.end-mark {
+    margin: var(--gap-xl) 0 0;
+    color: var(--accent);
+    font-size: 0.75rem;
+    line-height: 1;
+}
+
+/* ─── Share ─────────────────────────────────────────── */
+
+.issue-share:empty { display: none; }
+
+.issue-share {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: var(--gap-sm) var(--gap-md);
+    margin-top: var(--gap-2xl);
+    padding-top: var(--gap-md);
+    border-top: 1px solid var(--hairline);
+}
+
+.share-label { color: var(--muted); margin-right: 0.25rem; }
+
+.share-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.35rem 0.7rem;
+    background: transparent;
+    border: 1px solid var(--hairline);
+    color: var(--ink-soft);
+    text-decoration: none;
+    font-family: var(--font-mono);
+    font-size: 0.6875rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.14em;
+    cursor: pointer;
+    transition: color 0.18s var(--ease), border-color 0.18s var(--ease), background 0.18s var(--ease);
+}
+
+.share-btn:hover {
+    color: var(--accent);
+    border-color: var(--accent);
+    background: var(--accent-wash);
+}
+
+.share-btn svg { width: 0.8rem; height: 0.8rem; }
+.share-btn.is-copied { color: var(--accent); border-color: var(--accent); }
+
+/* ─── Prev / next ───────────────────────────────────── */
+
+.issue-nav-bottom {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: var(--gap-xl);
+    margin-top: var(--gap-2xl);
+    padding-top: var(--gap-lg);
+    border-top: 2px solid var(--rule);
+}
+
+.issue-nav-group { min-width: 0; }
+.issue-nav-group.is-next { text-align: right; }
+.issue-nav-group:only-child { grid-column: 1 / -1; text-align: left; }
+
+.nav-label {
+    display: block;
+    margin-bottom: var(--gap-2xs);
+    color: var(--muted);
+}
+
+.issue-nav-bottom .issue-card { cursor: pointer; }
+
+.issue-nav-bottom .issue-card .num {
+    display: block;
+    font-family: var(--font-mono);
+    font-size: 0.625rem;
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin-bottom: 0.15rem;
+}
+
+.issue-nav-bottom .issue-card .date {
+    display: block;
+    font-family: var(--font-display);
+    font-size: 1.35rem;
+    font-weight: 600;
+    line-height: 1.2;
+    color: var(--ink);
+    transition: color 0.18s var(--ease);
+}
+
+.issue-nav-bottom .issue-card:hover .date { color: var(--accent); }
+
+/* ─── Not found ─────────────────────────────────────── */
+
+.not-found-section {
+    max-width: var(--measure);
+    padding: var(--gap-3xl) 0;
+}
+
+.not-found-eyebrow { color: var(--accent); margin: 0 0 var(--gap-md); }
+
+.not-found-title {
+    margin: 0 0 var(--gap-md);
+    font-family: var(--font-display);
+    font-size: clamp(2rem, 5vw, 3rem);
+    font-weight: 700;
+    line-height: 1.05;
+    letter-spacing: -0.02em;
+    color: var(--ink);
+}
+
+.not-found-text {
+    margin: 0 0 var(--gap-lg);
+    color: var(--ink-soft);
+}
+
+.not-found-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.45rem;
+    font-family: var(--font-mono);
+    font-size: 0.6875rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.14em;
+    color: var(--accent);
+    text-decoration: none;
+    border-bottom: 1px solid currentColor;
+    padding-bottom: 0.15rem;
+    transition: color 0.18s var(--ease);
+}
+
+.not-found-link:hover { color: var(--accent-hover); }
+
+/* ─── Footer ────────────────────────────────────────── */
+
+.site-footer {
+    border-top: 1px solid var(--rule);
+    background: var(--paper);
+}
+
+.footer-inner {
+    max-width: var(--maxw);
+    margin: 0 auto;
+    padding: var(--gap-xl) var(--gap-xl) var(--gap-2xl);
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 2fr);
+    gap: var(--gap-xl) var(--gap-2xl);
+    align-items: start;
+}
+
+.footer-brand {
+    font-family: var(--font-display);
+    font-size: 1.5rem;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+    color: var(--ink);
+    text-decoration: none;
+}
+
+.footer-brand .brand-dot { color: var(--accent); }
+
+.footer-note {
+    margin: 0;
+    max-width: 42rem;
+    font-size: 0.9375rem;
+    line-height: 1.6;
+    color: var(--muted);
+}
+
+.footer-rule {
+    grid-column: 1 / -1;
+    height: 1px;
+    background: var(--hairline);
+}
+
+.footer-links {
+    grid-column: 1 / -1;
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--gap-md) var(--gap-lg);
+    align-items: center;
+    justify-content: space-between;
+}
+
+.footer-links a,
+.footer-colophon {
+    font-family: var(--font-mono);
+    font-size: 0.625rem;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: var(--muted);
+    text-decoration: none;
+}
+
+.footer-links a { border-bottom: 1px solid transparent; transition: color 0.18s var(--ease), border-color 0.18s var(--ease); }
+.footer-links a:hover { color: var(--accent); border-bottom-color: var(--accent); }
+
+/* ─── Back to top ───────────────────────────────────── */
+
+.scroll-to-top {
+    position: fixed;
+    right: var(--gap-lg);
+    bottom: var(--gap-lg);
+    z-index: 20;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 2.5rem;
+    height: 2.5rem;
+    padding: 0;
+    background: var(--paper);
+    border: 1px solid var(--rule);
+    color: var(--ink);
+    font-family: var(--font-mono);
+    font-size: 0.8rem;
+    cursor: pointer;
+    opacity: 0;
+    visibility: hidden;
+    transform: translateY(0.5rem);
+    transition: opacity 0.2s var(--ease), visibility 0.2s var(--ease), transform 0.2s var(--ease), background 0.2s var(--ease), color 0.2s var(--ease);
+}
+
+.scroll-to-top.is-visible { opacity: 1; visibility: visible; transform: translateY(0); }
+.scroll-to-top:hover { background: var(--ink); color: var(--paper); }
+
+/* ─── Wide screens: article gets a margin column ────── */
+
+@media (min-width: 1000px) {
+    .content {
+        display: grid;
+        grid-template-columns: 15rem minmax(0, 1fr);
+        column-gap: var(--gap-3xl);
+        align-items: start;
+    }
+
+    .content > .content-disclaimer { grid-column: 1 / -1; }
+
+    .content > .issue-toc {
+        grid-column: 1;
+        grid-row: 2 / span 9999;
+        position: sticky;
+        top: 4.25rem;
+        align-self: start;
+        max-height: calc(100vh - 6rem);
+        overflow-y: auto;
+        margin-bottom: 0;
+        border-bottom: none;
+        padding-bottom: 0;
+    }
+
+    .content > :not(.content-disclaimer):not(.issue-toc) { grid-column: 2; }
+    .content > :not(.content-disclaimer):not(.issue-toc):first-of-type { margin-top: 0; }
+
+    /* The hairline between the columns is painted on the container, since a
+       grid has no column-rule of its own. */
+    .issue-list {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        background: linear-gradient(var(--hairline-soft), var(--hairline-soft)) 50% 0 / 1px 100% no-repeat;
+    }
+}
+
+@media (min-width: 1240px) {
+    .issue-header,
+    .issue-share,
+    .issue-nav-bottom,
+    .back-bar { max-width: none; }
+}
+
+/* ─── Small screens ─────────────────────────────────── */
+
+@media (max-width: 900px) {
+    .lead-grid { grid-template-columns: minmax(0, 1fr); }
+    .colophon { grid-template-columns: minmax(0, 1fr); gap: var(--gap-xl); }
+    .footer-inner { grid-template-columns: minmax(0, 1fr); }
+}
+
+@media (max-width: 640px) {
+    body { font-size: 1rem; }
+
+    .folio-inner { padding: 0 var(--gap-md); }
+    .folio-link[data-optional] { display: none; }
+
+    .masthead-inner { padding: var(--gap-xl) var(--gap-md) var(--gap-lg); }
+    .masthead-kicker::before,
+    .masthead-kicker::after { display: none; }
+
+    /* Stacked, the edition line needs no separators between its parts. */
+    .masthead-edition { flex-direction: column; gap: 0.3rem; }
+    .masthead-edition .sep { display: none; }
+
+    .layout { padding: 0 var(--gap-md); }
+    main { padding: var(--gap-xl) 0 var(--gap-2xl); }
+
+    .lead-standfirst::first-letter { font-size: 3.1em; }
+
+    .content { font-size: 1.0625rem; }
+    .content h2 + p:not(.tags)::first-letter,
+    .content h2 + .tags + p::first-letter { font-size: 3em; }
+
+    /* The countdown reads first on a phone, above what it is a countdown for. */
+    .deadline {
+        grid-template-columns: minmax(0, 1fr);
+        row-gap: 0.2rem;
+    }
+
+    .issue-nav-bottom { grid-template-columns: 1fr; gap: var(--gap-lg); }
+    .issue-nav-group.is-next { text-align: left; }
+
+    .footer-inner { padding: var(--gap-xl) var(--gap-md); }
+    .footer-links { flex-direction: column; align-items: flex-start; gap: var(--gap-sm); }
+
+    .scroll-to-top { right: var(--gap-md); bottom: var(--gap-md); }
+}
+
+/* ─── Touch targets ─────────────────────────────────── */
+
+/* The compact print apparatus is sized for a mouse. On touch, enlarge the
+   hit area of the small standalone controls toward the ~44px tap minimum
+   without changing the mark itself. */
+@media (pointer: coarse) {
+    .theme-toggle { width: 2.5rem; height: 2.5rem; }
+    .scroll-to-top { width: 2.75rem; height: 2.75rem; }
+    .share-btn { padding: 0.6rem 0.85rem; }
+}
+
+/* ─── Reduced motion ────────────────────────────────── */
+
+@media (prefers-reduced-motion: reduce) {
+    * {
+        animation-duration: 0.001ms !important;
+        transition-duration: 0.001ms !important;
+        scroll-behavior: auto !important;
+    }
+}
+
+/* ─── Print (the real thing) ────────────────────────── */
+
+@media print {
+    .folio,
+    .back-bar,
+    .issue-nav,
+    .issue-share,
+    .scroll-to-top,
+    .site-footer,
+    .archive-search { display: none !important; }
+
+    body { background: #fff; color: #000; font-size: 11pt; }
+    .content { display: block; }
+    .content > .issue-toc { position: static; max-height: none; }
+    .content a { border-bottom: none; }
+    .content a[href^="http"]::after {
+        content: " (" attr(href) ")";
+        font-family: var(--font-mono);
+        font-size: 0.75em;
+        color: #555;
+    }
+}
+
+.deadlines-rest {
+    margin: var(--gap-md) 0 0;
+    font-size: 0.875rem;
+    font-style: italic;
+    color: var(--muted);
+}
+
+/* Link from the homepage teaser to the full /deadlines page. */
+.deadlines-more {
+    font-family: var(--font-mono);
+    font-size: 0.6875rem;
+    font-weight: 600;
+    font-style: normal;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--ink-soft);
+    text-decoration: none;
+    border-bottom: 1px solid var(--hairline);
+    transition: color 0.18s var(--ease), border-color 0.18s var(--ease);
+}
+.deadlines-more:hover { color: var(--accent); border-bottom-color: var(--accent); }
+
+/* ─── /deadlines page ─────────────────────────────────── */
+
+/* A focused page, so the home nameplate steps aside; the folio bar stays. */
+body.deadlines-route .masthead { display: none; }
+
+.deadlines-page-top { margin-bottom: var(--gap-lg); }
+.deadlines-back {
+    font-family: var(--font-mono);
+    font-size: 0.6875rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--muted);
+    text-decoration: none;
+    border-bottom: 1px solid transparent;
+    transition: color 0.18s var(--ease), border-color 0.18s var(--ease);
+}
+.deadlines-back:hover { color: var(--accent); border-bottom-color: var(--accent); }
+
+.month-group { margin-bottom: var(--gap-2xl); }
+.month-group:last-child { margin-bottom: 0; }
+.month-title {
+    display: flex;
+    align-items: center;
+    gap: var(--gap-md);
+    margin: 0 0 var(--gap-sm);
+    font-family: var(--font-mono);
+    font-size: 0.6875rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.14em;
+    color: var(--accent);
+    font-variant-numeric: tabular-nums;
+}
+.month-title::after {
+    content: "";
+    flex: 1 1 auto;
+    height: 1px;
+    background: var(--hairline);
+}
+</style><!--CRITICAL-CSS-END-->
+    <script>
+        (function () {
+            try {
+                var t = localStorage.getItem('gazette-theme');
+                if (t === 'dark' || t === 'light') document.documentElement.setAttribute('data-theme', t);
+            } catch (e) { /* storage blocked — fall back to the OS preference */ }
+            if (/^\/issue\/\d+\/\d+\/?$/i.test(location.pathname)) {
+                document.documentElement.classList.add('initial-issue-route');
+            }
+        })();
+    </script>
+</head>
+<body class="deadlines-route">
+    <a class="skip-link" href="#main">Към съдържанието</a>
+    <div id="a11y-status" class="visually-hidden" role="status" aria-live="polite"></div>
+    <header class="folio" aria-label="Лента с навигация">
+        <div class="folio-inner">
+            <a href="/" class="folio-brand" aria-label="gazette.bg — начална страница">gazette<span class="brand-dot">.</span>bg</a>
+            <nav class="folio-nav" aria-label="Основна навигация">
+                <a class="folio-link" href="/#archive">Архив</a>
+                <a class="folio-link" href="/deadlines/">Срокове</a>
+                <a class="folio-link" href="/#about" data-optional>За проекта</a>
+                <a class="folio-link" href="https://dv.parliament.bg" target="_blank" rel="noopener" data-optional>dv.parliament.bg ↗</a>
+                <button type="button" class="theme-toggle" id="theme-toggle" aria-label="Смяна на тъмна и светла тема" title="Смяна на тема">
+                    <svg class="icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true">
+                        <circle cx="12" cy="12" r="4.2" />
+                        <path d="M12 2.5v2M12 19.5v2M2.5 12h2M19.5 12h2M5.2 5.2l1.4 1.4M17.4 17.4l1.4 1.4M18.8 5.2l-1.4 1.4M6.6 17.4l-1.4 1.4" />
+                    </svg>
+                    <svg class="icon-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                        <path d="M20 14.5A8.5 8.5 0 0 1 9.5 4a8.5 8.5 0 1 0 10.5 10.5z" />
+                    </svg>
+                </button>
+            </nav>
+        </div>
+        <div class="reading-progress" id="reading-progress" aria-hidden="true"></div>
+    </header>
+
+    <header class="masthead" aria-label="Заглавна част на изданието">
+        <div class="masthead-inner">
+            <p class="masthead-kicker">Обобщения на официалното издание</p>
+            <p class="masthead-title"><a href="/">Държавен вестник</a></p>
+            <p class="masthead-edition">
+                <span class="edition-accent">Неофициално издание</span>
+                <span class="sep">·</span>
+                <span>Обобщения с изкуствен интелект</span>
+                <span class="sep">·</span>
+                <span>Източник: dv.parliament.bg</span>
+            </p>
+            <p class="masthead-tagline">Новите закони, правила и решения от всеки брой — обобщени ясно и кратко, за да видите какво ви засяга за минути.</p>
+        </div>
+    </header>
+
+    <div class="layout">
+        <main id="main">
+            <div id="home-view">
+                <div id="home-content"><!--HOME-CONTENT-START--><section class="deadlines-page" id="deadlines-page"><div class="deadlines-page-top"><a class="deadlines-back" href="/">← Начало</a></div><div class="section-head"><h1 class="section-title">Срокове, които текат</h1><span class="section-count">39 срока</span></div><p class="deadlines-note">Всички срокове, в които все още можеш да направиш нещо — възражение, обжалване, заявление. Изчислени от датата на броя; за сигурност проверете самия брой.</p><div class="month-group"><h2 class="month-title">Юли 2026</h2><ul class="deadline-list"><li class="deadline" data-expires="2026-07-19"><span class="deadline-left">до 19 юли</span><span class="deadline-body"><a class="deadline-what" href="/issue/2026/56/" data-file="issues/2026/56/56.md" data-issue="56" data-date="19 Юни 2026" data-year="2026">Обжалване на разширените или новите защитени зони пред Върховния административен съд</a><span class="deadline-who">собственици на имоти в Ивайловград, Свиленград, Свищов и Бургас · брой 56</span><a class="deadline-cal" download="gazette-deadline-56.ics" href="data:text/calendar;charset=utf-8;base64,QkVHSU46VkNBTEVOREFSDQpWRVJTSU9OOjIuMA0KUFJPRElEOi0vL2dhemV0dGUuYmcvL2RlYWRsaW5lcy8vQkcNCkNBTFNDQUxFOkdSRUdPUklBTg0KQkVHSU46VkVWRU5UDQpVSUQ6MjAyNi01Ni0yMDI2LTA3LTE5LTg0QGdhemV0dGUuYmcNCkRUU1RBTVA6MjAyNjA3MTlUMDAwMDAwWg0KRFRTVEFSVDtWQUxVRT1EQVRFOjIwMjYwNzE5DQpEVEVORDtWQUxVRT1EQVRFOjIwMjYwNzIwDQpTVU1NQVJZOtCh0YDQvtC6IOKAlCDQntCx0LbQsNC70LLQsNC90LUg0L3QsCDRgNCw0LfRiNC40YDQtdC90LgNCiDRgtC1INC40LvQuCDQvdC+0LLQuNGC0LUg0LfQsNGJ0LjRgtC10L3QuCDQt9C+0L3QuCDQv9GA0LXQtCDQktGK0YANCiDRhdC+0LLQvdC40Y8g0LDQtNC80LjQvdC40YHRgtGA0LDRgtC40LLQtdC9INGB0YrQtA0KREVTQ1JJUFRJT0460YHQvtCx0YHRgtCy0LXQvdC40YbQuCDQvdCwINC40LzQvtGC0Lgg0LIg0JjQsg0KINCw0LnQu9C+0LLQs9GA0LDQtFwsINCh0LLQuNC70LXQvdCz0YDQsNC0XCwg0KHQstC40YnQvtCyINC4INCR0YMNCiDRgNCz0LDRgSDCtyDQlNGK0YDQttCw0LLQtdC9INCy0LXRgdGC0L3QuNC6XCwg0LHRgNC+0LkgNTYgwrcgDQogaHR0cHM6Ly9nYXpldHRlLmJnL2lzc3VlLzIwMjYvNTYvDQpVUkw6aHR0cHM6Ly9nYXpldHRlLmJnL2lzc3VlLzIwMjYvNTYvDQpFTkQ6VkVWRU5UDQpFTkQ6VkNBTEVOREFSDQo=" aria-label="Добави срока в календара">＋ Календар</a></span></li><li class="deadline" data-expires="2026-07-19"><span class="deadline-left">до 19 юли</span><span class="deadline-body"><a class="deadline-what" href="/issue/2026/56/" data-file="issues/2026/56/56.md" data-issue="56" data-date="19 Юни 2026" data-year="2026">Възражение или обжалване на промени в устройствени планове</a><span class="deadline-who">собственици на имоти в засегнати квартали и землища · брой 56</span><a class="deadline-cal" download="gazette-deadline-56.ics" href="data:text/calendar;charset=utf-8;base64,QkVHSU46VkNBTEVOREFSDQpWRVJTSU9OOjIuMA0KUFJPRElEOi0vL2dhemV0dGUuYmcvL2RlYWRsaW5lcy8vQkcNCkNBTFNDQUxFOkdSRUdPUklBTg0KQkVHSU46VkVWRU5UDQpVSUQ6MjAyNi01Ni0yMDI2LTA3LTE5LTU4QGdhemV0dGUuYmcNCkRUU1RBTVA6MjAyNjA3MTlUMDAwMDAwWg0KRFRTVEFSVDtWQUxVRT1EQVRFOjIwMjYwNzE5DQpEVEVORDtWQUxVRT1EQVRFOjIwMjYwNzIwDQpTVU1NQVJZOtCh0YDQvtC6IOKAlCDQktGK0LfRgNCw0LbQtdC90LjQtSDQuNC70Lgg0L7QsdC20LDQu9Cy0LANCiDQvdC1INC90LAg0L/RgNC+0LzQtdC90Lgg0LIg0YPRgdGC0YDQvtC50YHRgtCy0LXQvdC4INC/0LvQsNC90L7QstC1DQpERVNDUklQVElPTjrRgdC+0LHRgdGC0LLQtdC90LjRhtC4INC90LAg0LjQvNC+0YLQuCDQsiDQt9CwDQog0YHQtdCz0L3QsNGC0Lgg0LrQstCw0YDRgtCw0LvQuCDQuCDQt9C10LzQu9C40YnQsCDCtyDQlNGK0YDQttCw0LLQtQ0KINC9INCy0LXRgdGC0L3QuNC6XCwg0LHRgNC+0LkgNTYgwrcgaHR0cHM6Ly9nYXpldHQNCiBlLmJnL2lzc3VlLzIwMjYvNTYvDQpVUkw6aHR0cHM6Ly9nYXpldHRlLmJnL2lzc3VlLzIwMjYvNTYvDQpFTkQ6VkVWRU5UDQpFTkQ6VkNBTEVOREFSDQo=" aria-label="Добави срока в календара">＋ Календар</a></span></li><li class="deadline" data-expires="2026-07-21"><span class="deadline-left">до 21 юли</span><span class="deadline-body"><a class="deadline-what" href="/issue/2026/62/" data-file="issues/2026/62/62.md" data-issue="62" data-date="7 Юли 2026" data-year="2026">Обжалване на самото трасе на широколентова инфраструктура</a><span class="deadline-who">собственици на имоти по трасето · брой 62</span><a class="deadline-cal" download="gazette-deadline-62.ics" href="data:text/calendar;charset=utf-8;base64,QkVHSU46VkNBTEVOREFSDQpWRVJTSU9OOjIuMA0KUFJPRElEOi0vL2dhemV0dGUuYmcvL2RlYWRsaW5lcy8vQkcNCkNBTFNDQUxFOkdSRUdPUklBTg0KQkVHSU46VkVWRU5UDQpVSUQ6MjAyNi02Mi0yMDI2LTA3LTIxLTU3QGdhemV0dGUuYmcNCkRUU1RBTVA6MjAyNjA3MjFUMDAwMDAwWg0KRFRTVEFSVDtWQUxVRT1EQVRFOjIwMjYwNzIxDQpEVEVORDtWQUxVRT1EQVRFOjIwMjYwNzIyDQpTVU1NQVJZOtCh0YDQvtC6IOKAlCDQntCx0LbQsNC70LLQsNC90LUg0L3QsCDRgdCw0LzQvtGC0L4g0YLRgA0KINCw0YHQtSDQvdCwINGI0LjRgNC+0LrQvtC70LXQvdGC0L7QstCwINC40L3RhNGA0LDRgdGC0YDRg9C60YLRg9GA0LANCkRFU0NSSVBUSU9OOtGB0L7QsdGB0YLQstC10L3QuNGG0Lgg0L3QsCDQuNC80L7RgtC4INC/0L4g0YINCiDRgNCw0YHQtdGC0L4gwrcg0JTRitGA0LbQsNCy0LXQvSDQstC10YHRgtC90LjQulwsINCx0YDQvtC5IDYyIA0KIMK3IGh0dHBzOi8vZ2F6ZXR0ZS5iZy9pc3N1ZS8yMDI2LzYyLw0KVVJMOmh0dHBzOi8vZ2F6ZXR0ZS5iZy9pc3N1ZS8yMDI2LzYyLw0KRU5EOlZFVkVOVA0KRU5EOlZDQUxFTkRBUg0K" aria-label="Добави срока в календара">＋ Календар</a></span></li><li class="deadline" data-expires="2026-07-21"><span class="deadline-left">до 21 юли</span><span class="deadline-body"><a class="deadline-what" href="/issue/2026/50/" data-file="issues/2026/50/50.md" data-issue="50" data-date="2 Юни 2026" data-year="2026">Закупуване на документация за участие в търг за парцел в жк. „Люлин – 8“ или имота във „Враждебна“</a><span class="deadline-who">потенциални купувачи на общински имоти в София · брой 50</span><a class="deadline-cal" download="gazette-deadline-50.ics" href="data:text/calendar;charset=utf-8;base64,QkVHSU46VkNBTEVOREFSDQpWRVJTSU9OOjIuMA0KUFJPRElEOi0vL2dhemV0dGUuYmcvL2RlYWRsaW5lcy8vQkcNCkNBTFNDQUxFOkdSRUdPUklBTg0KQkVHSU46VkVWRU5UDQpVSUQ6MjAyNi01MC0yMDI2LTA3LTIxLTk4QGdhemV0dGUuYmcNCkRUU1RBTVA6MjAyNjA3MjFUMDAwMDAwWg0KRFRTVEFSVDtWQUxVRT1EQVRFOjIwMjYwNzIxDQpEVEVORDtWQUxVRT1EQVRFOjIwMjYwNzIyDQpTVU1NQVJZOtCh0YDQvtC6IOKAlCDQl9Cw0LrRg9C/0YPQstCw0L3QtSDQvdCwINC00L7QutGD0LzQtdC90YINCiDQsNGG0LjRjyDQt9CwINGD0YfQsNGB0YLQuNC1INCyINGC0YrRgNCzINC30LAg0L/QsNGA0YbQtdC7INCyINC2DQog0LouIOKAntCb0Y7Qu9C40L0g4oCTIDjigJwg0LjQu9C4INC40LzQvtGC0LAg0LLRitCyIOKAntCS0YDQsNC20LTQtQ0KINCx0L3QsOKAnA0KREVTQ1JJUFRJT0460L/QvtGC0LXQvdGG0LjQsNC70L3QuCDQutGD0L/Rg9Cy0LDRh9C4INC90LAg0L4NCiDQsdGJ0LjQvdGB0LrQuCDQuNC80L7RgtC4INCyINCh0L7RhNC40Y8gwrcg0JTRitGA0LbQsNCy0LXQvSDQstC10YENCiDRgtC90LjQulwsINCx0YDQvtC5IDUwIMK3IGh0dHBzOi8vZ2F6ZXR0ZS5iZy8NCiBpc3N1ZS8yMDI2LzUwLw0KVVJMOmh0dHBzOi8vZ2F6ZXR0ZS5iZy9pc3N1ZS8yMDI2LzUwLw0KRU5EOlZFVkVOVA0KRU5EOlZDQUxFTkRBUg0K" aria-label="Добави срока в календара">＋ Календар</a></span></li><li class="deadline" data-expires="2026-07-22"><span class="deadline-left">до 22 юли</span><span class="deadline-body"><a class="deadline-what" href="/issue/2026/50/" data-file="issues/2026/50/50.md" data-issue="50" data-date="2 Юни 2026" data-year="2026">Закупуване на документация за участие в търг за имота в с. Бусманци</a><span class="deadline-who">потенциални купувачи на общински имоти в София · брой 50</span><a class="deadline-cal" download="gazette-deadline-50.ics" href="data:text/calendar;charset=utf-8;base64,QkVHSU46VkNBTEVOREFSDQpWRVJTSU9OOjIuMA0KUFJPRElEOi0vL2dhemV0dGUuYmcvL2RlYWRsaW5lcy8vQkcNCkNBTFNDQUxFOkdSRUdPUklBTg0KQkVHSU46VkVWRU5UDQpVSUQ6MjAyNi01MC0yMDI2LTA3LTIyLTY3QGdhemV0dGUuYmcNCkRUU1RBTVA6MjAyNjA3MjJUMDAwMDAwWg0KRFRTVEFSVDtWQUxVRT1EQVRFOjIwMjYwNzIyDQpEVEVORDtWQUxVRT1EQVRFOjIwMjYwNzIzDQpTVU1NQVJZOtCh0YDQvtC6IOKAlCDQl9Cw0LrRg9C/0YPQstCw0L3QtSDQvdCwINC00L7QutGD0LzQtdC90YINCiDQsNGG0LjRjyDQt9CwINGD0YfQsNGB0YLQuNC1INCyINGC0YrRgNCzINC30LAg0LjQvNC+0YLQsCDQsiDRgS4NCiAg0JHRg9GB0LzQsNC90YbQuA0KREVTQ1JJUFRJT0460L/QvtGC0LXQvdGG0LjQsNC70L3QuCDQutGD0L/Rg9Cy0LDRh9C4INC90LAg0L4NCiDQsdGJ0LjQvdGB0LrQuCDQuNC80L7RgtC4INCyINCh0L7RhNC40Y8gwrcg0JTRitGA0LbQsNCy0LXQvSDQstC10YENCiDRgtC90LjQulwsINCx0YDQvtC5IDUwIMK3IGh0dHBzOi8vZ2F6ZXR0ZS5iZy8NCiBpc3N1ZS8yMDI2LzUwLw0KVVJMOmh0dHBzOi8vZ2F6ZXR0ZS5iZy9pc3N1ZS8yMDI2LzUwLw0KRU5EOlZFVkVOVA0KRU5EOlZDQUxFTkRBUg0K" aria-label="Добави срока в календара">＋ Календар</a></span></li><li class="deadline" data-expires="2026-07-23"><span class="deadline-left">до 23 юли</span><span class="deadline-body"><a class="deadline-what" href="/issue/2026/57/" data-file="issues/2026/57/57.md" data-issue="57" data-date="23 Юни 2026" data-year="2026">Обжалване на нова кадастрална карта с променени площи на имоти</a><span class="deadline-who">собственици на имоти в села в общините Горна Оряховица, Разград, Ситово, Омуртаг и Елена · брой 57</span><a class="deadline-cal" download="gazette-deadline-57.ics" href="data:text/calendar;charset=utf-8;base64,QkVHSU46VkNBTEVOREFSDQpWRVJTSU9OOjIuMA0KUFJPRElEOi0vL2dhemV0dGUuYmcvL2RlYWRsaW5lcy8vQkcNCkNBTFNDQUxFOkdSRUdPUklBTg0KQkVHSU46VkVWRU5UDQpVSUQ6MjAyNi01Ny0yMDI2LTA3LTIzLTYyQGdhemV0dGUuYmcNCkRUU1RBTVA6MjAyNjA3MjNUMDAwMDAwWg0KRFRTVEFSVDtWQUxVRT1EQVRFOjIwMjYwNzIzDQpEVEVORDtWQUxVRT1EQVRFOjIwMjYwNzI0DQpTVU1NQVJZOtCh0YDQvtC6IOKAlCDQntCx0LbQsNC70LLQsNC90LUg0L3QsCDQvdC+0LLQsCDQutCw0LTQsA0KINGB0YLRgNCw0LvQvdCwINC60LDRgNGC0LAg0YEg0L/RgNC+0LzQtdC90LXQvdC4INC/0LvQvtGJ0Lgg0L3QsCDQuA0KINC80L7RgtC4DQpERVNDUklQVElPTjrRgdC+0LHRgdGC0LLQtdC90LjRhtC4INC90LAg0LjQvNC+0YLQuCDQsiDRgdC1DQog0LvQsCDQsiDQvtCx0YnQuNC90LjRgtC1INCT0L7RgNC90LAg0J7RgNGP0YXQvtCy0LjRhtCwXCwg0KDQsNC30LMNCiDRgNCw0LRcLCDQodC40YLQvtCy0L5cLCDQntC80YPRgNGC0LDQsyDQuCDQldC70LXQvdCwIMK3INCU0YrRgA0KINC20LDQstC10L0g0LLQtdGB0YLQvdC40LpcLCDQsdGA0L7QuSA1NyDCtyBodHRwczovL2dhDQogemV0dGUuYmcvaXNzdWUvMjAyNi81Ny8NClVSTDpodHRwczovL2dhemV0dGUuYmcvaXNzdWUvMjAyNi81Ny8NCkVORDpWRVZFTlQNCkVORDpWQ0FMRU5EQVINCg==" aria-label="Добави срока в календара">＋ Календар</a></span></li><li class="deadline" data-expires="2026-07-23"><span class="deadline-left">до 23 юли</span><span class="deadline-body"><a class="deadline-what" href="/issue/2026/57/" data-file="issues/2026/57/57.md" data-issue="57" data-date="23 Юни 2026" data-year="2026">Възражение срещу ново трасе през имот</a><span class="deadline-who">собственици на имоти по трасетата на електропровод, газопровод, оптични кабели и водопроводи · брой 57</span><a class="deadline-cal" download="gazette-deadline-57.ics" href="data:text/calendar;charset=utf-8;base64,QkVHSU46VkNBTEVOREFSDQpWRVJTSU9OOjIuMA0KUFJPRElEOi0vL2dhemV0dGUuYmcvL2RlYWRsaW5lcy8vQkcNCkNBTFNDQUxFOkdSRUdPUklBTg0KQkVHSU46VkVWRU5UDQpVSUQ6MjAyNi01Ny0yMDI2LTA3LTIzLTM3QGdhemV0dGUuYmcNCkRUU1RBTVA6MjAyNjA3MjNUMDAwMDAwWg0KRFRTVEFSVDtWQUxVRT1EQVRFOjIwMjYwNzIzDQpEVEVORDtWQUxVRT1EQVRFOjIwMjYwNzI0DQpTVU1NQVJZOtCh0YDQvtC6IOKAlCDQktGK0LfRgNCw0LbQtdC90LjQtSDRgdGA0LXRidGDINC90L7QstC+IA0KINGC0YDQsNGB0LUg0L/RgNC10Lcg0LjQvNC+0YINCkRFU0NSSVBUSU9OOtGB0L7QsdGB0YLQstC10L3QuNGG0Lgg0L3QsCDQuNC80L7RgtC4INC/0L4g0YINCiDRgNCw0YHQtdGC0LDRgtCwINC90LAg0LXQu9C10LrRgtGA0L7Qv9GA0L7QstC+0LRcLCDQs9Cw0LfQvtC/0YDQvtCyDQog0L7QtFwsINC+0L/RgtC40YfQvdC4INC60LDQsdC10LvQuCDQuCDQstC+0LTQvtC/0YDQvtCy0L7QtNC4IMK3IA0KINCU0YrRgNC20LDQstC10L0g0LLQtdGB0YLQvdC40LpcLCDQsdGA0L7QuSA1NyDCtyBodHRwczovDQogL2dhemV0dGUuYmcvaXNzdWUvMjAyNi81Ny8NClVSTDpodHRwczovL2dhemV0dGUuYmcvaXNzdWUvMjAyNi81Ny8NCkVORDpWRVZFTlQNCkVORDpWQ0FMRU5EQVINCg==" aria-label="Добави срока в календара">＋ Календар</a></span></li><li class="deadline" data-expires="2026-07-24"><span class="deadline-left">до 24 юли</span><span class="deadline-body"><a class="deadline-what" href="/issue/2026/63/" data-file="issues/2026/63/63.md" data-issue="63" data-date="10 Юли 2026" data-year="2026">Подаване на писмено становище относно имоти</a><span class="deadline-who">собственици на имоти в землищата на Царево, Бродилово, Изгрев, Велека и Фазаново · брой 63</span><a class="deadline-cal" download="gazette-deadline-63.ics" href="data:text/calendar;charset=utf-8;base64,QkVHSU46VkNBTEVOREFSDQpWRVJTSU9OOjIuMA0KUFJPRElEOi0vL2dhemV0dGUuYmcvL2RlYWRsaW5lcy8vQkcNCkNBTFNDQUxFOkdSRUdPUklBTg0KQkVHSU46VkVWRU5UDQpVSUQ6MjAyNi02My0yMDI2LTA3LTI0LTQzQGdhemV0dGUuYmcNCkRUU1RBTVA6MjAyNjA3MjRUMDAwMDAwWg0KRFRTVEFSVDtWQUxVRT1EQVRFOjIwMjYwNzI0DQpEVEVORDtWQUxVRT1EQVRFOjIwMjYwNzI1DQpTVU1NQVJZOtCh0YDQvtC6IOKAlCDQn9C+0LTQsNCy0LDQvdC1INC90LAg0L/QuNGB0LzQtdC90L4g0YHRgg0KINCw0L3QvtCy0LjRidC1INC+0YLQvdC+0YHQvdC+INC40LzQvtGC0LgNCkRFU0NSSVBUSU9OOtGB0L7QsdGB0YLQstC10L3QuNGG0Lgg0L3QsCDQuNC80L7RgtC4INCyINC30LUNCiDQvNC70LjRidCw0YLQsCDQvdCwINCm0LDRgNC10LLQvlwsINCR0YDQvtC00LjQu9C+0LLQvlwsINCY0LfQs9GADQog0LXQslwsINCS0LXQu9C10LrQsCDQuCDQpNCw0LfQsNC90L7QstC+IMK3INCU0YrRgNC20LDQstC10L0g0LLQtQ0KINGB0YLQvdC40LpcLCDQsdGA0L7QuSA2MyDCtyBodHRwczovL2dhemV0dGUuYmcNCiAvaXNzdWUvMjAyNi82My8NClVSTDpodHRwczovL2dhemV0dGUuYmcvaXNzdWUvMjAyNi82My8NCkVORDpWRVZFTlQNCkVORDpWQ0FMRU5EQVINCg==" aria-label="Добави срока в календара">＋ Календар</a></span></li><li class="deadline" data-expires="2026-07-24"><span class="deadline-left">до 24 юли</span><span class="deadline-body"><a class="deadline-what" href="/issue/2026/63/" data-file="issues/2026/63/63.md" data-issue="63" data-date="10 Юли 2026" data-year="2026">Обжалване на самото разрешение за строеж на кабелна инфраструктура</a><span class="deadline-who">собственици на имоти по трасето на интернет кабели · брой 63</span><a class="deadline-cal" download="gazette-deadline-63.ics" href="data:text/calendar;charset=utf-8;base64,QkVHSU46VkNBTEVOREFSDQpWRVJTSU9OOjIuMA0KUFJPRElEOi0vL2dhemV0dGUuYmcvL2RlYWRsaW5lcy8vQkcNCkNBTFNDQUxFOkdSRUdPUklBTg0KQkVHSU46VkVWRU5UDQpVSUQ6MjAyNi02My0yMDI2LTA3LTI0LTY2QGdhemV0dGUuYmcNCkRUU1RBTVA6MjAyNjA3MjRUMDAwMDAwWg0KRFRTVEFSVDtWQUxVRT1EQVRFOjIwMjYwNzI0DQpEVEVORDtWQUxVRT1EQVRFOjIwMjYwNzI1DQpTVU1NQVJZOtCh0YDQvtC6IOKAlCDQntCx0LbQsNC70LLQsNC90LUg0L3QsCDRgdCw0LzQvtGC0L4g0YDQsA0KINC30YDQtdGI0LXQvdC40LUg0LfQsCDRgdGC0YDQvtC10LYg0L3QsCDQutCw0LHQtdC70L3QsCDQuNC90YTRgNCw0YENCiDRgtGA0YPQutGC0YPRgNCwDQpERVNDUklQVElPTjrRgdC+0LHRgdGC0LLQtdC90LjRhtC4INC90LAg0LjQvNC+0YLQuCDQv9C+INGCDQog0YDQsNGB0LXRgtC+INC90LAg0LjQvdGC0LXRgNC90LXRgiDQutCw0LHQtdC70Lggwrcg0JTRitGA0LbQsNCy0LXQvQ0KICDQstC10YHRgtC90LjQulwsINCx0YDQvtC5IDYzIMK3IGh0dHBzOi8vZ2F6ZXR0ZQ0KIC5iZy9pc3N1ZS8yMDI2LzYzLw0KVVJMOmh0dHBzOi8vZ2F6ZXR0ZS5iZy9pc3N1ZS8yMDI2LzYzLw0KRU5EOlZFVkVOVA0KRU5EOlZDQUxFTkRBUg0K" aria-label="Добави срока в календара">＋ Календар</a></span></li><li class="deadline" data-expires="2026-07-24"><span class="deadline-left">до 24 юли</span><span class="deadline-body"><a class="deadline-what" href="/issue/2026/61/" data-file="issues/2026/61/61.md" data-issue="61" data-date="3 Юли 2026" data-year="2026">Участие в търг за общински имот в Промишлена зона „Зеленка“</a><span class="deadline-who">жители на Велико Търново и заинтересовани купувачи · брой 61</span><a class="deadline-cal" download="gazette-deadline-61.ics" href="data:text/calendar;charset=utf-8;base64,QkVHSU46VkNBTEVOREFSDQpWRVJTSU9OOjIuMA0KUFJPRElEOi0vL2dhemV0dGUuYmcvL2RlYWRsaW5lcy8vQkcNCkNBTFNDQUxFOkdSRUdPUklBTg0KQkVHSU46VkVWRU5UDQpVSUQ6MjAyNi02MS0yMDI2LTA3LTI0LTU5QGdhemV0dGUuYmcNCkRUU1RBTVA6MjAyNjA3MjRUMDAwMDAwWg0KRFRTVEFSVDtWQUxVRT1EQVRFOjIwMjYwNzI0DQpEVEVORDtWQUxVRT1EQVRFOjIwMjYwNzI1DQpTVU1NQVJZOtCh0YDQvtC6IOKAlCDQo9GH0LDRgdGC0LjQtSDQsiDRgtGK0YDQsyDQt9CwINC+0LHRidC4DQog0L3RgdC60Lgg0LjQvNC+0YIg0LIg0J/RgNC+0LzQuNGI0LvQtdC90LAg0LfQvtC90LAg4oCe0JfQtdC70LXQvdC60LANCiDigJwNCkRFU0NSSVBUSU9OOtC20LjRgtC10LvQuCDQvdCwINCS0LXQu9C40LrQviDQotGK0YDQvdC+0LLQviANCiDQuCDQt9Cw0LjQvdGC0LXRgNC10YHQvtCy0LDQvdC4INC60YPQv9GD0LLQsNGH0Lggwrcg0JTRitGA0LbQsNCy0LXQvQ0KICDQstC10YHRgtC90LjQulwsINCx0YDQvtC5IDYxIMK3IGh0dHBzOi8vZ2F6ZXR0ZQ0KIC5iZy9pc3N1ZS8yMDI2LzYxLw0KVVJMOmh0dHBzOi8vZ2F6ZXR0ZS5iZy9pc3N1ZS8yMDI2LzYxLw0KRU5EOlZFVkVOVA0KRU5EOlZDQUxFTkRBUg0K" aria-label="Добави срока в календара">＋ Календар</a></span></li><li class="deadline" data-expires="2026-07-26"><span class="deadline-left">до 26 юли</span><span class="deadline-body"><a class="deadline-what" href="/issue/2026/58/" data-file="issues/2026/58/58.md" data-issue="58" data-date="26 Юни 2026" data-year="2026">Възражение или обжалване срещу устройствени планове и отчуждавания</a><span class="deadline-who">собственици на имоти в засегнатите землища · брой 58</span><a class="deadline-cal" download="gazette-deadline-58.ics" href="data:text/calendar;charset=utf-8;base64,QkVHSU46VkNBTEVOREFSDQpWRVJTSU9OOjIuMA0KUFJPRElEOi0vL2dhemV0dGUuYmcvL2RlYWRsaW5lcy8vQkcNCkNBTFNDQUxFOkdSRUdPUklBTg0KQkVHSU46VkVWRU5UDQpVSUQ6MjAyNi01OC0yMDI2LTA3LTI2LTY2QGdhemV0dGUuYmcNCkRUU1RBTVA6MjAyNjA3MjZUMDAwMDAwWg0KRFRTVEFSVDtWQUxVRT1EQVRFOjIwMjYwNzI2DQpEVEVORDtWQUxVRT1EQVRFOjIwMjYwNzI3DQpTVU1NQVJZOtCh0YDQvtC6IOKAlCDQktGK0LfRgNCw0LbQtdC90LjQtSDQuNC70Lgg0L7QsdC20LDQu9Cy0LANCiDQvdC1INGB0YDQtdGJ0YMg0YPRgdGC0YDQvtC50YHRgtCy0LXQvdC4INC/0LvQsNC90L7QstC1INC4INC+0YLRh9GDDQog0LbQtNCw0LLQsNC90LjRjw0KREVTQ1JJUFRJT0460YHQvtCx0YHRgtCy0LXQvdC40YbQuCDQvdCwINC40LzQvtGC0Lgg0LIg0LfQsA0KINGB0LXQs9C90LDRgtC40YLQtSDQt9C10LzQu9C40YnQsCDCtyDQlNGK0YDQttCw0LLQtdC9INCy0LXRgdGC0L3QuNC6DQogXCwg0LHRgNC+0LkgNTggwrcgaHR0cHM6Ly9nYXpldHRlLmJnL2lzc3UNCiBlLzIwMjYvNTgvDQpVUkw6aHR0cHM6Ly9nYXpldHRlLmJnL2lzc3VlLzIwMjYvNTgvDQpFTkQ6VkVWRU5UDQpFTkQ6VkNBTEVOREFSDQo=" aria-label="Добави срока в календара">＋ Календар</a></span></li><li class="deadline" data-expires="2026-07-28"><span class="deadline-left">до 28 юли</span><span class="deadline-body"><a class="deadline-what" href="/issue/2026/64/" data-file="issues/2026/64/64.md" data-issue="64" data-date="14 Юли 2026" data-year="2026">Обжалване на разрешение за строеж на оптична инфраструктура</a><span class="deadline-who">собственици на имоти по трасето на оптичната инфраструктура · брой 64</span><a class="deadline-cal" download="gazette-deadline-64.ics" href="data:text/calendar;charset=utf-8;base64,QkVHSU46VkNBTEVOREFSDQpWRVJTSU9OOjIuMA0KUFJPRElEOi0vL2dhemV0dGUuYmcvL2RlYWRsaW5lcy8vQkcNCkNBTFNDQUxFOkdSRUdPUklBTg0KQkVHSU46VkVWRU5UDQpVSUQ6MjAyNi02NC0yMDI2LTA3LTI4LTU5QGdhemV0dGUuYmcNCkRUU1RBTVA6MjAyNjA3MjhUMDAwMDAwWg0KRFRTVEFSVDtWQUxVRT1EQVRFOjIwMjYwNzI4DQpEVEVORDtWQUxVRT1EQVRFOjIwMjYwNzI5DQpTVU1NQVJZOtCh0YDQvtC6IOKAlCDQntCx0LbQsNC70LLQsNC90LUg0L3QsCDRgNCw0LfRgNC10YjQtdC90LgNCiDQtSDQt9CwINGB0YLRgNC+0LXQtiDQvdCwINC+0L/RgtC40YfQvdCwINC40L3RhNGA0LDRgdGC0YDRg9C60YLRg9GADQog0LANCkRFU0NSSVBUSU9OOtGB0L7QsdGB0YLQstC10L3QuNGG0Lgg0L3QsCDQuNC80L7RgtC4INC/0L4g0YINCiDRgNCw0YHQtdGC0L4g0L3QsCDQvtC/0YLQuNGH0L3QsNGC0LAg0LjQvdGE0YDQsNGB0YLRgNGD0LrRgtGD0YDQsCDCtw0KICDQlNGK0YDQttCw0LLQtdC9INCy0LXRgdGC0L3QuNC6XCwg0LHRgNC+0LkgNjQgwrcgaHR0cHM6DQogLy9nYXpldHRlLmJnL2lzc3VlLzIwMjYvNjQvDQpVUkw6aHR0cHM6Ly9nYXpldHRlLmJnL2lzc3VlLzIwMjYvNjQvDQpFTkQ6VkVWRU5UDQpFTkQ6VkNBTEVOREFSDQo=" aria-label="Добави срока в календара">＋ Календар</a></span></li><li class="deadline" data-expires="2026-07-30"><span class="deadline-left">до 30 юли</span><span class="deadline-body"><a class="deadline-what" href="/issue/2026/59/" data-file="issues/2026/59/59.md" data-issue="59" data-date="30 Юни 2026" data-year="2026">Обжалване на градоустройствени планове</a><span class="deadline-who">собственици на имоти в посочените населени места · брой 59</span><a class="deadline-cal" download="gazette-deadline-59.ics" href="data:text/calendar;charset=utf-8;base64,QkVHSU46VkNBTEVOREFSDQpWRVJTSU9OOjIuMA0KUFJPRElEOi0vL2dhemV0dGUuYmcvL2RlYWRsaW5lcy8vQkcNCkNBTFNDQUxFOkdSRUdPUklBTg0KQkVHSU46VkVWRU5UDQpVSUQ6MjAyNi01OS0yMDI2LTA3LTMwLTM4QGdhemV0dGUuYmcNCkRUU1RBTVA6MjAyNjA3MzBUMDAwMDAwWg0KRFRTVEFSVDtWQUxVRT1EQVRFOjIwMjYwNzMwDQpEVEVORDtWQUxVRT1EQVRFOjIwMjYwNzMxDQpTVU1NQVJZOtCh0YDQvtC6IOKAlCDQntCx0LbQsNC70LLQsNC90LUg0L3QsCDQs9GA0LDQtNC+0YPRgdGC0YANCiDQvtC50YHRgtCy0LXQvdC4INC/0LvQsNC90L7QstC1DQpERVNDUklQVElPTjrRgdC+0LHRgdGC0LLQtdC90LjRhtC4INC90LAg0LjQvNC+0YLQuCDQsiDQv9C+DQog0YHQvtGH0LXQvdC40YLQtSDQvdCw0YHQtdC70LXQvdC4INC80LXRgdGC0LAgwrcg0JTRitGA0LbQsNCy0LXQvSDQsg0KINC10YHRgtC90LjQulwsINCx0YDQvtC5IDU5IMK3IGh0dHBzOi8vZ2F6ZXR0ZS5iDQogZy9pc3N1ZS8yMDI2LzU5Lw0KVVJMOmh0dHBzOi8vZ2F6ZXR0ZS5iZy9pc3N1ZS8yMDI2LzU5Lw0KRU5EOlZFVkVOVA0KRU5EOlZDQUxFTkRBUg0K" aria-label="Добави срока в календара">＋ Календар</a></span></li><li class="deadline" data-expires="2026-07-30"><span class="deadline-left">до 30 юли</span><span class="deadline-body"><a class="deadline-what" href="/issue/2026/59/" data-file="issues/2026/59/59.md" data-issue="59" data-date="30 Юни 2026" data-year="2026">Обжалване на разширение на индустриален парк „Стряма“</a><span class="deadline-who">собственици на имоти в общините „Марица“ и Раковски · брой 59</span><a class="deadline-cal" download="gazette-deadline-59.ics" href="data:text/calendar;charset=utf-8;base64,QkVHSU46VkNBTEVOREFSDQpWRVJTSU9OOjIuMA0KUFJPRElEOi0vL2dhemV0dGUuYmcvL2RlYWRsaW5lcy8vQkcNCkNBTFNDQUxFOkdSRUdPUklBTg0KQkVHSU46VkVWRU5UDQpVSUQ6MjAyNi01OS0yMDI2LTA3LTMwLTUzQGdhemV0dGUuYmcNCkRUU1RBTVA6MjAyNjA3MzBUMDAwMDAwWg0KRFRTVEFSVDtWQUxVRT1EQVRFOjIwMjYwNzMwDQpEVEVORDtWQUxVRT1EQVRFOjIwMjYwNzMxDQpTVU1NQVJZOtCh0YDQvtC6IOKAlCDQntCx0LbQsNC70LLQsNC90LUg0L3QsCDRgNCw0LfRiNC40YDQtdC90LgNCiDQtSDQvdCwINC40L3QtNGD0YHRgtGA0LjQsNC70LXQvSDQv9Cw0YDQuiDigJ7QodGC0YDRj9C80LDigJwNCkRFU0NSSVBUSU9OOtGB0L7QsdGB0YLQstC10L3QuNGG0Lgg0L3QsCDQuNC80L7RgtC4INCyINC+0LENCiDRidC40L3QuNGC0LUg4oCe0JzQsNGA0LjRhtCw4oCcINC4INCg0LDQutC+0LLRgdC60Lggwrcg0JTRitGA0LbQsNCy0LUNCiDQvSDQstC10YHRgtC90LjQulwsINCx0YDQvtC5IDU5IMK3IGh0dHBzOi8vZ2F6ZXR0DQogZS5iZy9pc3N1ZS8yMDI2LzU5Lw0KVVJMOmh0dHBzOi8vZ2F6ZXR0ZS5iZy9pc3N1ZS8yMDI2LzU5Lw0KRU5EOlZFVkVOVA0KRU5EOlZDQUxFTkRBUg0K" aria-label="Добави срока в календара">＋ Календар</a></span></li><li class="deadline" data-expires="2026-07-30"><span class="deadline-left">до 30 юли</span><span class="deadline-body"><a class="deadline-what" href="/issue/2026/59/" data-file="issues/2026/59/59.md" data-issue="59" data-date="30 Юни 2026" data-year="2026">Обжалване на кабелна линия и фотоволтаична инсталация „Аурубис 4“</a><span class="deadline-who">жители и собственици на имоти край Пирдоп и Златица · брой 59</span><a class="deadline-cal" download="gazette-deadline-59.ics" href="data:text/calendar;charset=utf-8;base64,QkVHSU46VkNBTEVOREFSDQpWRVJTSU9OOjIuMA0KUFJPRElEOi0vL2dhemV0dGUuYmcvL2RlYWRsaW5lcy8vQkcNCkNBTFNDQUxFOkdSRUdPUklBTg0KQkVHSU46VkVWRU5UDQpVSUQ6MjAyNi01OS0yMDI2LTA3LTMwLTY1QGdhemV0dGUuYmcNCkRUU1RBTVA6MjAyNjA3MzBUMDAwMDAwWg0KRFRTVEFSVDtWQUxVRT1EQVRFOjIwMjYwNzMwDQpEVEVORDtWQUxVRT1EQVRFOjIwMjYwNzMxDQpTVU1NQVJZOtCh0YDQvtC6IOKAlCDQntCx0LbQsNC70LLQsNC90LUg0L3QsCDQutCw0LHQtdC70L3QsCDQuw0KINC40L3QuNGPINC4INGE0L7RgtC+0LLQvtC70YLQsNC40YfQvdCwINC40L3RgdGC0LDQu9Cw0YbQuNGPIOKAntCQ0YPRgA0KINGD0LHQuNGBIDTigJwNCkRFU0NSSVBUSU9OOtC20LjRgtC10LvQuCDQuCDRgdC+0LHRgdGC0LLQtdC90LjRhtC4INC90LAg0LgNCiDQvNC+0YLQuCDQutGA0LDQuSDQn9C40YDQtNC+0L8g0Lgg0JfQu9Cw0YLQuNGG0LAgwrcg0JTRitGA0LbQsNCy0LUNCiDQvSDQstC10YHRgtC90LjQulwsINCx0YDQvtC5IDU5IMK3IGh0dHBzOi8vZ2F6ZXR0DQogZS5iZy9pc3N1ZS8yMDI2LzU5Lw0KVVJMOmh0dHBzOi8vZ2F6ZXR0ZS5iZy9pc3N1ZS8yMDI2LzU5Lw0KRU5EOlZFVkVOVA0KRU5EOlZDQUxFTkRBUg0K" aria-label="Добави срока в календара">＋ Календар</a></span></li><li class="deadline" data-expires="2026-07-31"><span class="deadline-left">до 31 юли</span><span class="deadline-body"><a class="deadline-what" href="/issue/2026/65/" data-file="issues/2026/65/65.md" data-issue="65" data-date="17 Юли 2026" data-year="2026">Обжалване на одобрена промяна на предназначение на земя</a><span class="deadline-who">собственици на имоти в Сливен, м. Кешлика и с. Скобелево · брой 65</span><a class="deadline-cal" download="gazette-deadline-65.ics" href="data:text/calendar;charset=utf-8;base64,QkVHSU46VkNBTEVOREFSDQpWRVJTSU9OOjIuMA0KUFJPRElEOi0vL2dhemV0dGUuYmcvL2RlYWRsaW5lcy8vQkcNCkNBTFNDQUxFOkdSRUdPUklBTg0KQkVHSU46VkVWRU5UDQpVSUQ6MjAyNi02NS0yMDI2LTA3LTMxLTU1QGdhemV0dGUuYmcNCkRUU1RBTVA6MjAyNjA3MzFUMDAwMDAwWg0KRFRTVEFSVDtWQUxVRT1EQVRFOjIwMjYwNzMxDQpEVEVORDtWQUxVRT1EQVRFOjIwMjYwODAxDQpTVU1NQVJZOtCh0YDQvtC6IOKAlCDQntCx0LbQsNC70LLQsNC90LUg0L3QsCDQvtC00L7QsdGA0LXQvdCwIA0KINC/0YDQvtC80Y/QvdCwINC90LAg0L/RgNC10LTQvdCw0LfQvdCw0YfQtdC90LjQtSDQvdCwINC30LXQvNGPDQpERVNDUklQVElPTjrRgdC+0LHRgdGC0LLQtdC90LjRhtC4INC90LAg0LjQvNC+0YLQuCDQsiDQodC7DQog0LjQstC10L1cLCDQvC4g0JrQtdGI0LvQuNC60LAg0Lgg0YEuINCh0LrQvtCx0LXQu9C10LLQviDCtyDQlA0KINGK0YDQttCw0LLQtdC9INCy0LXRgdGC0L3QuNC6XCwg0LHRgNC+0LkgNjUgwrcgaHR0cHM6Ly8NCiBnYXpldHRlLmJnL2lzc3VlLzIwMjYvNjUvDQpVUkw6aHR0cHM6Ly9nYXpldHRlLmJnL2lzc3VlLzIwMjYvNjUvDQpFTkQ6VkVWRU5UDQpFTkQ6VkNBTEVOREFSDQo=" aria-label="Добави срока в календара">＋ Календар</a></span></li><li class="deadline" data-expires="2026-07-31"><span class="deadline-left">до 31 юли</span><span class="deadline-body"><a class="deadline-what" href="/issue/2026/65/" data-file="issues/2026/65/65.md" data-issue="65" data-date="17 Юли 2026" data-year="2026">Обжалване на разрешения за строеж на широколентов интернет</a><span class="deadline-who">собственици на имоти в над 10 области · брой 65</span><a class="deadline-cal" download="gazette-deadline-65.ics" href="data:text/calendar;charset=utf-8;base64,QkVHSU46VkNBTEVOREFSDQpWRVJTSU9OOjIuMA0KUFJPRElEOi0vL2dhemV0dGUuYmcvL2RlYWRsaW5lcy8vQkcNCkNBTFNDQUxFOkdSRUdPUklBTg0KQkVHSU46VkVWRU5UDQpVSUQ6MjAyNi02NS0yMDI2LTA3LTMxLTU4QGdhemV0dGUuYmcNCkRUU1RBTVA6MjAyNjA3MzFUMDAwMDAwWg0KRFRTVEFSVDtWQUxVRT1EQVRFOjIwMjYwNzMxDQpEVEVORDtWQUxVRT1EQVRFOjIwMjYwODAxDQpTVU1NQVJZOtCh0YDQvtC6IOKAlCDQntCx0LbQsNC70LLQsNC90LUg0L3QsCDRgNCw0LfRgNC10YjQtdC90LgNCiDRjyDQt9CwINGB0YLRgNC+0LXQtiDQvdCwINGI0LjRgNC+0LrQvtC70LXQvdGC0L7QsiDQuNC90YLQtdGA0L3QtdGCDQpERVNDUklQVElPTjrRgdC+0LHRgdGC0LLQtdC90LjRhtC4INC90LAg0LjQvNC+0YLQuCDQsiDQvdCwDQog0LQgMTAg0L7QsdC70LDRgdGC0Lggwrcg0JTRitGA0LbQsNCy0LXQvSDQstC10YHRgtC90LjQulwsINCx0YANCiDQvtC5IDY1IMK3IGh0dHBzOi8vZ2F6ZXR0ZS5iZy9pc3N1ZS8yMDINCiA2LzY1Lw0KVVJMOmh0dHBzOi8vZ2F6ZXR0ZS5iZy9pc3N1ZS8yMDI2LzY1Lw0KRU5EOlZFVkVOVA0KRU5EOlZDQUxFTkRBUg0K" aria-label="Добави срока в календара">＋ Календар</a></span></li><li class="deadline" data-expires="2026-07-31"><span class="deadline-left">до 31 юли</span><span class="deadline-body"><a class="deadline-what" href="/issue/2026/60/" data-file="issues/2026/60/60.md" data-issue="60" data-date="1 Юли 2026" data-year="2026">Включване като страна по делото за плана на квартала</a><span class="deadline-who">собственици на имоти в старата част на Велико Търново · брой 60</span><a class="deadline-cal" download="gazette-deadline-60.ics" href="data:text/calendar;charset=utf-8;base64,QkVHSU46VkNBTEVOREFSDQpWRVJTSU9OOjIuMA0KUFJPRElEOi0vL2dhemV0dGUuYmcvL2RlYWRsaW5lcy8vQkcNCkNBTFNDQUxFOkdSRUdPUklBTg0KQkVHSU46VkVWRU5UDQpVSUQ6MjAyNi02MC0yMDI2LTA3LTMxLTUyQGdhemV0dGUuYmcNCkRUU1RBTVA6MjAyNjA3MzFUMDAwMDAwWg0KRFRTVEFSVDtWQUxVRT1EQVRFOjIwMjYwNzMxDQpEVEVORDtWQUxVRT1EQVRFOjIwMjYwODAxDQpTVU1NQVJZOtCh0YDQvtC6IOKAlCDQktC60LvRjtGH0LLQsNC90LUg0LrQsNGC0L4g0YHRgtGA0LDQvdCwIA0KINC/0L4g0LTQtdC70L7RgtC+INC30LAg0L/Qu9Cw0L3QsCDQvdCwINC60LLQsNGA0YLQsNC70LANCkRFU0NSSVBUSU9OOtGB0L7QsdGB0YLQstC10L3QuNGG0Lgg0L3QsCDQuNC80L7RgtC4INCyINGB0YINCiDQsNGA0LDRgtCwINGH0LDRgdGCINC90LAg0JLQtdC70LjQutC+INCi0YrRgNC90L7QstC+IMK3INCU0YrRgNC20LANCiDQstC10L0g0LLQtdGB0YLQvdC40LpcLCDQsdGA0L7QuSA2MCDCtyBodHRwczovL2dhemUNCiB0dGUuYmcvaXNzdWUvMjAyNi82MC8NClVSTDpodHRwczovL2dhemV0dGUuYmcvaXNzdWUvMjAyNi82MC8NCkVORDpWRVZFTlQNCkVORDpWQ0FMRU5EQVINCg==" aria-label="Добави срока в календара">＋ Календар</a></span></li></ul></div><div class="month-group"><h2 class="month-title">Август 2026</h2><ul class="deadline-list"><li class="deadline" data-expires="2026-08-02"><span class="deadline-left">до 2 август</span><span class="deadline-body"><a class="deadline-what" href="/issue/2026/61/" data-file="issues/2026/61/61.md" data-issue="61" data-date="3 Юли 2026" data-year="2026">Възражение срещу нов устройствен план, водопровод, ел. кабел или пътна връзка засягащи имот</a><span class="deadline-who">собственици на имоти в над 20 населени места · брой 61</span><a class="deadline-cal" download="gazette-deadline-61.ics" href="data:text/calendar;charset=utf-8;base64,QkVHSU46VkNBTEVOREFSDQpWRVJTSU9OOjIuMA0KUFJPRElEOi0vL2dhemV0dGUuYmcvL2RlYWRsaW5lcy8vQkcNCkNBTFNDQUxFOkdSRUdPUklBTg0KQkVHSU46VkVWRU5UDQpVSUQ6MjAyNi02MS0yMDI2LTA4LTAyLTkxQGdhemV0dGUuYmcNCkRUU1RBTVA6MjAyNjA4MDJUMDAwMDAwWg0KRFRTVEFSVDtWQUxVRT1EQVRFOjIwMjYwODAyDQpEVEVORDtWQUxVRT1EQVRFOjIwMjYwODAzDQpTVU1NQVJZOtCh0YDQvtC6IOKAlCDQktGK0LfRgNCw0LbQtdC90LjQtSDRgdGA0LXRidGDINC90L7QsiDRgw0KINGB0YLRgNC+0LnRgdGC0LLQtdC9INC/0LvQsNC9XCwg0LLQvtC00L7Qv9GA0L7QstC+0LRcLCDQtdC7LiDQug0KINCw0LHQtdC7INC40LvQuCDQv9GK0YLQvdCwINCy0YDRitC30LrQsCDQt9Cw0YHRj9Cz0LDRidC4INC40LzQvtGCDQpERVNDUklQVElPTjrRgdC+0LHRgdGC0LLQtdC90LjRhtC4INC90LAg0LjQvNC+0YLQuCDQsiDQvdCwDQog0LQgMjAg0L3QsNGB0LXQu9C10L3QuCDQvNC10YHRgtCwIMK3INCU0YrRgNC20LDQstC10L0g0LLQtdGB0YLQvQ0KINC40LpcLCDQsdGA0L7QuSA2MSDCtyBodHRwczovL2dhemV0dGUuYmcvaXMNCiBzdWUvMjAyNi82MS8NClVSTDpodHRwczovL2dhemV0dGUuYmcvaXNzdWUvMjAyNi82MS8NCkVORDpWRVZFTlQNCkVORDpWQ0FMRU5EQVINCg==" aria-label="Добави срока в календара">＋ Календар</a></span></li><li class="deadline" data-expires="2026-08-06"><span class="deadline-left">до 6 август</span><span class="deadline-body"><a class="deadline-what" href="/issue/2026/62/" data-file="issues/2026/62/62.md" data-issue="62" data-date="7 Юли 2026" data-year="2026">Възражение срещу нови електрически кабели през землището</a><span class="deadline-who">жители и собственици в Тополовград/Светлина · брой 62</span><a class="deadline-cal" download="gazette-deadline-62.ics" href="data:text/calendar;charset=utf-8;base64,QkVHSU46VkNBTEVOREFSDQpWRVJTSU9OOjIuMA0KUFJPRElEOi0vL2dhemV0dGUuYmcvL2RlYWRsaW5lcy8vQkcNCkNBTFNDQUxFOkdSRUdPUklBTg0KQkVHSU46VkVWRU5UDQpVSUQ6MjAyNi02Mi0yMDI2LTA4LTA2LTU2QGdhemV0dGUuYmcNCkRUU1RBTVA6MjAyNjA4MDZUMDAwMDAwWg0KRFRTVEFSVDtWQUxVRT1EQVRFOjIwMjYwODA2DQpEVEVORDtWQUxVRT1EQVRFOjIwMjYwODA3DQpTVU1NQVJZOtCh0YDQvtC6IOKAlCDQktGK0LfRgNCw0LbQtdC90LjQtSDRgdGA0LXRidGDINC90L7QstC4IA0KINC10LvQtdC60YLRgNC40YfQtdGB0LrQuCDQutCw0LHQtdC70Lgg0L/RgNC10Lcg0LfQtdC80LvQuNGJ0LXRgtC+DQpERVNDUklQVElPTjrQttC40YLQtdC70Lgg0Lgg0YHQvtCx0YHRgtCy0LXQvdC40YbQuCDQsiDQotC+DQog0L/QvtC70L7QstCz0YDQsNC0L9Ch0LLQtdGC0LvQuNC90LAgwrcg0JTRitGA0LbQsNCy0LXQvSDQstC10YHRgtC90LgNCiDQulwsINCx0YDQvtC5IDYyIMK3IGh0dHBzOi8vZ2F6ZXR0ZS5iZy9pc3MNCiB1ZS8yMDI2LzYyLw0KVVJMOmh0dHBzOi8vZ2F6ZXR0ZS5iZy9pc3N1ZS8yMDI2LzYyLw0KRU5EOlZFVkVOVA0KRU5EOlZDQUxFTkRBUg0K" aria-label="Добави срока в календара">＋ Календар</a></span></li><li class="deadline" data-expires="2026-08-06"><span class="deadline-left">до 6 август</span><span class="deadline-body"><a class="deadline-what" href="/issue/2026/62/" data-file="issues/2026/62/62.md" data-issue="62" data-date="7 Юли 2026" data-year="2026">Обжалване на прокарване на кабел за отпадни води през частен имот</a><span class="deadline-who">собственик на имот в Съединение · брой 62</span><a class="deadline-cal" download="gazette-deadline-62.ics" href="data:text/calendar;charset=utf-8;base64,QkVHSU46VkNBTEVOREFSDQpWRVJTSU9OOjIuMA0KUFJPRElEOi0vL2dhemV0dGUuYmcvL2RlYWRsaW5lcy8vQkcNCkNBTFNDQUxFOkdSRUdPUklBTg0KQkVHSU46VkVWRU5UDQpVSUQ6MjAyNi02Mi0yMDI2LTA4LTA2LTY1QGdhemV0dGUuYmcNCkRUU1RBTVA6MjAyNjA4MDZUMDAwMDAwWg0KRFRTVEFSVDtWQUxVRT1EQVRFOjIwMjYwODA2DQpEVEVORDtWQUxVRT1EQVRFOjIwMjYwODA3DQpTVU1NQVJZOtCh0YDQvtC6IOKAlCDQntCx0LbQsNC70LLQsNC90LUg0L3QsCDQv9GA0L7QutCw0YDQstCw0L0NCiDQtSDQvdCwINC60LDQsdC10Lsg0LfQsCDQvtGC0L/QsNC00L3QuCDQstC+0LTQuCDQv9GA0LXQtyDRh9Cw0YHRgg0KINC10L0g0LjQvNC+0YINCkRFU0NSSVBUSU9OOtGB0L7QsdGB0YLQstC10L3QuNC6INC90LAg0LjQvNC+0YIg0LIg0KHRitC10LQNCiDQuNC90LXQvdC40LUgwrcg0JTRitGA0LbQsNCy0LXQvSDQstC10YHRgtC90LjQulwsINCx0YDQvtC5IDYyIA0KIMK3IGh0dHBzOi8vZ2F6ZXR0ZS5iZy9pc3N1ZS8yMDI2LzYyLw0KVVJMOmh0dHBzOi8vZ2F6ZXR0ZS5iZy9pc3N1ZS8yMDI2LzYyLw0KRU5EOlZFVkVOVA0KRU5EOlZDQUxFTkRBUg0K" aria-label="Добави срока в календара">＋ Календар</a></span></li><li class="deadline" data-expires="2026-08-06"><span class="deadline-left">до 6 август</span><span class="deadline-body"><a class="deadline-what" href="/issue/2026/62/" data-file="issues/2026/62/62.md" data-issue="62" data-date="7 Юли 2026" data-year="2026">Писмени възражения срещу устройствени планове за пътища, водопроводи и електрозахранване</a><span class="deadline-who">собственици на имоти в Девин, Драгоман, Ивайловград, Искър, Кюстендил, Ловеч, Плевен, Сандански, Сапарева баня и Созопол · брой 62</span><a class="deadline-cal" download="gazette-deadline-62.ics" href="data:text/calendar;charset=utf-8;base64,QkVHSU46VkNBTEVOREFSDQpWRVJTSU9OOjIuMA0KUFJPRElEOi0vL2dhemV0dGUuYmcvL2RlYWRsaW5lcy8vQkcNCkNBTFNDQUxFOkdSRUdPUklBTg0KQkVHSU46VkVWRU5UDQpVSUQ6MjAyNi02Mi0yMDI2LTA4LTA2LTg4QGdhemV0dGUuYmcNCkRUU1RBTVA6MjAyNjA4MDZUMDAwMDAwWg0KRFRTVEFSVDtWQUxVRT1EQVRFOjIwMjYwODA2DQpEVEVORDtWQUxVRT1EQVRFOjIwMjYwODA3DQpTVU1NQVJZOtCh0YDQvtC6IOKAlCDQn9C40YHQvNC10L3QuCDQstGK0LfRgNCw0LbQtdC90LjRjyDRgdGA0LUNCiDRidGDINGD0YHRgtGA0L7QudGB0YLQstC10L3QuCDQv9C70LDQvdC+0LLQtSDQt9CwINC/0YrRgtC40YnQsFwsIA0KINCy0L7QtNC+0L/RgNC+0LLQvtC00Lgg0Lgg0LXQu9C10LrRgtGA0L7Qt9Cw0YXRgNCw0L3QstCw0L3QtQ0KREVTQ1JJUFRJT0460YHQvtCx0YHRgtCy0LXQvdC40YbQuCDQvdCwINC40LzQvtGC0Lgg0LIg0JTQtQ0KINCy0LjQvVwsINCU0YDQsNCz0L7QvNCw0L1cLCDQmNCy0LDQudC70L7QstCz0YDQsNC0XCwg0JjRgdC60YrRgA0KIFwsINCa0Y7RgdGC0LXQvdC00LjQu1wsINCb0L7QstC10YdcLCDQn9C70LXQstC10L1cLCDQodCw0L3QtA0KINCw0L3RgdC60LhcLCDQodCw0L/QsNGA0LXQstCwINCx0LDQvdGPINC4INCh0L7Qt9C+0L/QvtC7IMK3INCU0YoNCiDRgNC20LDQstC10L0g0LLQtdGB0YLQvdC40LpcLCDQsdGA0L7QuSA2MiDCtyBodHRwczovL2cNCiBhemV0dGUuYmcvaXNzdWUvMjAyNi82Mi8NClVSTDpodHRwczovL2dhemV0dGUuYmcvaXNzdWUvMjAyNi82Mi8NCkVORDpWRVZFTlQNCkVORDpWQ0FMRU5EQVINCg==" aria-label="Добави срока в календара">＋ Календар</a></span></li><li class="deadline" data-expires="2026-08-09"><span class="deadline-left">до 9 август</span><span class="deadline-body"><a class="deadline-what" href="/issue/2026/63/" data-file="issues/2026/63/63.md" data-issue="63" data-date="10 Юли 2026" data-year="2026">Обжалване на промени в границите на имоти</a><span class="deadline-who">собственици на имоти в Свищов, Гълъбово, Елена, Гоце Делчев, Хаджидимово и около Стара Загора, Казанлък и Раднево · брой 63</span><a class="deadline-cal" download="gazette-deadline-63.ics" href="data:text/calendar;charset=utf-8;base64,QkVHSU46VkNBTEVOREFSDQpWRVJTSU9OOjIuMA0KUFJPRElEOi0vL2dhemV0dGUuYmcvL2RlYWRsaW5lcy8vQkcNCkNBTFNDQUxFOkdSRUdPUklBTg0KQkVHSU46VkVWRU5UDQpVSUQ6MjAyNi02My0yMDI2LTA4LTA5LTQxQGdhemV0dGUuYmcNCkRUU1RBTVA6MjAyNjA4MDlUMDAwMDAwWg0KRFRTVEFSVDtWQUxVRT1EQVRFOjIwMjYwODA5DQpEVEVORDtWQUxVRT1EQVRFOjIwMjYwODEwDQpTVU1NQVJZOtCh0YDQvtC6IOKAlCDQntCx0LbQsNC70LLQsNC90LUg0L3QsCDQv9GA0L7QvNC10L3QuCDQsg0KICDQs9GA0LDQvdC40YbQuNGC0LUg0L3QsCDQuNC80L7RgtC4DQpERVNDUklQVElPTjrRgdC+0LHRgdGC0LLQtdC90LjRhtC4INC90LAg0LjQvNC+0YLQuCDQsiDQodCyDQog0LjRidC+0LJcLCDQk9GK0LvRitCx0L7QstC+XCwg0JXQu9C10L3QsFwsINCT0L7RhtC1INCU0LXQu9GH0LUNCiDQslwsINCl0LDQtNC20LjQtNC40LzQvtCy0L4g0Lgg0L7QutC+0LvQviDQodGC0LDRgNCwINCX0LDQs9C+0YDQsA0KIFwsINCa0LDQt9Cw0L3Qu9GK0Log0Lgg0KDQsNC00L3QtdCy0L4gwrcg0JTRitGA0LbQsNCy0LXQvSDQstC10YENCiDRgtC90LjQulwsINCx0YDQvtC5IDYzIMK3IGh0dHBzOi8vZ2F6ZXR0ZS5iZy8NCiBpc3N1ZS8yMDI2LzYzLw0KVVJMOmh0dHBzOi8vZ2F6ZXR0ZS5iZy9pc3N1ZS8yMDI2LzYzLw0KRU5EOlZFVkVOVA0KRU5EOlZDQUxFTkRBUg0K" aria-label="Добави срока в календара">＋ Календар</a></span></li><li class="deadline" data-expires="2026-08-09"><span class="deadline-left">до 9 август</span><span class="deadline-body"><a class="deadline-what" href="/issue/2026/63/" data-file="issues/2026/63/63.md" data-issue="63" data-date="10 Юли 2026" data-year="2026">Подаване на писмени възражения срещу отчуждаване</a><span class="deadline-who">собственици на имоти в Дупница и с. Баланово · брой 63</span><a class="deadline-cal" download="gazette-deadline-63.ics" href="data:text/calendar;charset=utf-8;base64,QkVHSU46VkNBTEVOREFSDQpWRVJTSU9OOjIuMA0KUFJPRElEOi0vL2dhemV0dGUuYmcvL2RlYWRsaW5lcy8vQkcNCkNBTFNDQUxFOkdSRUdPUklBTg0KQkVHSU46VkVWRU5UDQpVSUQ6MjAyNi02My0yMDI2LTA4LTA5LTQ4QGdhemV0dGUuYmcNCkRUU1RBTVA6MjAyNjA4MDlUMDAwMDAwWg0KRFRTVEFSVDtWQUxVRT1EQVRFOjIwMjYwODA5DQpEVEVORDtWQUxVRT1EQVRFOjIwMjYwODEwDQpTVU1NQVJZOtCh0YDQvtC6IOKAlCDQn9C+0LTQsNCy0LDQvdC1INC90LAg0L/QuNGB0LzQtdC90Lgg0LLRig0KINC30YDQsNC20LXQvdC40Y8g0YHRgNC10YnRgyDQvtGC0YfRg9C20LTQsNCy0LDQvdC1DQpERVNDUklQVElPTjrRgdC+0LHRgdGC0LLQtdC90LjRhtC4INC90LAg0LjQvNC+0YLQuCDQsiDQlNGDDQog0L/QvdC40YbQsCDQuCDRgS4g0JHQsNC70LDQvdC+0LLQviDCtyDQlNGK0YDQttCw0LLQtdC9INCy0LXRgdGC0L0NCiDQuNC6XCwg0LHRgNC+0LkgNjMgwrcgaHR0cHM6Ly9nYXpldHRlLmJnL2lzDQogc3VlLzIwMjYvNjMvDQpVUkw6aHR0cHM6Ly9nYXpldHRlLmJnL2lzc3VlLzIwMjYvNjMvDQpFTkQ6VkVWRU5UDQpFTkQ6VkNBTEVOREFSDQo=" aria-label="Добави срока в календара">＋ Календар</a></span></li><li class="deadline" data-expires="2026-08-13"><span class="deadline-left">до 13 август</span><span class="deadline-body"><a class="deadline-what" href="/issue/2026/64/" data-file="issues/2026/64/64.md" data-issue="64" data-date="14 Юли 2026" data-year="2026">Подаване на писмени възражения срещу устройствен план</a><span class="deadline-who">собственици на земя в засегнатите общини · брой 64</span><a class="deadline-cal" download="gazette-deadline-64.ics" href="data:text/calendar;charset=utf-8;base64,QkVHSU46VkNBTEVOREFSDQpWRVJTSU9OOjIuMA0KUFJPRElEOi0vL2dhemV0dGUuYmcvL2RlYWRsaW5lcy8vQkcNCkNBTFNDQUxFOkdSRUdPUklBTg0KQkVHSU46VkVWRU5UDQpVSUQ6MjAyNi02NC0yMDI2LTA4LTEzLTUzQGdhemV0dGUuYmcNCkRUU1RBTVA6MjAyNjA4MTNUMDAwMDAwWg0KRFRTVEFSVDtWQUxVRT1EQVRFOjIwMjYwODEzDQpEVEVORDtWQUxVRT1EQVRFOjIwMjYwODE0DQpTVU1NQVJZOtCh0YDQvtC6IOKAlCDQn9C+0LTQsNCy0LDQvdC1INC90LAg0L/QuNGB0LzQtdC90Lgg0LLRig0KINC30YDQsNC20LXQvdC40Y8g0YHRgNC10YnRgyDRg9GB0YLRgNC+0LnRgdGC0LLQtdC9INC/0LvQsNC9DQpERVNDUklQVElPTjrRgdC+0LHRgdGC0LLQtdC90LjRhtC4INC90LAg0LfQtdC80Y8g0LIg0LfQsNGBDQog0LXQs9C90LDRgtC40YLQtSDQvtCx0YnQuNC90Lggwrcg0JTRitGA0LbQsNCy0LXQvSDQstC10YHRgtC90LjQulwsDQogINCx0YDQvtC5IDY0IMK3IGh0dHBzOi8vZ2F6ZXR0ZS5iZy9pc3N1ZS8NCiAyMDI2LzY0Lw0KVVJMOmh0dHBzOi8vZ2F6ZXR0ZS5iZy9pc3N1ZS8yMDI2LzY0Lw0KRU5EOlZFVkVOVA0KRU5EOlZDQUxFTkRBUg0K" aria-label="Добави срока в календара">＋ Календар</a></span></li><li class="deadline" data-expires="2026-08-16"><span class="deadline-left">до 16 август</span><span class="deadline-body"><a class="deadline-what" href="/issue/2026/65/" data-file="issues/2026/65/65.md" data-issue="65" data-date="17 Юли 2026" data-year="2026">Обжалване на проект за газопроводно отклонение и нови жилищни квартали</a><span class="deadline-who">собственици на имоти в Сливен · брой 65</span><a class="deadline-cal" download="gazette-deadline-65.ics" href="data:text/calendar;charset=utf-8;base64,QkVHSU46VkNBTEVOREFSDQpWRVJTSU9OOjIuMA0KUFJPRElEOi0vL2dhemV0dGUuYmcvL2RlYWRsaW5lcy8vQkcNCkNBTFNDQUxFOkdSRUdPUklBTg0KQkVHSU46VkVWRU5UDQpVSUQ6MjAyNi02NS0yMDI2LTA4LTE2LTcwQGdhemV0dGUuYmcNCkRUU1RBTVA6MjAyNjA4MTZUMDAwMDAwWg0KRFRTVEFSVDtWQUxVRT1EQVRFOjIwMjYwODE2DQpEVEVORDtWQUxVRT1EQVRFOjIwMjYwODE3DQpTVU1NQVJZOtCh0YDQvtC6IOKAlCDQntCx0LbQsNC70LLQsNC90LUg0L3QsCDQv9GA0L7QtdC60YIg0LfQsA0KICDQs9Cw0LfQvtC/0YDQvtCy0L7QtNC90L4g0L7RgtC60LvQvtC90LXQvdC40LUg0Lgg0L3QvtCy0Lgg0LbQuNC70LgNCiDRidC90Lgg0LrQstCw0YDRgtCw0LvQuA0KREVTQ1JJUFRJT0460YHQvtCx0YHRgtCy0LXQvdC40YbQuCDQvdCwINC40LzQvtGC0Lgg0LIg0KHQuw0KINC40LLQtdC9IMK3INCU0YrRgNC20LDQstC10L0g0LLQtdGB0YLQvdC40LpcLCDQsdGA0L7QuSA2NSDCtyANCiBodHRwczovL2dhemV0dGUuYmcvaXNzdWUvMjAyNi82NS8NClVSTDpodHRwczovL2dhemV0dGUuYmcvaXNzdWUvMjAyNi82NS8NCkVORDpWRVZFTlQNCkVORDpWQ0FMRU5EQVINCg==" aria-label="Добави срока в календара">＋ Календар</a></span></li><li class="deadline" data-expires="2026-08-16"><span class="deadline-left">до 16 август</span><span class="deadline-body"><a class="deadline-what" href="/issue/2026/65/" data-file="issues/2026/65/65.md" data-issue="65" data-date="17 Юли 2026" data-year="2026">Обжалване на промяна на улична регулация заради метрото</a><span class="deadline-who">собственици на имоти в кв. Гео Милев, София · брой 65</span><a class="deadline-cal" download="gazette-deadline-65.ics" href="data:text/calendar;charset=utf-8;base64,QkVHSU46VkNBTEVOREFSDQpWRVJTSU9OOjIuMA0KUFJPRElEOi0vL2dhemV0dGUuYmcvL2RlYWRsaW5lcy8vQkcNCkNBTFNDQUxFOkdSRUdPUklBTg0KQkVHSU46VkVWRU5UDQpVSUQ6MjAyNi02NS0yMDI2LTA4LTE2LTU1QGdhemV0dGUuYmcNCkRUU1RBTVA6MjAyNjA4MTZUMDAwMDAwWg0KRFRTVEFSVDtWQUxVRT1EQVRFOjIwMjYwODE2DQpEVEVORDtWQUxVRT1EQVRFOjIwMjYwODE3DQpTVU1NQVJZOtCh0YDQvtC6IOKAlCDQntCx0LbQsNC70LLQsNC90LUg0L3QsCDQv9GA0L7QvNGP0L3QsCDQvQ0KINCwINGD0LvQuNGH0L3QsCDRgNC10LPRg9C70LDRhtC40Y8g0LfQsNGA0LDQtNC4INC80LXRgtGA0L7RgtC+DQpERVNDUklQVElPTjrRgdC+0LHRgdGC0LLQtdC90LjRhtC4INC90LAg0LjQvNC+0YLQuCDQsiDQutCyDQogLiDQk9C10L4g0JzQuNC70LXQslwsINCh0L7RhNC40Y8gwrcg0JTRitGA0LbQsNCy0LXQvSDQstC10YHRgtC9DQog0LjQulwsINCx0YDQvtC5IDY1IMK3IGh0dHBzOi8vZ2F6ZXR0ZS5iZy9pcw0KIHN1ZS8yMDI2LzY1Lw0KVVJMOmh0dHBzOi8vZ2F6ZXR0ZS5iZy9pc3N1ZS8yMDI2LzY1Lw0KRU5EOlZFVkVOVA0KRU5EOlZDQUxFTkRBUg0K" aria-label="Добави срока в календара">＋ Календар</a></span></li><li class="deadline" data-expires="2026-08-16"><span class="deadline-left">до 16 август</span><span class="deadline-body"><a class="deadline-what" href="/issue/2026/65/" data-file="issues/2026/65/65.md" data-issue="65" data-date="17 Юли 2026" data-year="2026">Възражение срещу нови улици, паркове, детска градина и училище</a><span class="deadline-who">собственици на имоти в Красна поляна/Илинден, Западен парк, София · брой 65</span><a class="deadline-cal" download="gazette-deadline-65.ics" href="data:text/calendar;charset=utf-8;base64,QkVHSU46VkNBTEVOREFSDQpWRVJTSU9OOjIuMA0KUFJPRElEOi0vL2dhemV0dGUuYmcvL2RlYWRsaW5lcy8vQkcNCkNBTFNDQUxFOkdSRUdPUklBTg0KQkVHSU46VkVWRU5UDQpVSUQ6MjAyNi02NS0yMDI2LTA4LTE2LTYyQGdhemV0dGUuYmcNCkRUU1RBTVA6MjAyNjA4MTZUMDAwMDAwWg0KRFRTVEFSVDtWQUxVRT1EQVRFOjIwMjYwODE2DQpEVEVORDtWQUxVRT1EQVRFOjIwMjYwODE3DQpTVU1NQVJZOtCh0YDQvtC6IOKAlCDQktGK0LfRgNCw0LbQtdC90LjQtSDRgdGA0LXRidGDINC90L7QstC4IA0KINGD0LvQuNGG0LhcLCDQv9Cw0YDQutC+0LLQtVwsINC00LXRgtGB0LrQsCDQs9GA0LDQtNC40L3QsCDQuCDRgw0KINGH0LjQu9C40YnQtQ0KREVTQ1JJUFRJT0460YHQvtCx0YHRgtCy0LXQvdC40YbQuCDQvdCwINC40LzQvtGC0Lgg0LIg0JrRgA0KINCw0YHQvdCwINC/0L7Qu9GP0L3QsC/QmNC70LjQvdC00LXQvVwsINCX0LDQv9Cw0LTQtdC9INC/0LDRgNC6XCwNCiAg0KHQvtGE0LjRjyDCtyDQlNGK0YDQttCw0LLQtdC9INCy0LXRgdGC0L3QuNC6XCwg0LHRgNC+0LkgNjUgDQogwrcgaHR0cHM6Ly9nYXpldHRlLmJnL2lzc3VlLzIwMjYvNjUvDQpVUkw6aHR0cHM6Ly9nYXpldHRlLmJnL2lzc3VlLzIwMjYvNjUvDQpFTkQ6VkVWRU5UDQpFTkQ6VkNBTEVOREFSDQo=" aria-label="Добави срока в календара">＋ Календар</a></span></li><li class="deadline" data-expires="2026-08-16"><span class="deadline-left">до 16 август</span><span class="deadline-body"><a class="deadline-what" href="/issue/2026/65/" data-file="issues/2026/65/65.md" data-issue="65" data-date="17 Юли 2026" data-year="2026">Възражение срещу електропровод 400 kV през земи</a><span class="deadline-who">собственици на земи в Равнец и Пленимир, Генерал Тошево · брой 65</span><a class="deadline-cal" download="gazette-deadline-65.ics" href="data:text/calendar;charset=utf-8;base64,QkVHSU46VkNBTEVOREFSDQpWRVJTSU9OOjIuMA0KUFJPRElEOi0vL2dhemV0dGUuYmcvL2RlYWRsaW5lcy8vQkcNCkNBTFNDQUxFOkdSRUdPUklBTg0KQkVHSU46VkVWRU5UDQpVSUQ6MjAyNi02NS0yMDI2LTA4LTE2LTQ3QGdhemV0dGUuYmcNCkRUU1RBTVA6MjAyNjA4MTZUMDAwMDAwWg0KRFRTVEFSVDtWQUxVRT1EQVRFOjIwMjYwODE2DQpEVEVORDtWQUxVRT1EQVRFOjIwMjYwODE3DQpTVU1NQVJZOtCh0YDQvtC6IOKAlCDQktGK0LfRgNCw0LbQtdC90LjQtSDRgdGA0LXRidGDINC10LvQtdC60YINCiDRgNC+0L/RgNC+0LLQvtC0IDQwMCBrViDQv9GA0LXQtyDQt9C10LzQuA0KREVTQ1JJUFRJT0460YHQvtCx0YHRgtCy0LXQvdC40YbQuCDQvdCwINC30LXQvNC4INCyINCg0LDQsg0KINC90LXRhiDQuCDQn9C70LXQvdC40LzQuNGAXCwg0JPQtdC90LXRgNCw0Lsg0KLQvtGI0LXQstC+IMK3INCU0YoNCiDRgNC20LDQstC10L0g0LLQtdGB0YLQvdC40LpcLCDQsdGA0L7QuSA2NSDCtyBodHRwczovL2cNCiBhemV0dGUuYmcvaXNzdWUvMjAyNi82NS8NClVSTDpodHRwczovL2dhemV0dGUuYmcvaXNzdWUvMjAyNi82NS8NCkVORDpWRVZFTlQNCkVORDpWQ0FMRU5EQVINCg==" aria-label="Добави срока в календара">＋ Календар</a></span></li><li class="deadline" data-expires="2026-08-16"><span class="deadline-left">до 16 август</span><span class="deadline-body"><a class="deadline-what" href="/issue/2026/65/" data-file="issues/2026/65/65.md" data-issue="65" data-date="17 Юли 2026" data-year="2026">Възражение срещу проекти за пътища, водопроводи и електрозахранване</a><span class="deadline-who">собственици на имоти в Аксаково, Казанлък, Аврен, Родопи · брой 65</span><a class="deadline-cal" download="gazette-deadline-65.ics" href="data:text/calendar;charset=utf-8;base64,QkVHSU46VkNBTEVOREFSDQpWRVJTSU9OOjIuMA0KUFJPRElEOi0vL2dhemV0dGUuYmcvL2RlYWRsaW5lcy8vQkcNCkNBTFNDQUxFOkdSRUdPUklBTg0KQkVHSU46VkVWRU5UDQpVSUQ6MjAyNi02NS0yMDI2LTA4LTE2LTY3QGdhemV0dGUuYmcNCkRUU1RBTVA6MjAyNjA4MTZUMDAwMDAwWg0KRFRTVEFSVDtWQUxVRT1EQVRFOjIwMjYwODE2DQpEVEVORDtWQUxVRT1EQVRFOjIwMjYwODE3DQpTVU1NQVJZOtCh0YDQvtC6IOKAlCDQktGK0LfRgNCw0LbQtdC90LjQtSDRgdGA0LXRidGDINC/0YDQvtC10LoNCiDRgtC4INC30LAg0L/RitGC0LjRidCwXCwg0LLQvtC00L7Qv9GA0L7QstC+0LTQuCDQuCDQtdC70LXQutGC0YDQvg0KINC30LDRhdGA0LDQvdCy0LDQvdC1DQpERVNDUklQVElPTjrRgdC+0LHRgdGC0LLQtdC90LjRhtC4INC90LAg0LjQvNC+0YLQuCDQsiDQkNC6DQog0YHQsNC60L7QstC+XCwg0JrQsNC30LDQvdC70YrQulwsINCQ0LLRgNC10L1cLCDQoNC+0LTQvtC/0LggwrcNCiAg0JTRitGA0LbQsNCy0LXQvSDQstC10YHRgtC90LjQulwsINCx0YDQvtC5IDY1IMK3IGh0dHBzOg0KIC8vZ2F6ZXR0ZS5iZy9pc3N1ZS8yMDI2LzY1Lw0KVVJMOmh0dHBzOi8vZ2F6ZXR0ZS5iZy9pc3N1ZS8yMDI2LzY1Lw0KRU5EOlZFVkVOVA0KRU5EOlZDQUxFTkRBUg0K" aria-label="Добави срока в календара">＋ Календар</a></span></li><li class="deadline" data-expires="2026-08-16"><span class="deadline-left">до 16 август</span><span class="deadline-body"><a class="deadline-what" href="/issue/2026/65/" data-file="issues/2026/65/65.md" data-issue="65" data-date="17 Юли 2026" data-year="2026">Обжалване на заличаването на вековни защитени дървета</a><span class="deadline-who">жители на с. Николово, община Русе · брой 65</span><a class="deadline-cal" download="gazette-deadline-65.ics" href="data:text/calendar;charset=utf-8;base64,QkVHSU46VkNBTEVOREFSDQpWRVJTSU9OOjIuMA0KUFJPRElEOi0vL2dhemV0dGUuYmcvL2RlYWRsaW5lcy8vQkcNCkNBTFNDQUxFOkdSRUdPUklBTg0KQkVHSU46VkVWRU5UDQpVSUQ6MjAyNi02NS0yMDI2LTA4LTE2LTUzQGdhemV0dGUuYmcNCkRUU1RBTVA6MjAyNjA4MTZUMDAwMDAwWg0KRFRTVEFSVDtWQUxVRT1EQVRFOjIwMjYwODE2DQpEVEVORDtWQUxVRT1EQVRFOjIwMjYwODE3DQpTVU1NQVJZOtCh0YDQvtC6IOKAlCDQntCx0LbQsNC70LLQsNC90LUg0L3QsCDQt9Cw0LvQuNGH0LDQstCw0L0NCiDQtdGC0L4g0L3QsCDQstC10LrQvtCy0L3QuCDQt9Cw0YnQuNGC0LXQvdC4INC00YrRgNCy0LXRgtCwDQpERVNDUklQVElPTjrQttC40YLQtdC70Lgg0L3QsCDRgS4g0J3QuNC60L7Qu9C+0LLQvlwsINC+DQog0LHRidC40L3QsCDQoNGD0YHQtSDCtyDQlNGK0YDQttCw0LLQtdC9INCy0LXRgdGC0L3QuNC6XCwg0LHRgNC+0LkNCiAgNjUgwrcgaHR0cHM6Ly9nYXpldHRlLmJnL2lzc3VlLzIwMjYvDQogNjUvDQpVUkw6aHR0cHM6Ly9nYXpldHRlLmJnL2lzc3VlLzIwMjYvNjUvDQpFTkQ6VkVWRU5UDQpFTkQ6VkNBTEVOREFSDQo=" aria-label="Добави срока в календара">＋ Календар</a></span></li><li class="deadline" data-expires="2026-08-29"><span class="deadline-left">до 29 август</span><span class="deadline-body"><a class="deadline-what" href="/issue/2026/59/" data-file="issues/2026/59/59.md" data-issue="59" data-date="30 Юни 2026" data-year="2026">Подаване на документи за конкурси за академични длъжности</a><span class="deadline-who">кандидати за академични длъжности в СУ, ТУ-София и БАН · брой 59</span><a class="deadline-cal" download="gazette-deadline-59.ics" href="data:text/calendar;charset=utf-8;base64,QkVHSU46VkNBTEVOREFSDQpWRVJTSU9OOjIuMA0KUFJPRElEOi0vL2dhemV0dGUuYmcvL2RlYWRsaW5lcy8vQkcNCkNBTFNDQUxFOkdSRUdPUklBTg0KQkVHSU46VkVWRU5UDQpVSUQ6MjAyNi01OS0yMDI2LTA4LTI5LTU3QGdhemV0dGUuYmcNCkRUU1RBTVA6MjAyNjA4MjlUMDAwMDAwWg0KRFRTVEFSVDtWQUxVRT1EQVRFOjIwMjYwODI5DQpEVEVORDtWQUxVRT1EQVRFOjIwMjYwODMwDQpTVU1NQVJZOtCh0YDQvtC6IOKAlCDQn9C+0LTQsNCy0LDQvdC1INC90LAg0LTQvtC60YPQvNC10L3RgtC4IA0KINC30LAg0LrQvtC90LrRg9GA0YHQuCDQt9CwINCw0LrQsNC00LXQvNC40YfQvdC4INC00LvRitC20L3QvtGB0YLQuA0KREVTQ1JJUFRJT0460LrQsNC90LTQuNC00LDRgtC4INC30LAg0LDQutCw0LTQtdC80LjRh9C90Lgg0LQNCiDQu9GK0LbQvdC+0YHRgtC4INCyINCh0KNcLCDQotCjLdCh0L7RhNC40Y8g0Lgg0JHQkNCdIMK3INCU0YrRgA0KINC20LDQstC10L0g0LLQtdGB0YLQvdC40LpcLCDQsdGA0L7QuSA1OSDCtyBodHRwczovL2dhDQogemV0dGUuYmcvaXNzdWUvMjAyNi81OS8NClVSTDpodHRwczovL2dhemV0dGUuYmcvaXNzdWUvMjAyNi81OS8NCkVORDpWRVZFTlQNCkVORDpWQ0FMRU5EQVINCg==" aria-label="Добави срока в календара">＋ Календар</a></span></li></ul></div><div class="month-group"><h2 class="month-title">Септември 2026</h2><ul class="deadline-list"><li class="deadline" data-expires="2026-09-17"><span class="deadline-left">до 17 септември</span><span class="deadline-body"><a class="deadline-what" href="/issue/2026/56/" data-file="issues/2026/56/56.md" data-issue="56" data-date="19 Юни 2026" data-year="2026">Извадено разрешително за емисии и привеждане в съответствие</a><span class="deadline-who">фирми с индустриални инсталации, авиокомпании и доставчици на горива · брой 56</span><a class="deadline-cal" download="gazette-deadline-56.ics" href="data:text/calendar;charset=utf-8;base64,QkVHSU46VkNBTEVOREFSDQpWRVJTSU9OOjIuMA0KUFJPRElEOi0vL2dhemV0dGUuYmcvL2RlYWRsaW5lcy8vQkcNCkNBTFNDQUxFOkdSRUdPUklBTg0KQkVHSU46VkVWRU5UDQpVSUQ6MjAyNi01Ni0yMDI2LTA5LTE3LTU5QGdhemV0dGUuYmcNCkRUU1RBTVA6MjAyNjA5MTdUMDAwMDAwWg0KRFRTVEFSVDtWQUxVRT1EQVRFOjIwMjYwOTE3DQpEVEVORDtWQUxVRT1EQVRFOjIwMjYwOTE4DQpTVU1NQVJZOtCh0YDQvtC6IOKAlCDQmNC30LLQsNC00LXQvdC+INGA0LDQt9GA0LXRiNC40YLQtdC70L3QviANCiDQt9CwINC10LzQuNGB0LjQuCDQuCDQv9GA0LjQstC10LbQtNCw0L3QtSDQsiDRgdGK0L7RgtCy0LXRgtGB0YLQstC4DQog0LUNCkRFU0NSSVBUSU9OOtGE0LjRgNC80Lgg0YEg0LjQvdC00YPRgdGC0YDQuNCw0LvQvdC4INC40L3RgdGCDQog0LDQu9Cw0YbQuNC4XCwg0LDQstC40L7QutC+0LzQv9Cw0L3QuNC4INC4INC00L7RgdGC0LDQstGH0LjRhtC4INC9DQog0LAg0LPQvtGA0LjQstCwIMK3INCU0YrRgNC20LDQstC10L0g0LLQtdGB0YLQvdC40LpcLCDQsdGA0L7QuSA1DQogNiDCtyBodHRwczovL2dhemV0dGUuYmcvaXNzdWUvMjAyNi81Ng0KIC8NClVSTDpodHRwczovL2dhemV0dGUuYmcvaXNzdWUvMjAyNi81Ni8NCkVORDpWRVZFTlQNCkVORDpWQ0FMRU5EQVINCg==" aria-label="Добави срока в календара">＋ Календар</a></span></li></ul></div><div class="month-group"><h2 class="month-title">Октомври 2026</h2><ul class="deadline-list"><li class="deadline" data-expires="2026-10-08"><span class="deadline-left">до 8 октомври</span><span class="deadline-body"><a class="deadline-what" href="/issue/2026/16/" data-file="issues/2026/16/16.md" data-issue="16" data-date="10 Февруари 2026" data-year="2026">Регистрация и приведане в съответствие на бизнес с атракционни услуги</a><span class="deadline-who">фирми и лица, предлагащи атракционни услуги · брой 16</span><a class="deadline-cal" download="gazette-deadline-16.ics" href="data:text/calendar;charset=utf-8;base64,QkVHSU46VkNBTEVOREFSDQpWRVJTSU9OOjIuMA0KUFJPRElEOi0vL2dhemV0dGUuYmcvL2RlYWRsaW5lcy8vQkcNCkNBTFNDQUxFOkdSRUdPUklBTg0KQkVHSU46VkVWRU5UDQpVSUQ6MjAyNi0xNi0yMDI2LTEwLTA4LTY5QGdhemV0dGUuYmcNCkRUU1RBTVA6MjAyNjEwMDhUMDAwMDAwWg0KRFRTVEFSVDtWQUxVRT1EQVRFOjIwMjYxMDA4DQpEVEVORDtWQUxVRT1EQVRFOjIwMjYxMDA5DQpTVU1NQVJZOtCh0YDQvtC6IOKAlCDQoNC10LPQuNGB0YLRgNCw0YbQuNGPINC4INC/0YDQuNCy0LXQtNCw0L0NCiDQtSDQsiDRgdGK0L7RgtCy0LXRgtGB0YLQstC40LUg0L3QsCDQsdC40LfQvdC10YEg0YEg0LDRgtGA0LDQutGG0LgNCiDQvtC90L3QuCDRg9GB0LvRg9Cz0LgNCkRFU0NSSVBUSU9OOtGE0LjRgNC80Lgg0Lgg0LvQuNGG0LBcLCDQv9GA0LXQtNC70LDQs9Cw0YnQuA0KICDQsNGC0YDQsNC60YbQuNC+0L3QvdC4INGD0YHQu9GD0LPQuCDCtyDQlNGK0YDQttCw0LLQtdC9INCy0LXRgdGC0L0NCiDQuNC6XCwg0LHRgNC+0LkgMTYgwrcgaHR0cHM6Ly9nYXpldHRlLmJnL2lzDQogc3VlLzIwMjYvMTYvDQpVUkw6aHR0cHM6Ly9nYXpldHRlLmJnL2lzc3VlLzIwMjYvMTYvDQpFTkQ6VkVWRU5UDQpFTkQ6VkNBTEVOREFSDQo=" aria-label="Добави срока в календара">＋ Календар</a></span></li><li class="deadline" data-expires="2026-10-31"><span class="deadline-left">до 31 октомври</span><span class="deadline-body"><a class="deadline-what" href="/issue/2026/28/" data-file="issues/2026/28/28.md" data-issue="28" data-date="20 Март 2026" data-year="2026">Подаване на данни за реализирано мляко и животни в областна дирекция на ДФ „Земеделие&quot;</a><span class="deadline-who">земеделски производители на крави и биволи · брой 28</span><a class="deadline-cal" download="gazette-deadline-28.ics" href="data:text/calendar;charset=utf-8;base64,QkVHSU46VkNBTEVOREFSDQpWRVJTSU9OOjIuMA0KUFJPRElEOi0vL2dhemV0dGUuYmcvL2RlYWRsaW5lcy8vQkcNCkNBTFNDQUxFOkdSRUdPUklBTg0KQkVHSU46VkVWRU5UDQpVSUQ6MjAyNi0yOC0yMDI2LTEwLTMxLTg2QGdhemV0dGUuYmcNCkRUU1RBTVA6MjAyNjEwMzFUMDAwMDAwWg0KRFRTVEFSVDtWQUxVRT1EQVRFOjIwMjYxMDMxDQpEVEVORDtWQUxVRT1EQVRFOjIwMjYxMTAxDQpTVU1NQVJZOtCh0YDQvtC6IOKAlCDQn9C+0LTQsNCy0LDQvdC1INC90LAg0LTQsNC90L3QuCDQt9CwINGADQog0LXQsNC70LjQt9C40YDQsNC90L4g0LzQu9GP0LrQviDQuCDQttC40LLQvtGC0L3QuCDQsiDQvtCx0LvQsNGB0YLQvQ0KINCwINC00LjRgNC10LrRhtC40Y8g0L3QsCDQlNCkIOKAntCX0LXQvNC10LTQtdC70LjQtSINCkRFU0NSSVBUSU9OOtC30LXQvNC10LTQtdC70YHQutC4INC/0YDQvtC40LfQstC+0LTQuNGC0LXQu9C4IA0KINC90LAg0LrRgNCw0LLQuCDQuCDQsdC40LLQvtC70Lggwrcg0JTRitGA0LbQsNCy0LXQvSDQstC10YHRgtC90LjQug0KIFwsINCx0YDQvtC5IDI4IMK3IGh0dHBzOi8vZ2F6ZXR0ZS5iZy9pc3N1DQogZS8yMDI2LzI4Lw0KVVJMOmh0dHBzOi8vZ2F6ZXR0ZS5iZy9pc3N1ZS8yMDI2LzI4Lw0KRU5EOlZFVkVOVA0KRU5EOlZDQUxFTkRBUg0K" aria-label="Добави срока в календара">＋ Календар</a></span></li></ul></div><div class="month-group"><h2 class="month-title">Ноември 2026</h2><ul class="deadline-list"><li class="deadline" data-expires="2026-11-15"><span class="deadline-left">до 15 ноември</span><span class="deadline-body"><a class="deadline-what" href="/issue/2026/46/" data-file="issues/2026/46/46.md" data-issue="46" data-date="19 Май 2026" data-year="2026">Подаване на заявление за еднократна парична помощ</a><span class="deadline-who">военнослужещи, ветерани, военноинвалиди и близки на загинали военни · брой 46</span><a class="deadline-cal" download="gazette-deadline-46.ics" href="data:text/calendar;charset=utf-8;base64,QkVHSU46VkNBTEVOREFSDQpWRVJTSU9OOjIuMA0KUFJPRElEOi0vL2dhemV0dGUuYmcvL2RlYWRsaW5lcy8vQkcNCkNBTFNDQUxFOkdSRUdPUklBTg0KQkVHSU46VkVWRU5UDQpVSUQ6MjAyNi00Ni0yMDI2LTExLTE1LTQ5QGdhemV0dGUuYmcNCkRUU1RBTVA6MjAyNjExMTVUMDAwMDAwWg0KRFRTVEFSVDtWQUxVRT1EQVRFOjIwMjYxMTE1DQpEVEVORDtWQUxVRT1EQVRFOjIwMjYxMTE2DQpTVU1NQVJZOtCh0YDQvtC6IOKAlCDQn9C+0LTQsNCy0LDQvdC1INC90LAg0LfQsNGP0LLQu9C10L3QuNC1IA0KINC30LAg0LXQtNC90L7QutGA0LDRgtC90LAg0L/QsNGA0LjRh9C90LAg0L/QvtC80L7RiQ0KREVTQ1JJUFRJT0460LLQvtC10L3QvdC+0YHQu9GD0LbQtdGJ0LhcLCDQstC10YLQtdGA0LDQvdC4XA0KICwg0LLQvtC10L3QvdC+0LjQvdCy0LDQu9C40LTQuCDQuCDQsdC70LjQt9C60Lgg0L3QsCDQt9Cw0LPQuNC90LDQuw0KINC4INCy0L7QtdC90L3QuCDCtyDQlNGK0YDQttCw0LLQtdC9INCy0LXRgdGC0L3QuNC6XCwg0LHRgNC+0LkgNA0KIDYgwrcgaHR0cHM6Ly9nYXpldHRlLmJnL2lzc3VlLzIwMjYvNDYNCiAvDQpVUkw6aHR0cHM6Ly9nYXpldHRlLmJnL2lzc3VlLzIwMjYvNDYvDQpFTkQ6VkVWRU5UDQpFTkQ6VkNBTEVOREFSDQo=" aria-label="Добави срока в календара">＋ Календар</a></span></li><li class="deadline" data-expires="2026-11-30"><span class="deadline-left">до 30 ноември</span><span class="deadline-body"><a class="deadline-what" href="/issue/2026/27/" data-file="issues/2026/27/27.md" data-issue="27" data-date="17 Март 2026" data-year="2026">Подаване на заявление за избор на подфонд за инвестиране на пенсионните средства</a><span class="deadline-who">хора с партида в универсален пенсионен фонд · брой 27</span><a class="deadline-cal" download="gazette-deadline-27.ics" href="data:text/calendar;charset=utf-8;base64,QkVHSU46VkNBTEVOREFSDQpWRVJTSU9OOjIuMA0KUFJPRElEOi0vL2dhemV0dGUuYmcvL2RlYWRsaW5lcy8vQkcNCkNBTFNDQUxFOkdSRUdPUklBTg0KQkVHSU46VkVWRU5UDQpVSUQ6MjAyNi0yNy0yMDI2LTExLTMwLTgwQGdhemV0dGUuYmcNCkRUU1RBTVA6MjAyNjExMzBUMDAwMDAwWg0KRFRTVEFSVDtWQUxVRT1EQVRFOjIwMjYxMTMwDQpEVEVORDtWQUxVRT1EQVRFOjIwMjYxMjAxDQpTVU1NQVJZOtCh0YDQvtC6IOKAlCDQn9C+0LTQsNCy0LDQvdC1INC90LAg0LfQsNGP0LLQu9C10L3QuNC1IA0KINC30LAg0LjQt9Cx0L7RgCDQvdCwINC/0L7QtNGE0L7QvdC0INC30LAg0LjQvdCy0LXRgdGC0LjRgNCw0L3QtSDQvQ0KINCwINC/0LXQvdGB0LjQvtC90L3QuNGC0LUg0YHRgNC10LTRgdGC0LLQsA0KREVTQ1JJUFRJT0460YXQvtGA0LAg0YEg0L/QsNGA0YLQuNC00LAg0LIg0YPQvdC40LLQtdGA0YHQsA0KINC70LXQvSDQv9C10L3RgdC40L7QvdC10L0g0YTQvtC90LQgwrcg0JTRitGA0LbQsNCy0LXQvSDQstC10YHRgtC90LgNCiDQulwsINCx0YDQvtC5IDI3IMK3IGh0dHBzOi8vZ2F6ZXR0ZS5iZy9pc3MNCiB1ZS8yMDI2LzI3Lw0KVVJMOmh0dHBzOi8vZ2F6ZXR0ZS5iZy9pc3N1ZS8yMDI2LzI3Lw0KRU5EOlZFVkVOVA0KRU5EOlZDQUxFTkRBUg0K" aria-label="Добави срока в календара">＋ Календар</a></span></li></ul></div><div class="month-group"><h2 class="month-title">Декември 2026</h2><ul class="deadline-list"><li class="deadline" data-expires="2026-12-01"><span class="deadline-left">до 1 декември</span><span class="deadline-body"><a class="deadline-what" href="/issue/2026/62/" data-file="issues/2026/62/62.md" data-issue="62" data-date="7 Юли 2026" data-year="2026">Подаване на данни за плащания по биологично производство</a><span class="deadline-who">земеделски стопани · брой 62</span><a class="deadline-cal" download="gazette-deadline-62.ics" href="data:text/calendar;charset=utf-8;base64,QkVHSU46VkNBTEVOREFSDQpWRVJTSU9OOjIuMA0KUFJPRElEOi0vL2dhemV0dGUuYmcvL2RlYWRsaW5lcy8vQkcNCkNBTFNDQUxFOkdSRUdPUklBTg0KQkVHSU46VkVWRU5UDQpVSUQ6MjAyNi02Mi0yMDI2LTEyLTAxLTU2QGdhemV0dGUuYmcNCkRUU1RBTVA6MjAyNjEyMDFUMDAwMDAwWg0KRFRTVEFSVDtWQUxVRT1EQVRFOjIwMjYxMjAxDQpEVEVORDtWQUxVRT1EQVRFOjIwMjYxMjAyDQpTVU1NQVJZOtCh0YDQvtC6IOKAlCDQn9C+0LTQsNCy0LDQvdC1INC90LAg0LTQsNC90L3QuCDQt9CwINC/DQog0LvQsNGJ0LDQvdC40Y8g0L/QviDQsdC40L7Qu9C+0LPQuNGH0L3QviDQv9GA0L7QuNC30LLQvtC00YHRgtCy0L4NCkRFU0NSSVBUSU9OOtC30LXQvNC10LTQtdC70YHQutC4INGB0YLQvtC/0LDQvdC4IMK3INCU0YrRgNC2DQog0LDQstC10L0g0LLQtdGB0YLQvdC40LpcLCDQsdGA0L7QuSA2MiDCtyBodHRwczovL2dheg0KIGV0dGUuYmcvaXNzdWUvMjAyNi82Mi8NClVSTDpodHRwczovL2dhemV0dGUuYmcvaXNzdWUvMjAyNi82Mi8NCkVORDpWRVZFTlQNCkVORDpWQ0FMRU5EQVINCg==" aria-label="Добави срока в календара">＋ Календар</a></span></li></ul></div><div class="month-group"><h2 class="month-title">Януари 2027</h2><ul class="deadline-list"><li class="deadline" data-expires="2027-01-31"><span class="deadline-left">до 31 януари</span><span class="deadline-body"><a class="deadline-what" href="/issue/2026/62/" data-file="issues/2026/62/62.md" data-issue="62" data-date="7 Юли 2026" data-year="2026">Подаване на данни за плащания по биологично производство (втори срок)</a><span class="deadline-who">земеделски стопани · брой 62</span><a class="deadline-cal" download="gazette-deadline-62.ics" href="data:text/calendar;charset=utf-8;base64,QkVHSU46VkNBTEVOREFSDQpWRVJTSU9OOjIuMA0KUFJPRElEOi0vL2dhemV0dGUuYmcvL2RlYWRsaW5lcy8vQkcNCkNBTFNDQUxFOkdSRUdPUklBTg0KQkVHSU46VkVWRU5UDQpVSUQ6MjAyNi02Mi0yMDI3LTAxLTMxLTY5QGdhemV0dGUuYmcNCkRUU1RBTVA6MjAyNzAxMzFUMDAwMDAwWg0KRFRTVEFSVDtWQUxVRT1EQVRFOjIwMjcwMTMxDQpEVEVORDtWQUxVRT1EQVRFOjIwMjcwMjAxDQpTVU1NQVJZOtCh0YDQvtC6IOKAlCDQn9C+0LTQsNCy0LDQvdC1INC90LAg0LTQsNC90L3QuCDQt9CwINC/DQog0LvQsNGJ0LDQvdC40Y8g0L/QviDQsdC40L7Qu9C+0LPQuNGH0L3QviDQv9GA0L7QuNC30LLQvtC00YHRgtCy0L4gKA0KINCy0YLQvtGA0Lgg0YHRgNC+0LopDQpERVNDUklQVElPTjrQt9C10LzQtdC00LXQu9GB0LrQuCDRgdGC0L7Qv9Cw0L3QuCDCtyDQlNGK0YDQtg0KINCw0LLQtdC9INCy0LXRgdGC0L3QuNC6XCwg0LHRgNC+0LkgNjIgwrcgaHR0cHM6Ly9nYXoNCiBldHRlLmJnL2lzc3VlLzIwMjYvNjIvDQpVUkw6aHR0cHM6Ly9nYXpldHRlLmJnL2lzc3VlLzIwMjYvNjIvDQpFTkQ6VkVWRU5UDQpFTkQ6VkNBTEVOREFSDQo=" aria-label="Добави срока в календара">＋ Календар</a></span></li></ul></div></section><!--HOME-CONTENT-END--></div>
+                <section class="about-section" id="about">
+                    <div class="section-head">
+                        <h2 class="section-title">За проекта</h2>
+                    </div>
+                    <div class="colophon">
+                        <div class="colophon-body">
+                            <p>Държавен вестник е официалното издание на Република България. В него се обнародват законите, постановленията и другите нормативни актове — без обнародване тук те не влизат в сила.</p>
+                            <p>Този сайт не е официален и не е свързан с държавни органи. Всеки брой се обобщава автоматично с изкуствен интелект, за да прегледате основното за минути. Обобщенията може да съдържат грешки и нямат правна сила. За точния официален текст използвайте <a href="https://dv.parliament.bg" target="_blank" rel="noopener">dv.parliament.bg</a>.</p>
+                        </div>
+                        <div class="colophon-facts">
+                            <div class="colophon-fact">
+                                <span class="colophon-label">Източник</span>
+                                <p class="colophon-value">dv.parliament.bg</p>
+                            </div>
+                            <div class="colophon-fact">
+                                <span class="colophon-label">Обобщения</span>
+                                <p class="colophon-value">Claude · Anthropic</p>
+                            </div>
+                            <div class="colophon-fact">
+                                <span class="colophon-label">Периодичност</span>
+                                <p class="colophon-value">При всеки нов брой</p>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+            </div>
+            <div id="issue-view">
+                <div class="back-bar">
+                    <button type="button" class="back-btn" id="back-btn" aria-label="Обратно към всички броеве">← Всички броеве</button>
+                </div>
+                <div class="issue-header" id="issue-header"></div>
+                <div id="issue-deadlines"></div>
+                <article class="content" id="content"></article>
+                <div class="issue-share" id="issue-share"></div>
+                <div id="issue-nav" class="issue-nav issue-nav-bottom" aria-label="Навигация между броеве"></div>
+                <div class="back-bar back-bar-bottom">
+                    <button type="button" class="back-btn" id="back-btn-bottom" aria-label="Обратно към всички броеве">← Всички броеве</button>
+                </div>
+            </div>
+            <div class="loading" id="loading" hidden>Зареждане…</div>
+        </main>
+    </div>
+
+    <footer class="site-footer">
+        <div class="footer-inner">
+            <div>
+                <a href="/" class="footer-brand">gazette<span class="brand-dot">.</span>bg</a>
+            </div>
+            <p class="footer-note">Независим проект без връзка с държавни органи. Обобщенията са генерирани с изкуствен интелект, може да съдържат грешки и нямат правна сила. За официален текст: <a href="https://dv.parliament.bg" target="_blank" rel="noopener">dv.parliament.bg</a>.</p>
+            <div class="footer-rule"></div>
+            <div class="footer-links">
+                <a href="/">Начало</a>
+                <a href="/#archive">Архив</a>
+                <a href="/deadlines/">Срокове</a>
+                <a href="/#about">За проекта</a>
+                <a href="https://dv.parliament.bg" target="_blank" rel="noopener">Официален източник ↗</a>
+                <a href="/feed.xml">RSS</a>
+                <span class="footer-colophon">Обновява се при всеки нов брой на Държавен вестник</span>
+            </div>
+        </div>
+    </footer>
+
+    <button type="button" class="scroll-to-top" id="scroll-to-top" aria-label="Обратно нагоре" title="Обратно нагоре">↑</button>
+    <script defer src="https://cdn.jsdelivr.net/npm/marked@18/lib/marked.umd.js"></script>
+    <script defer src="/src/js/app.js?v=3.0.1"></script>
+</body>
+</html>

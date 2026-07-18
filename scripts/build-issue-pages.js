@@ -13,6 +13,7 @@ const CATALOG_PATH = path.join(ROOT, 'catalog.json');
 const OUTPUT_DIR = path.join(ROOT, 'issue');
 const SITEMAP_PATH = path.join(ROOT, 'sitemap.xml');
 const RSS_PATH = path.join(ROOT, 'feed.xml');
+const DEADLINES_PAGE_DIR = path.join(ROOT, 'deadlines');
 const CSS_PATH = path.join(ROOT, 'src', 'css', 'styles.css');
 const NOT_FOUND_PATH = path.join(ROOT, '404.html');
 
@@ -291,7 +292,7 @@ function deadlineIcs(d, item) {
     const uid = `${item.year}-${item.issue}-${d.expires}-${String(d.what || '').length}@gazette.bg`;
     const details = [d.who, `Държавен вестник, брой ${item.issue}`, url].filter(Boolean).join(' · ');
     return [
-        'BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//gazette.bg//srokove//BG', 'CALSCALE:GREGORIAN',
+        'BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//gazette.bg//deadlines//BG', 'CALSCALE:GREGORIAN',
         'BEGIN:VEVENT',
         icsFold('UID:' + uid),
         'DTSTAMP:' + start + 'T000000Z',
@@ -306,7 +307,7 @@ function deadlineIcs(d, item) {
 function renderDeadlineCal(d, item) {
     if (!d.expires) return '';
     const href = 'data:text/calendar;charset=utf-8;base64,' + Buffer.from(deadlineIcs(d, item), 'utf8').toString('base64');
-    return `<a class="deadline-cal" download="dv-srok-${escapeHtml(String(item.issue))}.ics" href="${href}" aria-label="Добави срока в календара">＋ Календар</a>`;
+    return `<a class="deadline-cal" download="gazette-deadline-${escapeHtml(String(item.issue))}.ics" href="${href}" aria-label="Добави срока в календара">＋ Календар</a>`;
 }
 
 function renderDeadlineRow(d, item, withIssue = true) {
@@ -341,9 +342,10 @@ function renderDeadlinesSection(all, todayIso) {
     if (!rows.length) return '';
     const shown = rows.slice(0, DEADLINES_SHOWN);
     const rest = rows.length - shown.length;
-    const restNote = rest > 0
-        ? `<p class="deadlines-rest">и още ${rest} ${rest === 1 ? 'срок' : 'срока'} с по-далечни дати — в самите броеве.</p>`
-        : '';
+    const moreLabel = rest > 0
+        ? `Всички срокове · още ${rest} ${rest === 1 ? 'срок' : 'срока'} →`
+        : 'Всички срокове →';
+    const restNote = `<p class="deadlines-rest"><a class="deadlines-more" href="/deadlines/">${moreLabel}</a></p>`;
     return '<section class="deadlines-section" id="deadlines">' +
         '<div class="section-head"><h2 class="section-title">Срокове, които текат</h2>' +
         `<span class="section-count" id="deadline-count">${rows.length} ${rows.length === 1 ? 'срок' : 'срока'}</span></div>` +
@@ -587,6 +589,7 @@ function buildSitemapXml(catalog) {
     const latestIso = all.length ? (issueDateToIso(all[0].date) || today) : today;
     const urls = [];
     urls.push(`  <url>\n    <loc>${SITE_ORIGIN}/</loc>\n    <lastmod>${latestIso}</lastmod>\n    <changefreq>daily</changefreq>\n    <priority>1.0</priority>\n  </url>`);
+    urls.push(`  <url>\n    <loc>${SITE_ORIGIN}/deadlines/</loc>\n    <lastmod>${today}</lastmod>\n    <changefreq>daily</changefreq>\n    <priority>0.8</priority>\n  </url>`);
     for (const item of all) {
         const iso = issueDateToIso(item.date) || today;
         const loc = `${SITE_ORIGIN}/issue/${encodeURIComponent(item.year)}/${encodeURIComponent(item.issue)}/`;
@@ -626,6 +629,64 @@ function buildRssXml(catalog) {
     return `<?xml version="1.0" encoding="UTF-8"?>\n<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">\n<channel>\n  <title>${escapeHtml(FEED_TITLE)}</title>\n  <link>${SITE_ORIGIN}/</link>\n  <atom:link href="${SITE_ORIGIN}/feed.xml" rel="self" type="application/rss+xml" />\n  <description>${escapeHtml(FEED_DESC)}</description>\n  <language>bg</language>\n  <lastBuildDate>${lastBuild}</lastBuildDate>\n${items}\n</channel>\n</rss>\n`;
 }
 
+// ─── Deadlines page (/deadlines/) ───
+// Every open deadline across all issues, one place, grouped by month. Reuses
+// the same row (incl. the "＋ Календар" .ics) the homepage and issues render.
+
+function deadlineMonthLabel(iso) {
+    const m = /^(\d{4})-(\d{2})/.exec(iso || '');
+    if (!m) return { key: '0000-00', label: '' };
+    return { key: `${m[1]}-${m[2]}`, label: `${BG_MONTHS_CAP[parseInt(m[2], 10) - 1]} ${m[1]}` };
+}
+
+function buildDeadlinesPageInner(catalog, todayIso) {
+    const all = getAllIssuesNewestFirst(catalog);
+    const rows = collectDeadlines(all, todayIso);
+    const total = rows.length;
+    const head = '<div class="deadlines-page-top"><a class="deadlines-back" href="/">← Начало</a></div>' +
+        '<div class="section-head"><h1 class="section-title">Срокове, които текат</h1>' +
+        `<span class="section-count">${total} ${total === 1 ? 'срок' : 'срока'}</span></div>` +
+        '<p class="deadlines-note">Всички срокове, в които все още можеш да направиш нещо — възражение, обжалване, заявление. Изчислени от датата на броя; за сигурност проверете самия брой.</p>';
+    if (!total) {
+        return `<section class="deadlines-page" id="deadlines-page">${head}<p class="empty">В момента няма отворени срокове.</p></section>`;
+    }
+    const order = [];
+    const byKey = new Map();
+    for (const { d, item } of rows) {
+        const { key, label } = deadlineMonthLabel(d.expires);
+        if (!byKey.has(key)) { byKey.set(key, { label, items: [] }); order.push(key); }
+        byKey.get(key).items.push({ d, item });
+    }
+    const groups = order.map((key) => {
+        const g = byKey.get(key);
+        const list = g.items.map(({ d, item }) => renderDeadlineRow(d, item)).join('');
+        return `<div class="month-group"><h2 class="month-title">${escapeHtml(g.label)}</h2><ul class="deadline-list">${list}</ul></div>`;
+    }).join('');
+    return `<section class="deadlines-page" id="deadlines-page">${head}${groups}</section>`;
+}
+
+function buildDeadlinesPage(cleanTemplate, catalog) {
+    const title = 'Срокове, които текат — Държавен вестник';
+    const desc = 'Всички отворени срокове от Държавен вестник, групирани по месец — възражения, обжалвания и заявления, докато все още можеш да ги подадеш.';
+    const canonicalUrl = `${SITE_ORIGIN}/deadlines/`;
+    let html = cleanTemplate;
+    html = html.replace(/<title>[\s\S]*?<\/title>/, `<title>${escapeHtml(title)}</title>`);
+    html = html.replace(/(<meta name="description" content=")[^"]*("\s*\/>)/, `$1${escapeHtml(desc)}$2`);
+    html = html.replace(/(<meta property="og:title" content=")[^"]*("\s*\/>)/, `$1${escapeHtml(title)}$2`);
+    html = html.replace(/(<meta property="og:description" content=")[^"]*("\s*\/>)/, `$1${escapeHtml(desc)}$2`);
+    html = html.replace(/(<meta property="og:url" content=")[^"]*("\s*\/>)/, `$1${escapeHtml(canonicalUrl)}$2`);
+    html = html.replace(/(<link rel="canonical" href=")[^"]*("\s*\/>)/, `$1${escapeHtml(canonicalUrl)}$2`);
+
+    // The page's one heading is "Срокове…", so demote the nameplate to a <p>
+    // (as issue pages do). A body class hides the masthead and tells app.js to
+    // leave the pre-rendered content alone instead of rendering the home over it.
+    html = html.replace('<h1 class="masthead-title">', '<p class="masthead-title">')
+        .replace(/(<p class="masthead-title">[\s\S]*?)<\/h1>/, '$1</p>');
+    html = html.replace(/<body(\s|>)/, '<body class="deadlines-route"$1');
+
+    return replaceHomeContent(html, buildDeadlinesPageInner(catalog, new Date().toISOString().slice(0, 10)));
+}
+
 function build() {
     const catalog = JSON.parse(fs.readFileSync(CATALOG_PATH, 'utf8'));
     const rawTemplate = fs.readFileSync(TEMPLATE_PATH, 'utf8');
@@ -654,11 +715,14 @@ function build() {
     const homeHtml = replaceHomeContent(cleanTemplate, buildHomeContentHtml(catalog));
     fs.writeFileSync(TEMPLATE_PATH, homeHtml, 'utf8');
 
+    fs.mkdirSync(DEADLINES_PAGE_DIR, { recursive: true });
+    fs.writeFileSync(path.join(DEADLINES_PAGE_DIR, 'index.html'), buildDeadlinesPage(cleanTemplate, catalog), 'utf8');
+
     fs.writeFileSync(SITEMAP_PATH, buildSitemapXml(catalog), 'utf8');
     fs.writeFileSync(RSS_PATH, buildRssXml(catalog), 'utf8');
     fs.writeFileSync(NOT_FOUND_PATH, buildNotFoundHtml(cleanTemplate), 'utf8');
 
-    console.log(`[build-issue-pages] Wrote ${count} pages to ${OUTPUT_DIR}, updated ${TEMPLATE_PATH}, wrote ${SITEMAP_PATH}, ${RSS_PATH} and ${NOT_FOUND_PATH}`);
+    console.log(`[build-issue-pages] Wrote ${count} pages to ${OUTPUT_DIR}, updated ${TEMPLATE_PATH}, wrote ${SITEMAP_PATH}, ${RSS_PATH}, deadlines/index.html and ${NOT_FOUND_PATH}`);
     return count;
 }
 

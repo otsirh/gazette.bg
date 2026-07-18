@@ -1738,6 +1738,62 @@ body.issue-ready .back-bar-bottom { display: block; }
     font-style: italic;
     color: var(--muted);
 }
+
+/* Link from the homepage teaser to the full /deadlines page. */
+.deadlines-more {
+    font-family: var(--font-mono);
+    font-size: 0.6875rem;
+    font-weight: 600;
+    font-style: normal;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--ink-soft);
+    text-decoration: none;
+    border-bottom: 1px solid var(--hairline);
+    transition: color 0.18s var(--ease), border-color 0.18s var(--ease);
+}
+.deadlines-more:hover { color: var(--accent); border-bottom-color: var(--accent); }
+
+/* ─── /deadlines page ─────────────────────────────────── */
+
+/* A focused page, so the home nameplate steps aside; the folio bar stays. */
+body.deadlines-route .masthead { display: none; }
+
+.deadlines-page-top { margin-bottom: var(--gap-lg); }
+.deadlines-back {
+    font-family: var(--font-mono);
+    font-size: 0.6875rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--muted);
+    text-decoration: none;
+    border-bottom: 1px solid transparent;
+    transition: color 0.18s var(--ease), border-color 0.18s var(--ease);
+}
+.deadlines-back:hover { color: var(--accent); border-bottom-color: var(--accent); }
+
+.month-group { margin-bottom: var(--gap-2xl); }
+.month-group:last-child { margin-bottom: 0; }
+.month-title {
+    display: flex;
+    align-items: center;
+    gap: var(--gap-md);
+    margin: 0 0 var(--gap-sm);
+    font-family: var(--font-mono);
+    font-size: 0.6875rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.14em;
+    color: var(--accent);
+    font-variant-numeric: tabular-nums;
+}
+.month-title::after {
+    content: "";
+    flex: 1 1 auto;
+    height: 1px;
+    background: var(--hairline);
+}
 </style><!--CRITICAL-CSS-END-->
     <script>
         (function () {
@@ -1760,6 +1816,7 @@ body.issue-ready .back-bar-bottom { display: block; }
             <a href="/" class="folio-brand" aria-label="gazette.bg — начална страница">gazette<span class="brand-dot">.</span>bg</a>
             <nav class="folio-nav" aria-label="Основна навигация">
                 <a class="folio-link" href="/#archive">Архив</a>
+                <a class="folio-link" href="/deadlines/">Срокове</a>
                 <a class="folio-link" href="/#about" data-optional>За проекта</a>
                 <a class="folio-link" href="https://dv.parliament.bg" target="_blank" rel="noopener" data-optional>dv.parliament.bg ↗</a>
                 <button type="button" class="theme-toggle" id="theme-toggle" aria-label="Смяна на тъмна и светла тема" title="Смяна на тема">
@@ -1853,6 +1910,7 @@ body.issue-ready .back-bar-bottom { display: block; }
             <div class="footer-links">
                 <a href="/">Начало</a>
                 <a href="/#archive">Архив</a>
+                <a href="/deadlines/">Срокове</a>
                 <a href="/#about">За проекта</a>
                 <a href="https://dv.parliament.bg" target="_blank" rel="noopener">Официален източник ↗</a>
                 <a href="/feed.xml">RSS</a>
