@@ -36,7 +36,9 @@ function getTempPdfPath(issue, year) {
 }
 
 function getMetadataPath(issue, year) {
-    return path.join(getIssueDir(issue, year), `${issue}.json`);
+    // Match the summarizer's convention (`${Number(issue)}.json`) so the two
+    // never write to two different files for the same issue.
+    return path.join(getIssueDir(issue, year), `${Number(issue)}.json`);
 }
 
 function revertIssueDir(issueDir) {

@@ -19,7 +19,9 @@
 
     let catalog = null;
 
-    const PAGE_TITLE_BASE = 'Държавен вестник — обобщения на броеве, генерирани с AI';
+    // Must match the server-rendered home <title> in index.html, so returning
+    // to the home view via the SPA doesn't rewrite it to a different string.
+    const PAGE_TITLE_BASE = 'Държавен вестник — кратки обобщения на всеки брой с AI';
     const THEME_KEY = 'gazette-theme';
     const THEME_COLORS = { light: '#fbf8f2', dark: '#100f0c' };
     const WORDS_PER_MINUTE = 180;
@@ -338,9 +340,18 @@ ${contents}
     function refreshDeadlines(root) {
         const scope = root || document;
         const today = isoToday();
+        // The header count is the true number of open deadlines, but the list
+        // only ever renders the soonest few (the rest are folded into a note).
+        // So it can't be recounted from the DOM — instead track what actually
+        // expired here and subtract that from the total the count already shows.
+        let expiredFromMain = 0;
         scope.querySelectorAll('.deadline').forEach((el) => {
             const expires = el.dataset.expires;
-            if (!expires || expires < today) { el.remove(); return; }
+            if (!expires || expires < today) {
+                if (el.closest('.deadlines-section')) expiredFromMain++;
+                el.remove();
+                return;
+            }
             const left = daysUntil(expires);
             const label = el.querySelector('.deadline-left');
             if (label) {
@@ -354,8 +365,9 @@ ${contents}
             if (section && !list.querySelector('.deadline')) section.remove();
         });
         const count = document.getElementById('deadline-count');
-        if (count) {
-            const n = document.querySelectorAll('.deadlines-section .deadline').length;
+        if (count && expiredFromMain > 0) {
+            const shown = parseInt(count.textContent, 10);
+            const n = Math.max(0, (Number.isNaN(shown) ? 0 : shown) - expiredFromMain);
             count.textContent = n + ' ' + (n === 1 ? 'срок' : 'срока');
         }
     }

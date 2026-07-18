@@ -850,8 +850,7 @@ main .loading {
 .colophon-body p:last-child { margin-bottom: 0; }
 
 .colophon-body a,
-.footer-note a,
-.masthead-note a {
+.footer-note a {
     color: var(--ink);
     text-decoration: none;
     border-bottom: 1px solid var(--accent);
@@ -859,8 +858,7 @@ main .loading {
 }
 
 .colophon-body a:hover,
-.footer-note a:hover,
-.masthead-note a:hover { color: var(--accent); }
+.footer-note a:hover { color: var(--accent); }
 
 .colophon-facts {
     display: flex;

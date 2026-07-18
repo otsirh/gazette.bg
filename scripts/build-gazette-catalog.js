@@ -89,7 +89,9 @@ function buildCatalog() {
         const issueDirs = fs.readdirSync(yearDir)
             .filter((name) => {
                 const p = path.join(yearDir, name);
-                return fs.statSync(p).isDirectory() && /^\d{2}$/.test(name);
+                // Folders are zero-padded to at least two digits; ДВ runs past
+                // 100 issues a year, so a hard \d{2} would drop 100+ silently.
+                return fs.statSync(p).isDirectory() && /^\d{2,}$/.test(name);
             })
             .map((name) => ({ name, num: parseInt(name, 10) }))
             .sort((a, b) => a.num - b.num);

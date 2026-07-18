@@ -36,7 +36,7 @@ function listIssues() {
     if (!fs.existsSync(ISSUES_DIR)) return out;
     for (const year of fs.readdirSync(ISSUES_DIR).filter((y) => /^\d{4}$/.test(y)).sort()) {
         const yearDir = path.join(ISSUES_DIR, year);
-        for (const folder of fs.readdirSync(yearDir).filter((f) => /^\d{2}$/.test(f)).sort()) {
+        for (const folder of fs.readdirSync(yearDir).filter((f) => /^\d{2,}$/.test(f)).sort()) {
             const issue = parseInt(folder, 10);
             const md = path.join(yearDir, folder, `${issue}.md`);
             const json = path.join(yearDir, folder, `${issue}.json`);
