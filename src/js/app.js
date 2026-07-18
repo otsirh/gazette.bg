@@ -1096,6 +1096,12 @@ ${contents}
             return;
         }
 
+        // The /stats dashboard is fully static (values are labelled, native
+        // <title> tooltips); leave its pre-rendered content be.
+        if (document.body.classList.contains('stats-route')) {
+            return;
+        }
+
         const initial = getIssueFromPath();
         const isPreRendered = !!(initial && mainContent && mainContent.children.length > 0);
 

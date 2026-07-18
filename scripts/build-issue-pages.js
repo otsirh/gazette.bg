@@ -16,6 +16,14 @@ const RSS_PATH = path.join(ROOT, 'feed.xml');
 const DEADLINES_PAGE_DIR = path.join(ROOT, 'deadlines');
 const PLACES_PAGE_DIR = path.join(ROOT, 'places');
 const MAP_PAGE_DIR = path.join(ROOT, 'map');
+const STATS_PAGE_DIR = path.join(ROOT, 'stats');
+
+const BG_MONTHS_SHORT = ['Яну', 'Фев', 'Мар', 'Апр', 'Май', 'Юни', 'Юли', 'Авг', 'Сеп', 'Окт', 'Ное', 'Дек'];
+// Mirrors scripts/issue-meta.js — the closed audience vocabulary.
+const AUDIENCES = [
+    'шофьор', 'собственик на имот', 'пенсионер', 'родител', 'ученик или студент',
+    'пациент', 'земеделец', 'фирма или самонает', 'работещ', 'потребител', 'жител на конкретно място',
+];
 
 // Build-time geo data (never shipped to the browser except the province shapes):
 // settlement name -> province code(s), and the projected province outlines.
@@ -632,6 +640,7 @@ function buildSitemapXml(catalog) {
     urls.push(`  <url>\n    <loc>${SITE_ORIGIN}/deadlines/</loc>\n    <lastmod>${today}</lastmod>\n    <changefreq>daily</changefreq>\n    <priority>0.8</priority>\n  </url>`);
     urls.push(`  <url>\n    <loc>${SITE_ORIGIN}/places/</loc>\n    <lastmod>${latestIso}</lastmod>\n    <changefreq>weekly</changefreq>\n    <priority>0.6</priority>\n  </url>`);
     urls.push(`  <url>\n    <loc>${SITE_ORIGIN}/map/</loc>\n    <lastmod>${latestIso}</lastmod>\n    <changefreq>weekly</changefreq>\n    <priority>0.6</priority>\n  </url>`);
+    urls.push(`  <url>\n    <loc>${SITE_ORIGIN}/stats/</loc>\n    <lastmod>${latestIso}</lastmod>\n    <changefreq>weekly</changefreq>\n    <priority>0.6</priority>\n  </url>`);
     for (const item of all) {
         const iso = issueDateToIso(item.date) || today;
         const loc = `${SITE_ORIGIN}/issue/${encodeURIComponent(item.year)}/${encodeURIComponent(item.issue)}/`;
@@ -900,6 +909,117 @@ function buildMapPage(cleanTemplate, catalog) {
     return replaceHomeContent(html, buildMapPageInner(catalog));
 }
 
+// ─── Stats dashboard (/stats/) ───
+// Single-series magnitude charts, so one accent hue throughout; thin bars
+// anchored to a baseline with a rounded data-end; values direct-labelled.
+
+function issueMonthKey(date) {
+    const m = String(date || '').match(/^(\d{1,2})\s+([^\s]+)\s+(\d{4})/);
+    if (!m) return null;
+    const i = BG_MONTHS.indexOf(m[2].toLowerCase());
+    return i < 0 ? null : { key: `${m[3]}-${String(i + 1).padStart(2, '0')}`, mi: i };
+}
+
+// A bar rounded only on its data-end (top), square on the baseline.
+function topRoundedBarPath(x, y, w, h, r) {
+    r = Math.max(0, Math.min(r, w / 2, h));
+    const base = y + h;
+    return `M${x},${base} L${x},${y + r} Q${x},${y} ${x + r},${y} L${x + w - r},${y} Q${x + w},${y} ${x + w},${y + r} L${x + w},${base} Z`;
+}
+
+function renderColumnChart(data, aria) {
+    const W = 720, H = 236, padT = 26, padB = 32, padX = 6;
+    const n = Math.max(1, data.length);
+    const max = Math.max(1, ...data.map((d) => d.value));
+    const plotW = W - padX * 2, plotH = H - padT - padB, band = plotW / n, bw = Math.min(52, band * 0.58);
+    const baseline = padT + plotH;
+    let bars = '', values = '', labels = '';
+    data.forEach((d, i) => {
+        const bh = (d.value / max) * plotH;
+        const x = padX + i * band + (band - bw) / 2;
+        const y = baseline - bh;
+        bars += `<path class="chart-bar" d="${topRoundedBarPath(x, y, bw, bh, 4)}"><title>${escapeHtml(d.title || `${d.label}: ${d.value}`)}</title></path>`;
+        values += `<text class="chart-value" x="${x + bw / 2}" y="${y - 7}" text-anchor="middle">${d.value}</text>`;
+        labels += `<text class="chart-axis" x="${x + bw / 2}" y="${baseline + 18}" text-anchor="middle">${escapeHtml(d.label)}</text>`;
+    });
+    return `<svg class="column-chart" viewBox="0 0 ${W} ${H}" role="img" aria-label="${escapeHtml(aria || '')}">` +
+        `<line class="chart-baseline" x1="${padX}" y1="${baseline}" x2="${W - padX}" y2="${baseline}" />${bars}${values}${labels}</svg>`;
+}
+
+function renderStatBars(rows) {
+    const max = Math.max(1, ...rows.map((r) => r.value));
+    return '<ul class="stat-bars">' + rows.map((r) =>
+        `<li class="stat-bar-row"><span class="stat-bar-label">${escapeHtml(r.label)}</span>` +
+        `<span class="stat-bar-track"><span class="stat-bar-fill" style="width:${Math.round((r.value / max) * 100)}%"></span></span>` +
+        `<span class="stat-bar-value">${r.value}</span></li>`
+    ).join('') + '</ul>';
+}
+
+function statBlock(title, sub, body) {
+    return `<div class="stat-block"><h2 class="stat-block-title">${escapeHtml(title)}</h2>` +
+        (sub ? `<p class="stat-block-sub">${escapeHtml(sub)}</p>` : '') + body + '</div>';
+}
+
+function buildStatsPageInner(catalog) {
+    const all = getAllIssuesNewestFirst(catalog);
+    const sections = all.reduce((n, e) => n + (e.sections || []).length, 0);
+    const deadlines = all.reduce((n, e) => n + (e.deadlines || []).length, 0);
+    const places = new Set();
+    for (const e of all) for (const p of e.places || []) places.add(String(p).trim());
+
+    const issuesByMonth = {}, dlByMonth = {}, monthMi = {};
+    for (const e of all) {
+        const mo = issueMonthKey(e.date);
+        if (!mo) continue;
+        issuesByMonth[mo.key] = (issuesByMonth[mo.key] || 0) + 1;
+        dlByMonth[mo.key] = (dlByMonth[mo.key] || 0) + (e.deadlines || []).length;
+        monthMi[mo.key] = mo.mi;
+    }
+    const monthKeys = Object.keys(issuesByMonth).sort();
+    const issueCols = monthKeys.map((k) => ({ label: BG_MONTHS_SHORT[monthMi[k]], value: issuesByMonth[k], title: `${BG_MONTHS_SHORT[monthMi[k]]}: ${issuesByMonth[k]} броя` }));
+    const dlCols = monthKeys.map((k) => ({ label: BG_MONTHS_SHORT[monthMi[k]], value: dlByMonth[k], title: `${BG_MONTHS_SHORT[monthMi[k]]}: ${dlByMonth[k]} срока` }));
+
+    const audCount = {};
+    for (const a of AUDIENCES) audCount[a] = 0;
+    for (const e of all) for (const a of e.audiences || []) if (a in audCount) audCount[a]++;
+    const audRows = Object.entries(audCount).sort((a, b) => b[1] - a[1]).map(([label, value]) => ({ label, value }));
+
+    const kpis = [
+        { num: all.length, label: all.length === 1 ? 'брой' : 'броя' },
+        { num: sections, label: 'обобщени теми' },
+        { num: deadlines, label: 'срока' },
+        { num: places.size, label: 'места' },
+    ];
+    const head = '<div class="deadlines-page-top"><a class="deadlines-back" href="/">← Начало</a></div>' +
+        '<div class="section-head"><h1 class="section-title">Статистика</h1>' +
+        `<span class="section-count">${escapeHtml(String((all[all.length - 1] && all[all.length - 1].year) || ''))}</span></div>` +
+        '<p class="deadlines-note">Държавен вестник в числа — обем на изданието, кого засяга и кога текат сроковете. Изчислено от обобщенията.</p>';
+
+    return `<section class="stats-page" id="stats-page">${head}` +
+        '<div class="kpi-row">' + kpis.map((k) => `<div class="kpi"><span class="kpi-num">${escapeHtml(String(k.num))}</span><span class="kpi-label">${escapeHtml(k.label)}</span></div>`).join('') + '</div>' +
+        statBlock('Броеве по месец', '', renderColumnChart(issueCols, 'Брой издания по месец')) +
+        statBlock('Кого засягат броевете', 'По колко броя засяга всяка група читатели', renderStatBars(audRows)) +
+        statBlock('Нови срокове по месец', 'Действени срокове, започнати във всеки месец', renderColumnChart(dlCols, 'Брой нови срокове по месец')) +
+        '</section>';
+}
+
+function buildStatsPage(cleanTemplate, catalog) {
+    const title = 'Статистика — Държавен вестник';
+    const desc = 'Държавен вестник в числа: колко броя и теми, кого засягат най-често и кога текат сроковете — по обобщенията на всеки брой.';
+    const canonicalUrl = `${SITE_ORIGIN}/stats/`;
+    let html = cleanTemplate;
+    html = html.replace(/<title>[\s\S]*?<\/title>/, `<title>${escapeHtml(title)}</title>`);
+    html = html.replace(/(<meta name="description" content=")[^"]*("\s*\/>)/, `$1${escapeHtml(desc)}$2`);
+    html = html.replace(/(<meta property="og:title" content=")[^"]*("\s*\/>)/, `$1${escapeHtml(title)}$2`);
+    html = html.replace(/(<meta property="og:description" content=")[^"]*("\s*\/>)/, `$1${escapeHtml(desc)}$2`);
+    html = html.replace(/(<meta property="og:url" content=")[^"]*("\s*\/>)/, `$1${escapeHtml(canonicalUrl)}$2`);
+    html = html.replace(/(<link rel="canonical" href=")[^"]*("\s*\/>)/, `$1${escapeHtml(canonicalUrl)}$2`);
+    html = html.replace('<h1 class="masthead-title">', '<p class="masthead-title">')
+        .replace(/(<p class="masthead-title">[\s\S]*?)<\/h1>/, '$1</p>');
+    html = html.replace(/<body(\s|>)/, '<body class="stats-route"$1');
+    return replaceHomeContent(html, buildStatsPageInner(catalog));
+}
+
 function build() {
     const catalog = JSON.parse(fs.readFileSync(CATALOG_PATH, 'utf8'));
     CATALOG = catalog;
@@ -938,11 +1058,14 @@ function build() {
     fs.mkdirSync(MAP_PAGE_DIR, { recursive: true });
     fs.writeFileSync(path.join(MAP_PAGE_DIR, 'index.html'), buildMapPage(cleanTemplate, catalog), 'utf8');
 
+    fs.mkdirSync(STATS_PAGE_DIR, { recursive: true });
+    fs.writeFileSync(path.join(STATS_PAGE_DIR, 'index.html'), buildStatsPage(cleanTemplate, catalog), 'utf8');
+
     fs.writeFileSync(SITEMAP_PATH, buildSitemapXml(catalog), 'utf8');
     fs.writeFileSync(RSS_PATH, buildRssXml(catalog), 'utf8');
     fs.writeFileSync(NOT_FOUND_PATH, buildNotFoundHtml(cleanTemplate), 'utf8');
 
-    console.log(`[build-issue-pages] Wrote ${count} pages to ${OUTPUT_DIR}, updated ${TEMPLATE_PATH}, wrote ${SITEMAP_PATH}, ${RSS_PATH}, deadlines/, places/, map/ and ${NOT_FOUND_PATH}`);
+    console.log(`[build-issue-pages] Wrote ${count} pages to ${OUTPUT_DIR}, updated ${TEMPLATE_PATH}, wrote ${SITEMAP_PATH}, ${RSS_PATH}, deadlines/, places/, map/, stats/ and ${NOT_FOUND_PATH}`);
     return count;
 }
 

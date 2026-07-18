@@ -2049,6 +2049,87 @@ body.map-route .masthead { display: none; }
     color: var(--muted);
     font-variant-numeric: tabular-nums;
 }
+
+/* ─── /stats dashboard ──────────────────────────────── */
+
+body.stats-route .masthead { display: none; }
+
+.kpi-row {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(7rem, 1fr));
+    gap: var(--gap-md);
+    margin: var(--gap-lg) 0 var(--gap-2xl);
+}
+.kpi {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+    padding: var(--gap-sm) 0 0;
+    border-top: 2px solid var(--ink);
+}
+.kpi-num {
+    font-family: var(--font-display);
+    font-size: clamp(1.9rem, 5vw, 2.6rem);
+    font-weight: 700;
+    line-height: 1;
+    color: var(--ink);
+    font-variant-numeric: tabular-nums;
+}
+.kpi-label {
+    font-family: var(--font-mono);
+    font-size: 0.625rem;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: var(--muted);
+}
+
+.stat-block { margin: 0 0 var(--gap-3xl); }
+.stat-block:last-child { margin-bottom: 0; }
+.stat-block-title {
+    margin: 0 0 0.15rem;
+    font-family: var(--font-display);
+    font-size: clamp(1.3rem, 3vw, 1.6rem);
+    font-weight: 700;
+    color: var(--ink);
+}
+.stat-block-sub {
+    margin: 0 0 var(--gap-md);
+    font-family: var(--font-display);
+    font-style: italic;
+    font-size: 0.95rem;
+    color: var(--muted);
+}
+
+.column-chart { display: block; width: 100%; height: auto; margin-top: var(--gap-sm); overflow: visible; }
+.chart-bar { fill: var(--accent); transition: fill 0.15s var(--ease); }
+.chart-bar:hover { fill: var(--accent-hover); }
+.chart-value { font-family: var(--font-mono); font-size: 14px; font-weight: 700; fill: var(--ink-soft); }
+.chart-axis { font-family: var(--font-mono); font-size: 13px; fill: var(--muted); letter-spacing: 0.04em; }
+.chart-baseline { stroke: var(--hairline); stroke-width: 1; }
+
+.stat-bars { list-style: none; margin: var(--gap-sm) 0 0; padding: 0; }
+.stat-bar-row {
+    display: grid;
+    grid-template-columns: minmax(7.5rem, 12rem) 1fr 2.2rem;
+    align-items: center;
+    gap: var(--gap-md);
+    padding: 0.4rem 0;
+}
+.stat-bar-label { font-family: var(--font-text); font-size: 0.95rem; color: var(--ink-soft); min-width: 0; }
+.stat-bar-track { height: 0.7rem; background: var(--hairline-soft); border-radius: 2px; overflow: hidden; }
+.stat-bar-fill { display: block; height: 100%; background: var(--accent); border-radius: 2px; }
+.stat-bar-value {
+    text-align: right;
+    font-family: var(--font-mono);
+    font-size: 0.8rem;
+    color: var(--ink-soft);
+    font-variant-numeric: tabular-nums;
+}
+
+@media (max-width: 640px) {
+    .stat-bar-row { grid-template-columns: minmax(6rem, 8rem) 1fr 1.8rem; gap: var(--gap-sm); }
+    .stat-bar-label { font-size: 0.85rem; }
+}
 </style><!--CRITICAL-CSS-END-->
     <script>
         (function () {
@@ -2074,6 +2155,7 @@ body.map-route .masthead { display: none; }
                 <a class="folio-link" href="/deadlines/">Срокове</a>
                 <a class="folio-link" href="/places/" data-optional>Места</a>
                 <a class="folio-link" href="/map/" data-optional>Карта</a>
+                <a class="folio-link" href="/stats/" data-optional>Числа</a>
                 <a class="folio-link" href="/#about" data-optional>За проекта</a>
                 <a class="folio-link" href="https://dv.parliament.bg" target="_blank" rel="noopener" data-optional>dv.parliament.bg ↗</a>
                 <button type="button" class="theme-toggle" id="theme-toggle" aria-label="Смяна на тъмна и светла тема" title="Смяна на тема">
@@ -2170,6 +2252,7 @@ body.map-route .masthead { display: none; }
                 <a href="/deadlines/">Срокове</a>
                 <a href="/places/">Места</a>
                 <a href="/map/">Карта</a>
+                <a href="/stats/">Числа</a>
                 <a href="/#about">За проекта</a>
                 <a href="https://dv.parliament.bg" target="_blank" rel="noopener">Официален източник ↗</a>
                 <a href="/feed.xml">RSS</a>
