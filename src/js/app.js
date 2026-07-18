@@ -274,7 +274,8 @@ ${contents}
     // further down the issue. Carry all of it in a hidden haystack.
     function searchHaystack(item) {
         const topics = Array.isArray(item.topics) ? item.topics : [];
-        return [`Брой ${item.issue}`, formatDateLong(item.date), item.lead || '', ...topics]
+        const places = Array.isArray(item.places) ? item.places : [];
+        return [`Брой ${item.issue}`, formatDateLong(item.date), item.lead || '', ...topics, ...places]
             .join(' ')
             .toLowerCase();
     }
@@ -300,6 +301,15 @@ ${contents}
     function renderTags(audiences) {
         if (!Array.isArray(audiences) || !audiences.length) return '';
         return `<p class="tags">${audiences.map((a) => `<span class="tag">${escapeHtml(a)}</span>`).join('')}</p>`;
+    }
+
+    // The places a brief names; each links to the archive pre-filtered to it.
+    function renderPlaces(places) {
+        if (!Array.isArray(places) || !places.length) return '';
+        const chips = places
+            .map((pl) => `<a class="place-chip" href="/?q=${encodeURIComponent(pl)}#archive">${escapeHtml(pl)}</a>`)
+            .join('');
+        return `<p class="issue-places"><span class="issue-places-label">Места в броя</span>${chips}</p>`;
     }
 
     function isoToday() {
@@ -480,6 +490,19 @@ ${contents}
         }
     }
 
+    // A place chip on an issue page lands here as /?q=<place>#archive. Carry the
+    // query into the archive search, filter, and drop the reader at the register.
+    function applyPendingArchiveQuery() {
+        if (location.pathname !== '/') return;
+        let q = '';
+        try { q = new URLSearchParams(location.search).get('q') || ''; } catch (_) { return; }
+        if (!q) return;
+        const input = document.getElementById('archive-search');
+        if (input) { input.value = q; applyArchiveFilter(q); }
+        const archive = document.getElementById('archive');
+        if (archive) requestAnimationFrame(() => archive.scrollIntoView({ behavior: scrollBehavior(), block: 'start' }));
+    }
+
     /* ─── Views ─────────────────────────────────────── */
 
     function showHome() {
@@ -596,7 +619,8 @@ ${contents}
         return `<p class="issue-kicker"><span>Брой ${escapeHtml(String(item.issue))}</span><span class="rule"></span><span>Държавен вестник</span></p>` +
             `<h1 class="title"><span class="visually-hidden">Държавен вестник, брой ${escapeHtml(String(item.issue))} — </span>${escapeHtml(formatDateLong(item.date))}</h1>` +
             `<p class="issue-meta" id="issue-meta">${metaHtml}</p>` +
-            renderTags(item.audiences);
+            renderTags(item.audiences) +
+            renderPlaces(item.places);
     }
 
     function renderShare(item) {
@@ -875,6 +899,7 @@ ${contents}
         }
 
         renderHome();
+        applyPendingArchiveQuery();
 
         if (isPreRendered) {
             const { prev, next } = getAdjacentIssues();

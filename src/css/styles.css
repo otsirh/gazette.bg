@@ -651,6 +651,36 @@ main .loading {
    sit directly under its heading. */
 .content .tags { margin: -0.25rem 0 var(--gap-md); }
 
+/* Places (the "where") — a labelled row of links to the pre-filtered archive,
+   set as underlined text rather than the bordered "who" pills so the two axes
+   read as different things. */
+.issue-places {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 0.3rem 0.65rem;
+    margin: 0 0 var(--gap-md);
+    padding: 0;
+}
+.issue-places-label {
+    font-family: var(--font-mono);
+    font-size: 0.625rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.14em;
+    color: var(--muted);
+    margin-right: 0.1rem;
+}
+.place-chip {
+    font-family: var(--font-text);
+    font-size: 0.95rem;
+    color: var(--ink-soft);
+    text-decoration: none;
+    border-bottom: 1px solid var(--hairline);
+    transition: color 0.18s var(--ease), border-color 0.18s var(--ease);
+}
+.place-chip:hover { color: var(--accent); border-bottom-color: var(--accent); }
+
 /* ─── Deadlines ─────────────────────────────────────── */
 
 .deadlines-section { margin-bottom: var(--gap-3xl); }

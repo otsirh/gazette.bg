@@ -12,6 +12,7 @@ const TEMPLATE_PATH = path.join(ROOT, 'index.html');
 const CATALOG_PATH = path.join(ROOT, 'catalog.json');
 const OUTPUT_DIR = path.join(ROOT, 'issue');
 const SITEMAP_PATH = path.join(ROOT, 'sitemap.xml');
+const RSS_PATH = path.join(ROOT, 'feed.xml');
 const CSS_PATH = path.join(ROOT, 'src', 'css', 'styles.css');
 const NOT_FOUND_PATH = path.join(ROOT, '404.html');
 
@@ -221,7 +222,8 @@ ${contents}
 // further down the issue. Carry all of it in a hidden haystack.
 function searchHaystack(item) {
     const topics = Array.isArray(item.topics) ? item.topics : [];
-    return [`Брой ${item.issue}`, formatDateLong(item.date), item.lead || '', ...topics]
+    const places = Array.isArray(item.places) ? item.places : [];
+    return [`Брой ${item.issue}`, formatDateLong(item.date), item.lead || '', ...topics, ...places]
         .join(' ')
         .toLowerCase();
 }
@@ -247,6 +249,16 @@ function renderNavCard(item) {
 function renderTags(audiences) {
     if (!Array.isArray(audiences) || !audiences.length) return '';
     return `<p class="tags">${audiences.map((a) => `<span class="tag">${escapeHtml(a)}</span>`).join('')}</p>`;
+}
+
+// The places a brief names (towns, municipalities, regions). Each links to the
+// archive pre-filtered to that place — "what else touched my area?".
+function renderPlaces(places) {
+    if (!Array.isArray(places) || !places.length) return '';
+    const chips = places
+        .map((pl) => `<a class="place-chip" href="/?q=${encodeURIComponent(pl)}#archive">${escapeHtml(pl)}</a>`)
+        .join('');
+    return `<p class="issue-places"><span class="issue-places-label">Места в броя</span>${chips}</p>`;
 }
 
 // A static "до 24 юли" is rendered here; the browser turns it into "след 4 дни"
@@ -415,7 +427,8 @@ function buildIssueViewInner(item, prev, next) {
     const headerHtml = `<p class="issue-kicker"><span>Брой ${escapeHtml(String(item.issue))}</span><span class="rule"></span><span>Държавен вестник</span></p>` +
         `<h1 class="title"><span class="visually-hidden">Държавен вестник, брой ${escapeHtml(String(item.issue))} — </span>${escapeHtml(formatDateLong(item.date))}</h1>` +
         `<p class="issue-meta" id="issue-meta">${metaHtml}</p>` +
-        renderTags(item.audiences);
+        renderTags(item.audiences) +
+        renderPlaces(item.places);
 
     // The deadlines this issue starts, in the issue itself — a reader who lands
     // here from a search should not have to go back to the front page for them.
@@ -535,6 +548,37 @@ function buildSitemapXml(catalog) {
     return `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${urls.join('\n')}\n</urlset>\n`;
 }
 
+const FEED_TITLE = 'Държавен вестник — обобщения на броеве';
+const FEED_DESC = 'Кратки обобщения на всеки брой на Държавен вестник, генерирани с изкуствен интелект — новите закони, правила и решения, обяснени ясно.';
+const RSS_ITEM_LIMIT = 50;
+
+// Issue dates are day-precision; noon UTC keeps the item on the right calendar
+// day in every timezone a reader's feed app might render it in.
+function issueDateToRfc822(item, todayIso) {
+    const iso = issueDateToIso(item.date) || todayIso;
+    const d = new Date(iso + 'T12:00:00Z');
+    return Number.isNaN(d.getTime()) ? new Date(todayIso + 'T12:00:00Z').toUTCString() : d.toUTCString();
+}
+
+// A standard RSS 2.0 feed, newest issues first — for readers and journalists
+// who follow the gazette rather than visiting the site.
+function buildRssXml(catalog) {
+    const all = getAllIssuesNewestFirst(catalog).slice(0, RSS_ITEM_LIMIT);
+    const todayIso = new Date().toISOString().slice(0, 10);
+    const lastBuild = all.length ? issueDateToRfc822(all[0], todayIso) : new Date(todayIso + 'T12:00:00Z').toUTCString();
+    const items = all.map((item) => {
+        const topics = Array.isArray(item.topics) ? item.topics : [];
+        const title = topics[0] || item.lead || `Брой ${item.issue}`;
+        const link = `${SITE_ORIGIN}/issue/${encodeURIComponent(item.year)}/${encodeURIComponent(item.issue)}/`;
+        const desc = truncate(
+            `Държавен вестник, брой ${item.issue} от ${formatDateLong(item.date)}: ` + (topics.length ? topics.join('; ') : 'обобщение на броя, генерирано с AI.'),
+            500
+        );
+        return `  <item>\n    <title>${escapeHtml(title)}</title>\n    <link>${link}</link>\n    <guid isPermaLink="true">${link}</guid>\n    <pubDate>${issueDateToRfc822(item, todayIso)}</pubDate>\n    <description>${escapeHtml(desc)}</description>\n  </item>`;
+    }).join('\n');
+    return `<?xml version="1.0" encoding="UTF-8"?>\n<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">\n<channel>\n  <title>${escapeHtml(FEED_TITLE)}</title>\n  <link>${SITE_ORIGIN}/</link>\n  <atom:link href="${SITE_ORIGIN}/feed.xml" rel="self" type="application/rss+xml" />\n  <description>${escapeHtml(FEED_DESC)}</description>\n  <language>bg</language>\n  <lastBuildDate>${lastBuild}</lastBuildDate>\n${items}\n</channel>\n</rss>\n`;
+}
+
 function build() {
     const catalog = JSON.parse(fs.readFileSync(CATALOG_PATH, 'utf8'));
     const rawTemplate = fs.readFileSync(TEMPLATE_PATH, 'utf8');
@@ -564,9 +608,10 @@ function build() {
     fs.writeFileSync(TEMPLATE_PATH, homeHtml, 'utf8');
 
     fs.writeFileSync(SITEMAP_PATH, buildSitemapXml(catalog), 'utf8');
+    fs.writeFileSync(RSS_PATH, buildRssXml(catalog), 'utf8');
     fs.writeFileSync(NOT_FOUND_PATH, buildNotFoundHtml(cleanTemplate), 'utf8');
 
-    console.log(`[build-issue-pages] Wrote ${count} pages to ${OUTPUT_DIR}, updated ${TEMPLATE_PATH}, wrote ${SITEMAP_PATH} and ${NOT_FOUND_PATH}`);
+    console.log(`[build-issue-pages] Wrote ${count} pages to ${OUTPUT_DIR}, updated ${TEMPLATE_PATH}, wrote ${SITEMAP_PATH}, ${RSS_PATH} and ${NOT_FOUND_PATH}`);
     return count;
 }
 
