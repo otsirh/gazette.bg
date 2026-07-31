@@ -965,7 +965,13 @@ body.issue-ready .back-bar-bottom { display: block; }
     font-size: 1.125rem;
     line-height: 1.72;
     color: var(--ink-soft);
-    hyphens: auto;
+    /* Whole words only. Automatic hyphenation broke Bulgarian words across
+       lines ("обнаро-дването"), and a word cut in half is a word the reader has
+       to reassemble. The text is ragged-right, not justified, so there is
+       nothing to gain from it. break-word is only a valve for something that
+       genuinely cannot fit — a long URL — and it breaks without a hyphen. */
+    hyphens: manual;
+    overflow-wrap: break-word;
 }
 
 .content [id] { scroll-margin-top: 4.5rem; }
@@ -1048,12 +1054,12 @@ body.issue-ready .back-bar-bottom { display: block; }
 .content .issue-toc-item a:hover { color: var(--accent); border-bottom-color: var(--accent); }
 .content .issue-toc-item a.is-current { color: var(--ink); font-weight: 600; }
 
+/* Headings share the paragraphs' measure. Set wider, a heading overhangs the
+   column it introduces and the text under it reads as indented. */
 .content h1,
 .content h2 {
-    /* Clear any drop cap overhanging from a short previous section, so a new
-       heading never wraps beside a floated initial. */
-    clear: left;
     margin: var(--gap-2xl) 0 var(--gap-md);
+    max-width: var(--measure);
     font-family: var(--font-display);
     font-size: clamp(1.5rem, 2.6vw, 1.9rem);
     font-weight: 700;
@@ -1065,6 +1071,7 @@ body.issue-ready .back-bar-bottom { display: block; }
 
 .content h3 {
     margin: var(--gap-xl) 0 0.4rem;
+    max-width: var(--measure);
     font-family: var(--font-display);
     font-size: 1.25rem;
     font-weight: 600;
@@ -1074,31 +1081,6 @@ body.issue-ready .back-bar-bottom { display: block; }
 .content p {
     margin: 0 0 var(--gap-md);
     max-width: var(--measure);
-}
-
-/* The lead paragraph — set larger, in italic, the way a
-   standfirst is set under a headline in print. */
-.content > .issue-toc + p {
-    margin-bottom: var(--gap-xl);
-    font-size: clamp(1.2rem, 2.2vw, 1.375rem);
-    font-style: italic;
-    line-height: 1.5;
-    color: var(--ink);
-    max-width: 38rem;
-}
-
-.content > .issue-toc + p em { font-style: normal; }
-
-/* Each section opens with a drop cap on its first paragraph — a consistent
-   initial per topic rather than one lone cap on section one. */
-.content h2 + p::first-letter {
-    float: left;
-    font-family: var(--font-display);
-    font-size: 3.4em;
-    font-weight: 700;
-    line-height: 0.84;
-    padding: 0.06em 0.1em 0 0;
-    color: var(--ink);
 }
 
 .content ul,
@@ -1492,7 +1474,6 @@ body.issue-ready .back-bar-bottom { display: block; }
     .lead-standfirst::first-letter { font-size: 3.1em; }
 
     .content { font-size: 1.0625rem; }
-    .content h2 + p::first-letter { font-size: 3em; }
 
     .issue-nav-bottom { grid-template-columns: 1fr; gap: var(--gap-lg); }
     .issue-nav-group.is-next { text-align: left; }
