@@ -3,7 +3,6 @@ import path from 'path';
 import fs from 'fs';
 import { spawnSync } from 'child_process';
 import { fileURLToPath } from 'url';
-import { appendLog, flushAlertEmail } from './logger.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.join(__dirname, '..');
@@ -12,7 +11,9 @@ const TEMP_PDF_NAME = '.tmp.pdf';
 const SCRIPT_NAME = 'process-issue-pdf';
 
 function log(message, level = 'INFO') {
-    appendLog(SCRIPT_NAME, message, level);
+    const line = `[${SCRIPT_NAME}] ${level}: ${message}`;
+    if (level === 'ERROR' || level === 'WARN') console.error(line);
+    else console.log(line);
 }
 
 function getIssueDir(year, issue) {
@@ -71,9 +72,7 @@ async function main() {
     });
 
     if (result.status !== 0) {
-        log(`Summarize failed for ${year}/${issue} (exit ${result.status})`, 'ERROR');
-        console.error(`[process-issue-pdf] Summarize failed (exit ${result.status}). PDF left in place.`);
-        await flushAlertEmail();
+        console.error(`[process-issue-pdf] Summarize failed for ${year}/${issue} (exit ${result.status}). PDF left in place.`);
         process.exit(1);
     }
 
@@ -103,9 +102,7 @@ async function main() {
     console.log(`Issue ${year}/${issue} saved.`);
 }
 
-main().catch(async (e) => {
-    log((e && (e.message || String(e))) || 'Unhandled error', 'ERROR');
+main().catch((e) => {
     console.error('[process-issue-pdf]', e);
-    await flushAlertEmail();
     process.exit(1);
 });

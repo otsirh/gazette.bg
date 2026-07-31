@@ -51,9 +51,6 @@ jobs:
           # Browsers are pre-installed here in the image.
           PLAYWRIGHT_BROWSERS_PATH: /ms-playwright
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
-          RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
-          ALERT_EMAIL: ${{ secrets.ALERT_EMAIL }}
-          SEND_ALERT_EMAILS: ${{ secrets.SEND_ALERT_EMAILS }}
 
       - name: Commit and push if there are changes
         run: |

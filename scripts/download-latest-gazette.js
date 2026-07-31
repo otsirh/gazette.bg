@@ -3,7 +3,6 @@ import fs from 'fs';
 import { spawnSync } from 'child_process';
 import { chromium } from 'playwright';
 import { fileURLToPath } from 'url';
-import { appendLog, flushAlertEmail } from './logger.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.join(__dirname, '..');
@@ -14,7 +13,9 @@ const STEP_TIMEOUT_MS = 30000;
 const TEMP_PDF_NAME = '.tmp.pdf';
 
 function log(message, level = 'INFO') {
-    appendLog(SCRIPT_NAME, message, level);
+    const line = `[${SCRIPT_NAME}] ${level}: ${message}`;
+    if (level === 'ERROR' || level === 'WARN') console.error(line);
+    else console.log(line);
 }
 
 function parseDvFilename(filename) {
@@ -198,9 +199,7 @@ async function run() {
     }
 }
 
-run().catch(async (e) => {
-    log(e.message || String(e), 'ERROR');
+run().catch((e) => {
     console.error('[download-latest-gazette]', e.message || e);
-    await flushAlertEmail();
     process.exit(1);
 });

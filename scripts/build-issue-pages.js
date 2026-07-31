@@ -3,10 +3,8 @@ import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { marked } from 'marked';
-import { appendLog, flushAlertEmail } from './logger.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const SCRIPT_NAME = 'build-issue-pages';
 const ROOT = path.join(__dirname, '..');
 const TEMPLATE_PATH = path.join(ROOT, 'index.html');
 const CATALOG_PATH = path.join(ROOT, 'catalog.json');
@@ -547,15 +545,9 @@ function build() {
     return count;
 }
 
-(async () => {
-    try {
-        appendLog(SCRIPT_NAME, 'Starting issue pages build', 'INFO');
-        const n = build();
-        appendLog(SCRIPT_NAME, `Wrote ${n} issue pages`, 'OK');
-    } catch (e) {
-        appendLog(SCRIPT_NAME, 'Failed: ' + (e && (e.message || String(e))), 'ERROR');
-        console.error('[build-issue-pages]', e.message || e);
-        await flushAlertEmail();
-        process.exit(1);
-    }
-})();
+try {
+    build();
+} catch (e) {
+    console.error('[build-issue-pages]', e.message || e);
+    process.exit(1);
+}

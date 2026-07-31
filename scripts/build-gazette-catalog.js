@@ -2,10 +2,8 @@
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { appendLog, flushAlertEmail } from './logger.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const SCRIPT_NAME = 'build-gazette-catalog';
 const ROOT = path.join(__dirname, '..');
 const ISSUES_DIR = path.join(ROOT, 'issues');
 const CATALOG_PATH = path.join(ROOT, 'catalog.json');
@@ -116,15 +114,9 @@ function buildCatalog() {
     return catalog;
 }
 
-(async () => {
-    try {
-        appendLog(SCRIPT_NAME, 'Starting catalog build', 'INFO');
-        buildCatalog();
-        appendLog(SCRIPT_NAME, 'Catalog written to ' + CATALOG_PATH, 'OK');
-    } catch (e) {
-        appendLog(SCRIPT_NAME, 'Failed: ' + (e && (e.message || String(e))), 'ERROR');
-        console.error('[build-gazette-catalog]', e.message || e);
-        await flushAlertEmail();
-        process.exit(1);
-    }
-})();
+try {
+    buildCatalog();
+} catch (e) {
+    console.error('[build-gazette-catalog]', e.message || e);
+    process.exit(1);
+}

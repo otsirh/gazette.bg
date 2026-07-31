@@ -11,7 +11,6 @@ import {
     getRefineUserPrompt,
 } from './ai-prompts.js';
 import { cleanMarkdown, findMixedScriptWords } from './clean-markdown.js';
-import { appendLog, flushAlertEmail } from './logger.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 dotenv.config({ path: path.join(__dirname, '..', '.env') });
@@ -110,15 +109,15 @@ async function runClaude(content, label, effort, system = CACHED_SYSTEM) {
 }
 
 function log(message, level = 'INFO') {
-    appendLog(SCRIPT_NAME, message, level);
+    const line = `[${SCRIPT_NAME}] ${level}: ${message}`;
+    if (level === 'ERROR' || level === 'WARN') console.error(line);
+    else console.log(line);
 }
 
 function fail(message, cause) {
-    log(message, 'ERROR');
-    if (cause) log(String(cause), 'ERROR');
     console.error('[summarize-gazette]', message);
     if (cause) console.error(cause);
-    flushAlertEmail().then(() => process.exit(1));
+    process.exit(1);
 }
 
 // Two kinds of failure need opposite handling. An unreachable or unauthorized
@@ -336,14 +335,11 @@ async function main() {
 
     if (failures.length) {
         log(`Run finished with ${failures.length} failed issue(s): ${failures.join(', ')}`, 'ERROR');
-        await flushAlertEmail();
         process.exit(1);
     }
 }
 
-main().catch(async (e) => {
-    log('Unhandled: ' + (e && (e.message || e)), 'ERROR');
+main().catch((e) => {
     console.error('[summarize-gazette]', e);
-    await flushAlertEmail();
     process.exit(1);
 });
