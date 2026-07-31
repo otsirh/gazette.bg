@@ -9,10 +9,8 @@ import {
     EXTRACT_SYSTEM_PROMPT,
     getSummarizeChunkPrompt,
     getRefineUserPrompt,
-    getCoverageCheckPrompt,
 } from './ai-prompts.js';
 import { cleanMarkdown, findMixedScriptWords } from './clean-markdown.js';
-import { extractIssueMeta } from './issue-meta.js';
 import { appendLog, flushAlertEmail } from './logger.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -28,8 +26,6 @@ const DELAY_BETWEEN_CHUNKS_MS = 10 * 1000;
 // previous baseline); the single-pass and refine calls keep the default (high),
 // where prioritization and rule-adherence matter most for the final output.
 const CHUNK_EFFORT = 'medium';
-// The coverage check just compares two lists — it needs no deliberation.
-const COVERAGE_EFFORT = 'low';
 
 function delay(ms) {
     return new Promise((resolve) => setTimeout(resolve, ms));
@@ -219,9 +215,8 @@ async function summarizePdfBase64(base64, userPrompt, label = 'chunk', effort, s
 
 // Every issue goes through the same two stages — inventory, then edit — however
 // small it is. A short issue used to be summarized in a single pass, which meant
-// it silently skipped both the recall-first extraction and the coverage check:
-// exactly the issues we had no visibility into. The extra call on a 16-page
-// issue costs cents.
+// it silently skipped the recall-first extraction: exactly the issues we had no
+// visibility into. The extra call on a 16-page issue costs cents.
 async function summarizePdf(pdfPath, year, issue) {
     const buf = fs.readFileSync(pdfPath);
     const { chunks, pageCount } = await splitPdfIntoChunks(buf);
@@ -256,132 +251,7 @@ async function summarizePdf(pdfPath, year, issue) {
         throw new Error(`Summary mixes Cyrillic and Latin inside words: ${garbled.join(', ')}`);
     }
 
-    await reportCoverage(inventory, finalMarkdown, year, issue);
-
     return finalMarkdown;
-}
-
-// Strip a line's leading list/emphasis decoration: bullets, quote marks,
-// markdown *, and ordered-list markers ("1.", "2)"). Applied before matching so
-// a decorated verdict is read the same as a bare one.
-function stripLineDecoration(l) {
-    return l
-        .replace(/^[\s>*_`+\-–—•]+/, '')
-        .replace(/^\d+[.)]\s*/, '')
-        .replace(/^[\s>*_`+\-–—•]+/, '')
-        .trim();
-}
-
-// Classify the model's coverage verdict. It is asked to answer in exactly one
-// of two shapes — "НЯМА ПРОПУСКИ", or "ПРОПУСНАТО:" then one omission per line —
-// but real output can be decorated, prefixed with chatter, or empty. Return one
-// of three states so the caller never turns a broken answer into a reassuring
-// "nothing was left out":
-//   { status: 'clear' }                    → explicitly no omissions
-//   { status: 'omissions', items: [...] }  → one or more real omissions
-//   { status: 'unparseable' }              → empty/unrecognized — do not claim
-function parseCoverageVerdict(verdict) {
-    const lines = String(verdict || '').split('\n').map(stripLineDecoration).filter(Boolean);
-    if (lines.length === 0) return { status: 'unparseable' };
-    // "НЯМА ПРОПУСКИ" anywhere (even after a preamble line) → nothing dropped.
-    if (lines.some((l) => /^НЯМА ПРОПУСКИ/i.test(l))) return { status: 'clear' };
-    // Otherwise the omissions follow a "ПРОПУСНАТО:" marker; anything before it
-    // is preamble and is dropped. No marker at all → shape we don't recognize.
-    const markerAt = lines.findIndex((l) => /^ПРОПУСНАТО\s*:?/i.test(l));
-    if (markerAt < 0) return { status: 'unparseable' };
-    const inline = lines[markerAt].replace(/^ПРОПУСНАТО\s*:?/i, '').trim();
-    const items = (inline ? [inline] : []).concat(lines.slice(markerAt + 1)).filter(Boolean);
-    if (items.length === 0) return { status: 'unparseable' };
-    return { status: 'omissions', items };
-}
-
-// Persist the coverage result onto the issue so the site can show it. Written
-// straight into the issue JSON before the tags pass runs; that pass merges with
-// `{ ...data, ...meta }`, so it preserves this field. A separate field, never
-// part of the summary text — this is a label on the summary, not the summary.
-function writeCoverageMeta(year, issue, omitted) {
-    try {
-        const jsonPath = path.join(issueDirPath(year, issue), `${Number(issue)}.json`);
-        const data = fs.existsSync(jsonPath) ? JSON.parse(fs.readFileSync(jsonPath, 'utf8')) : {};
-        data.coverage = { checked: true, omitted };
-        fs.writeFileSync(jsonPath, JSON.stringify(data, null, 4), 'utf8');
-    } catch (e) {
-        log(`Could not save coverage for ${year}/${issue}: ${e.message}`, 'WARN');
-    }
-}
-
-// The editor only ever sees the inventory, so anything it leaves out is invisible
-// to us as well. Read both back and say what fell out — a run that quietly covers
-// four of six issues looks identical to one that covers all six. The result is
-// both logged (visibility for us) and saved onto the issue (honesty for readers).
-async function reportCoverage(inventory, summary, year, issue) {
-    try {
-        const verdict = (await runClaude(
-            [{ type: 'text', text: getCoverageCheckPrompt(inventory, summary) }],
-            'coverage',
-            COVERAGE_EFFORT,
-            CACHED_EXTRACT_SYSTEM
-        )).trim();
-
-        const result = parseCoverageVerdict(verdict);
-
-        // An unparseable verdict must NOT become a reassuring "nothing was left
-        // out" panel — that is the opposite of what this feature exists for.
-        // Leave the issue without a coverage field (so no panel renders) and
-        // warn, exactly as the old code did before the result was ever shown.
-        if (result.status === 'unparseable') {
-            log(`Coverage check ${year}/${issue}: unrecognized verdict, not recorded:\n${verdict}`, 'WARN');
-            console.log('  Coverage: unrecognized verdict — not recorded.');
-            return;
-        }
-
-        const omitted = result.status === 'omissions' ? result.items : [];
-        writeCoverageMeta(year, issue, omitted);
-
-        if (omitted.length === 0) {
-            log(`Coverage check ${year}/${issue}: nothing dropped`, 'OK');
-            console.log('  Coverage: nothing dropped.');
-            return;
-        }
-        log(`Coverage check ${year}/${issue} — dropped from the summary:\n${verdict}`, 'WARN');
-        console.log('  Coverage — left out of the summary:\n' + omitted.map((l) => '    - ' + l).join('\n'));
-    } catch (e) {
-        // A failed check must not cost us a good summary.
-        log(`Coverage check failed for ${year}/${issue}: ${e.message}`, 'WARN');
-    }
-}
-
-const BG_MONTHS = ['януари', 'февруари', 'март', 'април', 'май', 'юни', 'юли', 'август', 'септември', 'октомври', 'ноември', 'декември'];
-
-function issueDateToIso(str) {
-    const m = String(str || '').match(/^(\d{1,2})\s+([^\s]+)\s+(\d{4})/);
-    if (!m) return null;
-    const monthIdx = BG_MONTHS.indexOf(m[2].toLowerCase());
-    if (monthIdx < 0) return null;
-    return `${m[3]}-${String(monthIdx + 1).padStart(2, '0')}-${m[1].padStart(2, '0')}`;
-}
-
-// The summary is the product; this is a label on it. If labelling fails the
-// issue still publishes — it just goes out without tags and deadlines, and the
-// backfill script can fill them in later.
-async function writeIssueMeta(year, issue, markdown) {
-    const jsonPath = path.join(issueDirPath(year, issue), `${Number(issue)}.json`);
-    try {
-        const data = fs.existsSync(jsonPath) ? JSON.parse(fs.readFileSync(jsonPath, 'utf8')) : {};
-        const issueIso = issueDateToIso(data.date);
-        if (!issueIso) {
-            log(`No usable date for ${year}/${issue}; skipping tags and deadlines`, 'WARN');
-            return;
-        }
-        const meta = await extractIssueMeta({ apiKey, markdown, issueIso, year, issue });
-        logUsage('meta', meta.usage);
-        delete meta.usage;
-        fs.writeFileSync(jsonPath, JSON.stringify({ ...data, ...meta }, null, 4), 'utf8');
-        console.log(`  Tags: ${meta.audiences.join(', ') || '—'} | deadlines: ${meta.deadlines.length}`);
-    } catch (e) {
-        log(`Tags and deadlines failed for ${year}/${issue}: ${e.message}`, 'WARN');
-        console.error('  (tags and deadlines could not be extracted — the summary is published without them)');
-    }
 }
 
 async function main() {
@@ -436,21 +306,9 @@ async function main() {
                 const metaPath = path.join(OFFICIAL_GAZETTES_DIR, String(year), `${issue}.json`);
                 const metaDest = path.join(issueDir, `${Number(issue)}.json`);
                 if (fs.existsSync(metaPath)) {
-                    // reportCoverage may already have written a coverage field
-                    // into metaDest; bringing in the official metadata must not
-                    // erase it. Merge instead of overwrite, falling back to a
-                    // plain copy if either file can't be parsed (a labelling
-                    // step must never lose a good summary).
-                    try {
-                        const incoming = JSON.parse(fs.readFileSync(metaPath, 'utf8'));
-                        const existing = fs.existsSync(metaDest) ? JSON.parse(fs.readFileSync(metaDest, 'utf8')) : {};
-                        const merged = existing.coverage && !incoming.coverage
-                            ? { ...incoming, coverage: existing.coverage }
-                            : incoming;
-                        fs.writeFileSync(metaDest, JSON.stringify(merged, null, 4), 'utf8');
-                    } catch (_) {
-                        fs.copyFileSync(metaPath, metaDest);
-                    }
+                    // The issue's publication date, as scraped — the only
+                    // metadata the site carries besides the summary itself.
+                    fs.copyFileSync(metaPath, metaDest);
                     fs.unlinkSync(metaPath);
                 }
                 if (fs.existsSync(pdf)) {
@@ -458,7 +316,6 @@ async function main() {
                     log(`Deleted PDF ${pdf}`, 'INFO');
                 }
             }
-            await writeIssueMeta(year, issue, markdown);
 
             log(`Wrote ${outPath}`, 'OK');
             console.log(`✓ Wrote ${path.relative(ROOT, outPath)}`);

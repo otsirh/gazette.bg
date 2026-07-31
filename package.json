@@ -9,8 +9,6 @@
     "dev": "npm run build && npm run serve",
     "download-latest-gazette": "node scripts/download-latest-gazette.js",
     "summarize-gazette": "node scripts/summarize-gazette.js",
-    "maintain-glossary": "node scripts/maintain-glossary.js",
-    "backfill-meta": "node scripts/backfill-issue-meta.js",
     "process-issue-pdf": "node scripts/process-issue-pdf.js",
     "generate-og-image": "node scripts/generate-og-image.js",
     "generate-favicon": "node scripts/generate-favicon.js",

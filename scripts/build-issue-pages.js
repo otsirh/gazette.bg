@@ -14,53 +14,6 @@ const OUTPUT_DIR = path.join(ROOT, 'issue');
 const SITEMAP_PATH = path.join(ROOT, 'sitemap.xml');
 const RSS_PATH = path.join(ROOT, 'feed.xml');
 const SEARCH_INDEX_PATH = path.join(ROOT, 'search-index.json');
-const DEADLINES_PAGE_DIR = path.join(ROOT, 'deadlines');
-const PLACES_PAGE_DIR = path.join(ROOT, 'places');
-const MAP_PAGE_DIR = path.join(ROOT, 'map');
-const STATS_PAGE_DIR = path.join(ROOT, 'stats');
-const TRACKS_PAGE_DIR = path.join(ROOT, 'tracks');
-
-// The big recurring storylines, matched on the section title (the strongest,
-// least noisy signal). Euro = the currency change itself (в/към/на евро), not
-// incidental amounts; elections = actual votes, not every mention of a mayor.
-const TRACKERS = [
-    {
-        title: 'Преходът към еврото',
-        sub: 'Как преминаването от лева към евро мина сектор по сектор — такси, цени, заплати.',
-        // \b is ASCII-only in JS, so use a Unicode letter lookbehind: "в евро"
-        // matches, an amount like "милиона евро" does not. The trailing
-        // (?![\p{L}]) stops "в евро" from also firing on "в европейския…" —
-        // "еврото"/"еврозон" keep their own alternatives.
-        match: /(?<![\p{L}])(в|към|на)\s+евро(?![\p{L}])|еврото|еврозон|превалут/iu,
-    },
-    {
-        title: 'Изборите за 52-ро Народно събрание',
-        sub: 'От оставката и служебното правителство до вота на 19 април и новото Народно събрание — и местните частични избори.',
-        // "избори" (plural), not bare "избор", so "Избор на съдебни заседатели"
-        // / "Избор на управител" (a choice, not an election) stay out; "изборн"
-        // still covers изборен/изборни/предизборн. "народно събрание" is guarded
-        // to the election context (новото / N-то) so an ordinary law adopted by
-        // the assembly does not land in the elections timeline.
-        match: /избори|изборн|избир|гласув|(?<![\p{L}])вот|избирателн|предсрочн|служебн\p{L}*\s+правителств|(ново\p{L}*|\d+-?[а-я]*)\s+народно\s+събрание|референдум|за\s+кмет/iu,
-    },
-];
-
-const BG_MONTHS_SHORT = ['Яну', 'Фев', 'Мар', 'Апр', 'Май', 'Юни', 'Юли', 'Авг', 'Сеп', 'Окт', 'Ное', 'Дек'];
-// Mirrors scripts/issue-meta.js — the closed audience vocabulary.
-const AUDIENCES = [
-    'шофьор', 'собственик на имот', 'пенсионер', 'родител', 'ученик или студент',
-    'пациент', 'земеделец', 'фирма или самонает', 'работещ', 'потребител', 'жител на конкретно място',
-];
-
-const GLOSSARY_PAGE_DIR = path.join(ROOT, 'glossary');
-
-// Build-time geo data (never shipped to the browser except the province shapes):
-// settlement name -> province code(s), and the projected province outlines.
-const BG_SETTLEMENTS = JSON.parse(fs.readFileSync(path.join(__dirname, 'data', 'bg-settlements.json'), 'utf8'));
-const BG_PROVINCES = JSON.parse(fs.readFileSync(path.join(__dirname, 'data', 'bg-provinces.json'), 'utf8'));
-// Abbreviation → meaning. Authored (root, also served to the client). Powers the
-// inline tooltips in the summaries and the /glossary reference page.
-const GLOSSARY = JSON.parse(fs.readFileSync(path.join(ROOT, 'glossary.json'), 'utf8'));
 const CSS_PATH = path.join(ROOT, 'src', 'css', 'styles.css');
 const NOT_FOUND_PATH = path.join(ROOT, '404.html');
 
@@ -203,17 +156,6 @@ function processRenderedContent(html) {
     return { html, tocItems };
 }
 
-// Drops a row of "who this is for" tags under every heading it has tags for, so
-// the reader can skip a section without reading it.
-function injectSectionTags(html, sections) {
-    if (!Array.isArray(sections) || !sections.length) return html;
-    const byTitle = new Map(sections.map((s) => [s.title.trim(), s.audiences || []]));
-    return html.replace(/<h2([^>]*)>([\s\S]*?)<\/h2>/gi, (match, attrs, inner) => {
-        const audiences = byTitle.get(htmlToText(inner));
-        return audiences && audiences.length ? match + renderTags(audiences) : match;
-    });
-}
-
 function buildTocHtml(tocItems) {
     const mainItems = tocItems.filter((item) => item.level <= 2);
     if (!mainItems.length) return '';
@@ -256,7 +198,6 @@ function renderLeadCard(item) {
 <p class="lead-dateline"><span>Последен брой</span><span class="rule"></span><span>Брой ${escapeHtml(String(item.issue))} · ${escapeHtml(formatDateLong(item.date))}</span></p>
 <a class="issue-card issue-card-lead" ${cardAttrs(item)}>
 <h2 class="lead-title">${escapeHtml(headline)}</h2>
-${renderTags(item.audiences)}
 <div class="${gridClass}">
 <div class="lead-main">${standfirstHtml}<span class="lead-read">Прочети обобщението →</span></div>
 ${contents}
@@ -270,8 +211,7 @@ ${contents}
 // further down the issue. Carry all of it in a hidden haystack.
 function searchHaystack(item) {
     const topics = Array.isArray(item.topics) ? item.topics : [];
-    const places = Array.isArray(item.places) ? item.places : [];
-    return [`Брой ${item.issue}`, formatDateLong(item.date), item.lead || '', ...topics, ...places]
+    return [`Брой ${item.issue}`, formatDateLong(item.date), item.lead || '', ...topics]
         .join(' ')
         .toLowerCase();
 }
@@ -279,8 +219,7 @@ function searchHaystack(item) {
 function renderRowCard(item) {
     const topics = Array.isArray(item.topics) ? item.topics : [];
     const title = topics[0] || item.lead || `Брой ${item.issue}`;
-    const auds = Array.isArray(item.audiences) ? item.audiences : [];
-    return `<a class="issue-card issue-card-row" ${cardAttrs(item)} data-search="${escapeHtml(searchHaystack(item))}" data-audiences="${escapeHtml(auds.join('|'))}">` +
+    return `<a class="issue-card issue-card-row" ${cardAttrs(item)} data-search="${escapeHtml(searchHaystack(item))}">` +
         `<span class="num">${escapeHtml(String(item.issue))}</span>` +
         `<span class="row-body"><span class="row-title">${escapeHtml(title)}</span><span class="date">${escapeHtml(formatDateShort(item.date))}</span></span>` +
         `</a>`;
@@ -291,123 +230,6 @@ function renderNavCard(item) {
         `<span class="num">Брой ${escapeHtml(String(item.issue))}</span>` +
         `<span class="date">${escapeHtml(formatDateShort(item.date))}</span>` +
         `</a>`;
-}
-
-/* ─── Tags and deadlines (mirrors src/js/app.js) ─── */
-
-function renderTags(audiences) {
-    if (!Array.isArray(audiences) || !audiences.length) return '';
-    return `<p class="tags">${audiences.map((a) => `<span class="tag">${escapeHtml(a)}</span>`).join('')}</p>`;
-}
-
-// The places a brief names (towns, municipalities, regions). Each links to the
-// archive pre-filtered to that place — "what else touched my area?".
-function renderPlaces(places) {
-    if (!Array.isArray(places) || !places.length) return '';
-    const chips = places
-        .map((pl) => `<a class="place-chip" href="/?q=${encodeURIComponent(pl)}#archive">${escapeHtml(pl)}</a>`)
-        .join('');
-    return `<p class="issue-places"><span class="issue-places-label">Места в броя</span>${chips}</p>`;
-}
-
-// A static "до 24 юли" is rendered here; the browser turns it into "след 4 дни"
-// and drops what has expired. Without JS the reader still sees the date.
-// A deadline as a downloadable all-day calendar event. Encoded as a data: URI
-// so the link works without JS and needs no server; DTSTAMP/UID derive from the
-// deadline date, so a rebuild produces byte-identical output (no churn).
-function icsEscape(s) {
-    return String(s).replace(/\\/g, '\\\\').replace(/;/g, '\\;').replace(/,/g, '\\,').replace(/\r?\n/g, '\\n');
-}
-// Fold to stay under the 75-octet line limit; 37 chars is safe even for
-// all-Cyrillic (2 bytes each), and continuation lines begin with a space.
-function icsFold(line) {
-    if (line.length <= 37) return line;
-    let out = line.slice(0, 37), rest = line.slice(37);
-    while (rest.length) { out += '\r\n ' + rest.slice(0, 36); rest = rest.slice(36); }
-    return out;
-}
-function icsAddDay(iso) {
-    const dt = new Date(iso + 'T00:00:00Z');
-    if (Number.isNaN(dt.getTime())) return iso;
-    dt.setUTCDate(dt.getUTCDate() + 1);
-    return dt.toISOString().slice(0, 10);
-}
-function deadlineIcs(d, item) {
-    const start = String(d.expires || '').replace(/-/g, '');
-    const end = icsAddDay(d.expires).replace(/-/g, '');
-    const url = `${SITE_ORIGIN}/issue/${item.year}/${item.issue}/`;
-    const uid = `${item.year}-${item.issue}-${d.expires}-${String(d.what || '').length}@gazette.bg`;
-    const details = [d.who, `Държавен вестник, брой ${item.issue}`, url].filter(Boolean).join(' · ');
-    return [
-        'BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//gazette.bg//deadlines//BG', 'CALSCALE:GREGORIAN',
-        'BEGIN:VEVENT',
-        icsFold('UID:' + uid),
-        'DTSTAMP:' + start + 'T000000Z',
-        'DTSTART;VALUE=DATE:' + start,
-        'DTEND;VALUE=DATE:' + end,
-        icsFold('SUMMARY:Срок — ' + icsEscape(d.what || '')),
-        icsFold('DESCRIPTION:' + icsEscape(details)),
-        icsFold('URL:' + url),
-        'END:VEVENT', 'END:VCALENDAR', '',
-    ].join('\r\n');
-}
-function renderDeadlineCal(d, item) {
-    if (!d.expires) return '';
-    const href = 'data:text/calendar;charset=utf-8;base64,' + Buffer.from(deadlineIcs(d, item), 'utf8').toString('base64');
-    return `<a class="deadline-cal" download="gazette-deadline-${escapeHtml(String(item.issue))}.ics" href="${href}" aria-label="Добави срока в календара">＋ Календар</a>`;
-}
-
-function renderDeadlineRow(d, item, withIssue = true) {
-    const href = `/issue/${item.year}/${item.issue}/`;
-    // Inside the issue itself, saying which issue it came from is noise.
-    const who = [d.who, withIssue ? `брой ${item.issue}` : ''].filter(Boolean).join(' · ');
-    return `<li class="deadline" data-expires="${escapeHtml(d.expires)}">` +
-        `<span class="deadline-left">до ${escapeHtml(formatDateShort(isoToBg(d.expires)))}</span>` +
-        `<span class="deadline-body">` +
-        `<a class="deadline-what" href="${escapeHtml(href)}" data-file="${escapeHtml(item.file)}" data-issue="${escapeHtml(String(item.issue))}" data-date="${escapeHtml(item.date)}" data-year="${escapeHtml(String(item.year))}">${escapeHtml(d.what)}</a>` +
-        `<span class="deadline-who">${escapeHtml(who)}</span>` +
-        renderDeadlineCal(d, item) +
-        `</span></li>`;
-}
-
-function collectDeadlines(all, todayIso) {
-    const rows = [];
-    for (const item of all) {
-        for (const d of item.deadlines || []) {
-            if (d.expires >= todayIso) rows.push({ d, item });
-        }
-    }
-    return rows.sort((a, b) => a.d.expires.localeCompare(b.d.expires));
-}
-
-// Only the soonest few are actionable; the rest would be a wall. The list is
-// sorted by date, so the top of it is exactly what is about to run out.
-const DEADLINES_SHOWN = 8;
-
-function renderDeadlinesSection(all, todayIso) {
-    const rows = collectDeadlines(all, todayIso);
-    if (!rows.length) return '';
-    const shown = rows.slice(0, DEADLINES_SHOWN);
-    const rest = rows.length - shown.length;
-    const moreLabel = rest > 0
-        ? `Всички срокове · още ${rest} ${rest === 1 ? 'срок' : 'срока'} →`
-        : 'Всички срокове →';
-    const restNote = `<p class="deadlines-rest"><a class="deadlines-more" href="/deadlines/">${moreLabel}</a></p>`;
-    return '<section class="deadlines-section" id="deadlines">' +
-        '<div class="section-head"><h2 class="section-title">Срокове, които текат</h2>' +
-        `<span class="section-count" id="deadline-count">${rows.length} ${rows.length === 1 ? 'срок' : 'срока'}</span></div>` +
-        '<p class="deadlines-note">Изчислени от датата на броя. Срокът е ориентировъчен — за сигурност проверете самия брой.</p>' +
-        `<ul class="deadline-list">${shown.map(({ d, item }) => renderDeadlineRow(d, item)).join('')}</ul>` +
-        restNote +
-        '</section>';
-}
-
-const BG_MONTHS_LOWER = BG_MONTHS;
-
-function isoToBg(iso) {
-    const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso || '');
-    if (!m) return iso;
-    return `${parseInt(m[3], 10)} ${BG_MONTHS_LOWER[parseInt(m[2], 10) - 1]} ${m[1]}`;
 }
 
 function renderShare(item) {
@@ -479,7 +301,6 @@ function buildHomeContentHtml(catalog) {
 
     const older = all.slice(1);
     let html = renderLeadCard(all[0]);
-    html += renderDeadlinesSection(all, new Date().toISOString().slice(0, 10));
 
     if (older.length) {
         const byYear = {};
@@ -507,81 +328,11 @@ function buildHomeContentHtml(catalog) {
 const CONTENT_DISCLAIMER = '<p class="content-disclaimer">Текстът по-долу е неофициално обобщение, генерирано с AI, и може да съдържа грешки. За официален текст и правни цели използвайте <a href="https://dv.parliament.bg" target="_blank" rel="noopener">dv.parliament.bg</a>.</p>';
 const END_MARK = '<p class="end-mark" aria-hidden="true">◼</p>';
 
-// Set once per build so the renderer can resolve related-topic refs.
-let CATALOG = null;
-
-// A compact [year, issue, sectionIndex] ref → the target section's title, date
-// and slug, read from the catalog (nothing is duplicated into the ref).
-function resolveRelated(ref) {
-    if (!Array.isArray(ref) || !CATALOG) return null;
-    const [year, issue, secIndex] = ref;
-    const entry = ((CATALOG.years || {})[String(year)] || []).find((e) => e.issue === issue);
-    const sec = entry && (entry.sections || [])[secIndex];
-    if (!sec || !sec.title) return null;
-    return { year, issue, title: sec.title, date: entry.date, slug: slugify(sec.title) };
-}
-
-// "Проследи темите" — a closing block that lets a reader follow each topic in
-// this issue across the other issues that cover it. Sits after the article so
-// it never disturbs the section headings or the drop cap.
-function renderTopicThreads(item) {
-    const sections = Array.isArray(item.sections) ? item.sections : [];
-    const rows = [];
-    for (const s of sections) {
-        if (!Array.isArray(s.related) || !s.related.length) continue;
-        const links = s.related.map((ref) => {
-            const t = resolveRelated(ref);
-            if (!t) return '';
-            return `<a class="thread-link" href="/issue/${t.year}/${t.issue}/#${encodeURIComponent(t.slug)}" title="${escapeHtml(t.title)}">брой ${escapeHtml(String(t.issue))} · ${escapeHtml(formatDateShort(t.date))}</a>`;
-        }).filter(Boolean).join('');
-        if (links) rows.push(`<li class="thread"><span class="thread-topic">${escapeHtml(s.title)}</span><span class="thread-links">${links}</span></li>`);
-    }
-    if (!rows.length) return '';
-    return `<aside class="topic-threads" aria-label="Свързано отразяване"><p class="topic-threads-title">Проследи темите</p><ul class="topic-threads-list">${rows.join('')}</ul></aside>`;
-}
-
-// "Какво не влезе в това обобщение" — the honesty panel. Every issue is checked
-// after summarizing: the model compares the raw inventory of the issue against
-// the finished summary and reports what affects ordinary people but was left
-// out. We save that verdict and show it here. Only rendered for issues that have
-// actually been checked (the field exists) — older issues, checked before we
-// started recording it, show nothing rather than a false "nothing was dropped".
-function renderCoverage(item) {
-    const cov = item.coverage;
-    if (!cov || !cov.checked) return '';
-    const omitted = Array.isArray(cov.omitted) ? cov.omitted : [];
-    const label = '<p class="coverage-label">Проверка за пълнота</p>';
-    if (omitted.length === 0) {
-        return `<aside class="coverage-note is-clear" aria-label="Проверка за пълнота">${label}` +
-            `<p class="coverage-clear">Нищо съществено от този брой не е останало извън обобщението. ` +
-            `Обобщението подбира важното за гражданите; назначения, вътрешни правилници и съобщения до конкретни лица нарочно не се включват.</p></aside>`;
-    }
-    const rows = omitted.map((o) => `<li>${escapeHtml(o)}</li>`).join('');
-    return `<aside class="coverage-note has-omissions" aria-label="Какво не влезе в обобщението">${label}` +
-        `<p class="coverage-title">Какво не влезе в това обобщение</p>` +
-        `<p class="coverage-intro">Обобщението подбира най-важното за гражданите. За прозрачност, ето какво друго от този брой засяга хора, но преценихме за по-маловажно и не включихме. Пълният официален текст е на <a href="https://dv.parliament.bg" target="_blank" rel="noopener">dv.parliament.bg</a>.</p>` +
-        `<ul class="coverage-list">${rows}</ul></aside>`;
-}
-
-// An inline `code` term that is a known abbreviation gets its meaning on hover
-// (and via the /glossary page). A multi-word term falls back to its first word,
-// so "БНТ 4" still resolves to БНТ.
-function glossaryLookup(term) {
-    return GLOSSARY[term] || GLOSSARY[term.split(/\s+/)[0]] || null;
-}
-function glossifyHtml(html) {
-    return html.replace(/<code>([^<]+)<\/code>/g, (m, inner) => {
-        const def = glossaryLookup(inner.trim());
-        return def ? `<code class="gloss" title="${escapeHtml(def)}">${inner}</code>` : m;
-    });
-}
-
 function buildIssueViewInner(item, prev, next) {
     const md = fs.readFileSync(path.join(ROOT, item.file), 'utf8');
     const rawHtml = marked.parse(md);
     const { html: processedHtml, tocItems } = processRenderedContent(rawHtml);
-    const taggedHtml = glossifyHtml(injectSectionTags(processedHtml, item.sections));
-    const contentHtml = CONTENT_DISCLAIMER + buildTocHtml(tocItems) + taggedHtml + renderTopicThreads(item) + renderCoverage(item) + END_MARK;
+    const contentHtml = CONTENT_DISCLAIMER + buildTocHtml(tocItems) + processedHtml + END_MARK;
 
     const topics = Array.isArray(item.topics) ? item.topics : [];
     const meta = ['Обобщение с AI'];
@@ -591,16 +342,7 @@ function buildIssueViewInner(item, prev, next) {
 
     const headerHtml = `<p class="issue-kicker"><span>Брой ${escapeHtml(String(item.issue))}</span><span class="rule"></span><span>Държавен вестник</span></p>` +
         `<h1 class="title"><span class="visually-hidden">Държавен вестник, брой ${escapeHtml(String(item.issue))} — </span>${escapeHtml(formatDateLong(item.date))}</h1>` +
-        `<p class="issue-meta" id="issue-meta">${metaHtml}</p>` +
-        renderTags(item.audiences) +
-        renderPlaces(item.places);
-
-    // The deadlines this issue starts, in the issue itself — a reader who lands
-    // here from a search should not have to go back to the front page for them.
-    const openDeadlines = (item.deadlines || []).filter((d) => d.expires >= new Date().toISOString().slice(0, 10));
-    const deadlinesHtml = openDeadlines.length
-        ? `<section class="issue-deadlines"><p class="issue-deadlines-title">Срокове от този брой</p><ul class="deadline-list">${openDeadlines.map((d) => renderDeadlineRow(d, item, false)).join('')}</ul></section>`
-        : '';
+        `<p class="issue-meta" id="issue-meta">${metaHtml}</p>`;
 
     let navHtml = '';
     if (prev) navHtml += `<div class="issue-nav-group is-prev"><span class="nav-label">← Предишен брой</span>${renderNavCard(prev)}</div>`;
@@ -611,7 +353,6 @@ function buildIssueViewInner(item, prev, next) {
                     <button type="button" class="back-btn" id="back-btn" aria-label="Обратно към всички броеве">← Всички броеве</button>
                 </div>
                 <div class="issue-header" id="issue-header">${headerHtml}</div>
-                <div id="issue-deadlines">${deadlinesHtml}</div>
                 <article class="content" id="content">${contentHtml}</article>
                 <div class="issue-share" id="issue-share">${renderShare(item)}</div>
                 <div id="issue-nav" class="issue-nav issue-nav-bottom" aria-label="Навигация между броеве">${navHtml}</div>
@@ -705,12 +446,6 @@ function buildSitemapXml(catalog) {
     const latestIso = all.length ? (issueDateToIso(all[0].date) || today) : today;
     const urls = [];
     urls.push(`  <url>\n    <loc>${SITE_ORIGIN}/</loc>\n    <lastmod>${latestIso}</lastmod>\n    <changefreq>daily</changefreq>\n    <priority>1.0</priority>\n  </url>`);
-    urls.push(`  <url>\n    <loc>${SITE_ORIGIN}/deadlines/</loc>\n    <lastmod>${today}</lastmod>\n    <changefreq>daily</changefreq>\n    <priority>0.8</priority>\n  </url>`);
-    urls.push(`  <url>\n    <loc>${SITE_ORIGIN}/places/</loc>\n    <lastmod>${latestIso}</lastmod>\n    <changefreq>weekly</changefreq>\n    <priority>0.6</priority>\n  </url>`);
-    urls.push(`  <url>\n    <loc>${SITE_ORIGIN}/map/</loc>\n    <lastmod>${latestIso}</lastmod>\n    <changefreq>weekly</changefreq>\n    <priority>0.6</priority>\n  </url>`);
-    urls.push(`  <url>\n    <loc>${SITE_ORIGIN}/stats/</loc>\n    <lastmod>${latestIso}</lastmod>\n    <changefreq>weekly</changefreq>\n    <priority>0.6</priority>\n  </url>`);
-    urls.push(`  <url>\n    <loc>${SITE_ORIGIN}/glossary/</loc>\n    <lastmod>${latestIso}</lastmod>\n    <changefreq>monthly</changefreq>\n    <priority>0.5</priority>\n  </url>`);
-    urls.push(`  <url>\n    <loc>${SITE_ORIGIN}/tracks/</loc>\n    <lastmod>${latestIso}</lastmod>\n    <changefreq>weekly</changefreq>\n    <priority>0.6</priority>\n  </url>`);
     for (const item of all) {
         const iso = issueDateToIso(item.date) || today;
         const loc = `${SITE_ORIGIN}/issue/${encodeURIComponent(item.year)}/${encodeURIComponent(item.issue)}/`;
@@ -750,418 +485,6 @@ function buildRssXml(catalog) {
     return `<?xml version="1.0" encoding="UTF-8"?>\n<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">\n<channel>\n  <title>${escapeHtml(FEED_TITLE)}</title>\n  <link>${SITE_ORIGIN}/</link>\n  <atom:link href="${SITE_ORIGIN}/feed.xml" rel="self" type="application/rss+xml" />\n  <description>${escapeHtml(FEED_DESC)}</description>\n  <language>bg</language>\n  <lastBuildDate>${lastBuild}</lastBuildDate>\n${items}\n</channel>\n</rss>\n`;
 }
 
-// ─── Deadlines page (/deadlines/) ───
-// Every open deadline across all issues, one place, grouped by month. Reuses
-// the same row (incl. the "＋ Календар" .ics) the homepage and issues render.
-
-function deadlineMonthLabel(iso) {
-    const m = /^(\d{4})-(\d{2})/.exec(iso || '');
-    if (!m) return { key: '0000-00', label: '' };
-    return { key: `${m[1]}-${m[2]}`, label: `${BG_MONTHS_CAP[parseInt(m[2], 10) - 1]} ${m[1]}` };
-}
-
-function buildDeadlinesPageInner(catalog, todayIso) {
-    const all = getAllIssuesNewestFirst(catalog);
-    const rows = collectDeadlines(all, todayIso);
-    const total = rows.length;
-    const head = '<div class="deadlines-page-top"><a class="deadlines-back" href="/">← Начало</a></div>' +
-        '<div class="section-head"><h1 class="section-title">Срокове, които текат</h1>' +
-        `<span class="section-count">${total} ${total === 1 ? 'срок' : 'срока'}</span></div>` +
-        '<p class="deadlines-note">Всички срокове, в които все още можеш да направиш нещо — възражение, обжалване, заявление. Изчислени от датата на броя; за сигурност проверете самия брой.</p>';
-    if (!total) {
-        return `<section class="deadlines-page" id="deadlines-page">${head}<p class="empty">В момента няма отворени срокове.</p></section>`;
-    }
-    const order = [];
-    const byKey = new Map();
-    for (const { d, item } of rows) {
-        const { key, label } = deadlineMonthLabel(d.expires);
-        if (!byKey.has(key)) { byKey.set(key, { label, items: [] }); order.push(key); }
-        byKey.get(key).items.push({ d, item });
-    }
-    const groups = order.map((key) => {
-        const g = byKey.get(key);
-        const list = g.items.map(({ d, item }) => renderDeadlineRow(d, item)).join('');
-        return `<div class="month-group"><h2 class="month-title">${escapeHtml(g.label)}</h2><ul class="deadline-list">${list}</ul></div>`;
-    }).join('');
-    return `<section class="deadlines-page" id="deadlines-page">${head}${groups}</section>`;
-}
-
-function buildDeadlinesPage(cleanTemplate, catalog) {
-    const title = 'Срокове, които текат — Държавен вестник';
-    const desc = 'Всички отворени срокове от Държавен вестник, групирани по месец — възражения, обжалвания и заявления, докато все още можеш да ги подадеш.';
-    const canonicalUrl = `${SITE_ORIGIN}/deadlines/`;
-    let html = cleanTemplate;
-    html = html.replace(/<title>[\s\S]*?<\/title>/, `<title>${escapeHtml(title)}</title>`);
-    html = html.replace(/(<meta name="description" content=")[^"]*("\s*\/>)/, `$1${escapeHtml(desc)}$2`);
-    html = html.replace(/(<meta property="og:title" content=")[^"]*("\s*\/>)/, `$1${escapeHtml(title)}$2`);
-    html = html.replace(/(<meta property="og:description" content=")[^"]*("\s*\/>)/, `$1${escapeHtml(desc)}$2`);
-    html = html.replace(/(<meta property="og:url" content=")[^"]*("\s*\/>)/, `$1${escapeHtml(canonicalUrl)}$2`);
-    html = html.replace(/(<link rel="canonical" href=")[^"]*("\s*\/>)/, `$1${escapeHtml(canonicalUrl)}$2`);
-
-    // The page's one heading is "Срокове…", so demote the nameplate to a <p>
-    // (as issue pages do). A body class hides the masthead and tells app.js to
-    // leave the pre-rendered content alone instead of rendering the home over it.
-    html = html.replace('<h1 class="masthead-title">', '<p class="masthead-title">')
-        .replace(/(<p class="masthead-title">[\s\S]*?)<\/h1>/, '$1</p>');
-    html = html.replace(/<body(\s|>)/, '<body class="deadlines-route"$1');
-
-    return replaceHomeContent(html, buildDeadlinesPageInner(catalog, new Date().toISOString().slice(0, 10)));
-}
-
-// ─── Places index (/places/) ───
-// Every settlement, municipality or region named across all issues, A–Я, each
-// linking to the archive filtered to it. Reuses the sub-page back link / note.
-
-function collectPlaces(catalog) {
-    const counts = new Map();
-    for (const item of getAllIssuesNewestFirst(catalog)) {
-        for (const raw of item.places || []) {
-            const name = String(raw).trim();
-            if (name) counts.set(name, (counts.get(name) || 0) + 1);
-        }
-    }
-    return counts;
-}
-
-function buildPlacesPageInner(catalog) {
-    const counts = collectPlaces(catalog);
-    const places = [...counts.keys()].sort((a, b) => a.localeCompare(b, 'bg'));
-    const total = places.length;
-    const head = '<div class="deadlines-page-top"><a class="deadlines-back" href="/">← Начало</a></div>' +
-        '<div class="section-head"><h1 class="section-title">Места</h1>' +
-        `<span class="section-count">${total} ${total === 1 ? 'място' : 'места'}</span></div>` +
-        '<p class="deadlines-note">Всяко населено място, община или област, спомената в броевете. Изберете, за да видите кои броеве я засягат. Числото е в колко броя се споменава.</p>';
-    if (!total) {
-        return `<section class="places-page" id="places-page">${head}<p class="empty">Все още няма отбелязани места.</p></section>`;
-    }
-    const order = [];
-    const byLetter = new Map();
-    for (const name of places) {
-        const letter = name.charAt(0).toUpperCase();
-        if (!byLetter.has(letter)) { byLetter.set(letter, []); order.push(letter); }
-        byLetter.get(letter).push(name);
-    }
-    const groups = order.map((letter) => {
-        const items = byLetter.get(letter).map((name) => {
-            const c = counts.get(name);
-            return `<li class="place-index-item"><a href="/?q=${encodeURIComponent(name)}#archive"><span class="place-index-name">${escapeHtml(name)}</span><span class="place-index-count">${c}</span></a></li>`;
-        }).join('');
-        return `<div class="place-letter-group"><h2 class="place-letter">${escapeHtml(letter)}</h2><ul class="place-index-list">${items}</ul></div>`;
-    }).join('');
-    return `<section class="places-page" id="places-page">${head}${groups}</section>`;
-}
-
-function buildPlacesPage(cleanTemplate, catalog) {
-    const title = 'Места — Държавен вестник';
-    const desc = 'Азбучен указател на населените места, общини и области, споменати в броевете на Държавен вестник — изберете място, за да видите кои броеве го засягат.';
-    const canonicalUrl = `${SITE_ORIGIN}/places/`;
-    let html = cleanTemplate;
-    html = html.replace(/<title>[\s\S]*?<\/title>/, `<title>${escapeHtml(title)}</title>`);
-    html = html.replace(/(<meta name="description" content=")[^"]*("\s*\/>)/, `$1${escapeHtml(desc)}$2`);
-    html = html.replace(/(<meta property="og:title" content=")[^"]*("\s*\/>)/, `$1${escapeHtml(title)}$2`);
-    html = html.replace(/(<meta property="og:description" content=")[^"]*("\s*\/>)/, `$1${escapeHtml(desc)}$2`);
-    html = html.replace(/(<meta property="og:url" content=")[^"]*("\s*\/>)/, `$1${escapeHtml(canonicalUrl)}$2`);
-    html = html.replace(/(<link rel="canonical" href=")[^"]*("\s*\/>)/, `$1${escapeHtml(canonicalUrl)}$2`);
-    html = html.replace('<h1 class="masthead-title">', '<p class="masthead-title">')
-        .replace(/(<p class="masthead-title">[\s\S]*?)<\/h1>/, '$1</p>');
-    html = html.replace(/<body(\s|>)/, '<body class="places-route"$1');
-    return replaceHomeContent(html, buildPlacesPageInner(catalog));
-}
-
-// ─── Map (/map/) — a choropleth of the 28 provinces by issue count ───
-// A few names in the data aren't settlements EKATTE lists (Sofia quarters,
-// resort areas); map the clear ones by hand. Rivers, the country and rail-line
-// labels stay unmapped.
-const PLACE_PROVINCE_OVERRIDE = {
-    'Подуяне': 'SOF', 'Връбница': 'SOF', 'Кремиковци': 'SOF', 'Овча купел': 'SOF',
-    'Люлин-5': 'SOF', 'Витоша': 'SOF', 'Манастирски ливади': 'SOF', 'Враждебна': 'SOF',
-    'Слънчев бряг': 'BGS', 'Сарафово': 'BGS', 'Добричка': 'DOB',
-};
-
-// The provinces an issue touches. Unambiguous places fix the context; a place
-// that exists in several provinces is then resolved to one already present, else
-// to its town/first entry.
-function issueProvinces(item) {
-    const codes = new Set();
-    const ambiguous = [];
-    for (const raw of item.places || []) {
-        const name = String(raw).trim();
-        const entry = BG_SETTLEMENTS[name] || PLACE_PROVINCE_OVERRIDE[name];
-        if (!entry) continue;
-        if (typeof entry === 'string') codes.add(entry);
-        else ambiguous.push(entry);
-    }
-    for (const cand of ambiguous) {
-        const inContext = cand.find((c) => codes.has(c));
-        codes.add(inContext || cand[0]);
-    }
-    return codes;
-}
-
-function computeProvinceCounts(catalog) {
-    const counts = {};
-    for (const p of BG_PROVINCES.provinces) counts[p.code] = 0;
-    for (const item of getAllIssuesNewestFirst(catalog)) {
-        for (const code of issueProvinces(item)) counts[code] = (counts[code] || 0) + 1;
-    }
-    return counts;
-}
-
-// Five sequential bins by quantile, so colour tracks rank robustly as the data grows.
-function provinceBinThresholds(counts) {
-    const vals = Object.values(counts).filter((v) => v > 0).sort((a, b) => a - b);
-    if (!vals.length) return [0, 0, 0, 0];
-    const q = (p) => vals[Math.min(vals.length - 1, Math.floor(p * vals.length))];
-    return [q(0.2), q(0.4), q(0.6), q(0.8)];
-}
-function provinceBin(count, thresholds) {
-    if (count <= 0) return 0;
-    let bin = 1;
-    for (const t of thresholds) if (count > t) bin++;
-    return Math.min(bin, 5);
-}
-
-function buildMapPageInner(catalog) {
-    const g = BG_PROVINCES;
-    const counts = computeProvinceCounts(catalog);
-    const thresholds = provinceBinThresholds(counts);
-    const maxCount = Math.max(1, ...Object.values(counts));
-    const totalMapped = Object.values(counts).reduce((a, b) => a + b, 0);
-
-    const shapes = g.provinces.map((p) => {
-        const c = counts[p.code] || 0;
-        return `<path class="province mb-${provinceBin(c, thresholds)}" d="${p.d}" data-name="${escapeHtml(p.name)}" data-count="${c}" tabindex="0" role="button" aria-label="${escapeHtml(p.name)}: ${c} ${c === 1 ? 'брой' : 'броя'}"></path>`;
-    }).join('');
-    const labels = g.provinces.map((p) => {
-        const c = counts[p.code] || 0;
-        return `<text class="province-count" x="${p.cx}" y="${p.cy}" text-anchor="middle" dominant-baseline="central">${c}</text>`;
-    }).join('');
-    const svg = `<svg class="bg-map" viewBox="0 0 ${g.w} ${g.h}" role="img" aria-label="Карта на България — брой броеве по област">${shapes}${labels}</svg>`;
-
-    const legend = '<div class="map-legend"><span class="map-legend-label">по-малко</span>' +
-        [1, 2, 3, 4, 5].map((b) => `<span class="map-swatch mb-${b}"></span>`).join('') +
-        '<span class="map-legend-label">повече</span></div>';
-
-    const ranked = g.provinces.slice().sort((a, b) => (counts[b.code] || 0) - (counts[a.code] || 0));
-    const rows = ranked.map((p) => {
-        const c = counts[p.code] || 0;
-        return `<li class="province-rank-item"><a href="/?q=${encodeURIComponent(p.name)}#archive">` +
-            `<span class="province-rank-name">${escapeHtml(p.name)}</span>` +
-            `<span class="province-rank-bar"><span style="width:${Math.round((c / maxCount) * 100)}%"></span></span>` +
-            `<span class="province-rank-count">${c}</span></a></li>`;
-    }).join('');
-
-    const head = '<div class="deadlines-page-top"><a class="deadlines-back" href="/">← Начало</a></div>' +
-        '<div class="section-head"><h1 class="section-title">Карта</h1>' +
-        `<span class="section-count">28 области</span></div>` +
-        '<p class="deadlines-note">Колко броя на Държавен вестник засягат всяка област — по местата, които назовават. По-тъмното означава повече. Посочете или докоснете област за подробности.</p>';
-
-    return `<section class="map-page" id="map-page">${head}` +
-        `<div class="map-figure">${svg}<div class="map-tooltip" id="map-tooltip" hidden></div></div>${legend}` +
-        `<div class="province-rank"><h2 class="province-rank-title">Области по брой издания</h2><ol class="province-rank-list">${rows}</ol></div>` +
-        `</section>`;
-}
-
-function buildMapPage(cleanTemplate, catalog) {
-    const title = 'Карта — Държавен вестник';
-    const desc = 'Карта на България: колко броя на Държавен вестник засягат всяка област, по местата, които назовават — вижте къде е съсредоточена дейността.';
-    const canonicalUrl = `${SITE_ORIGIN}/map/`;
-    let html = cleanTemplate;
-    html = html.replace(/<title>[\s\S]*?<\/title>/, `<title>${escapeHtml(title)}</title>`);
-    html = html.replace(/(<meta name="description" content=")[^"]*("\s*\/>)/, `$1${escapeHtml(desc)}$2`);
-    html = html.replace(/(<meta property="og:title" content=")[^"]*("\s*\/>)/, `$1${escapeHtml(title)}$2`);
-    html = html.replace(/(<meta property="og:description" content=")[^"]*("\s*\/>)/, `$1${escapeHtml(desc)}$2`);
-    html = html.replace(/(<meta property="og:url" content=")[^"]*("\s*\/>)/, `$1${escapeHtml(canonicalUrl)}$2`);
-    html = html.replace(/(<link rel="canonical" href=")[^"]*("\s*\/>)/, `$1${escapeHtml(canonicalUrl)}$2`);
-    html = html.replace('<h1 class="masthead-title">', '<p class="masthead-title">')
-        .replace(/(<p class="masthead-title">[\s\S]*?)<\/h1>/, '$1</p>');
-    html = html.replace(/<body(\s|>)/, '<body class="map-route"$1');
-    return replaceHomeContent(html, buildMapPageInner(catalog));
-}
-
-// ─── Stats dashboard (/stats/) ───
-// Single-series magnitude charts, so one accent hue throughout; thin bars
-// anchored to a baseline with a rounded data-end; values direct-labelled.
-
-function issueMonthKey(date) {
-    const m = String(date || '').match(/^(\d{1,2})\s+([^\s]+)\s+(\d{4})/);
-    if (!m) return null;
-    const i = BG_MONTHS.indexOf(m[2].toLowerCase());
-    return i < 0 ? null : { key: `${m[3]}-${String(i + 1).padStart(2, '0')}`, mi: i };
-}
-
-// A bar rounded only on its data-end (top), square on the baseline.
-function topRoundedBarPath(x, y, w, h, r) {
-    r = Math.max(0, Math.min(r, w / 2, h));
-    const base = y + h;
-    return `M${x},${base} L${x},${y + r} Q${x},${y} ${x + r},${y} L${x + w - r},${y} Q${x + w},${y} ${x + w},${y + r} L${x + w},${base} Z`;
-}
-
-function renderColumnChart(data, aria) {
-    const W = 720, H = 236, padT = 26, padB = 32, padX = 6;
-    const n = Math.max(1, data.length);
-    const max = Math.max(1, ...data.map((d) => d.value));
-    const plotW = W - padX * 2, plotH = H - padT - padB, band = plotW / n, bw = Math.min(52, band * 0.58);
-    const baseline = padT + plotH;
-    let bars = '', values = '', labels = '';
-    data.forEach((d, i) => {
-        const bh = (d.value / max) * plotH;
-        const x = padX + i * band + (band - bw) / 2;
-        const y = baseline - bh;
-        bars += `<path class="chart-bar" d="${topRoundedBarPath(x, y, bw, bh, 4)}"><title>${escapeHtml(d.title || `${d.label}: ${d.value}`)}</title></path>`;
-        values += `<text class="chart-value" x="${x + bw / 2}" y="${y - 7}" text-anchor="middle">${d.value}</text>`;
-        labels += `<text class="chart-axis" x="${x + bw / 2}" y="${baseline + 18}" text-anchor="middle">${escapeHtml(d.label)}</text>`;
-    });
-    return `<svg class="column-chart" viewBox="0 0 ${W} ${H}" role="img" aria-label="${escapeHtml(aria || '')}">` +
-        `<line class="chart-baseline" x1="${padX}" y1="${baseline}" x2="${W - padX}" y2="${baseline}" />${bars}${values}${labels}</svg>`;
-}
-
-function renderStatBars(rows) {
-    const max = Math.max(1, ...rows.map((r) => r.value));
-    return '<ul class="stat-bars">' + rows.map((r) =>
-        `<li class="stat-bar-row"><span class="stat-bar-label">${escapeHtml(r.label)}</span>` +
-        `<span class="stat-bar-track"><span class="stat-bar-fill" style="width:${Math.round((r.value / max) * 100)}%"></span></span>` +
-        `<span class="stat-bar-value">${r.value}</span></li>`
-    ).join('') + '</ul>';
-}
-
-function statBlock(title, sub, body) {
-    return `<div class="stat-block"><h2 class="stat-block-title">${escapeHtml(title)}</h2>` +
-        (sub ? `<p class="stat-block-sub">${escapeHtml(sub)}</p>` : '') + body + '</div>';
-}
-
-function buildStatsPageInner(catalog) {
-    const all = getAllIssuesNewestFirst(catalog);
-    const sections = all.reduce((n, e) => n + (e.sections || []).length, 0);
-    const deadlines = all.reduce((n, e) => n + (e.deadlines || []).length, 0);
-    const places = new Set();
-    for (const e of all) for (const p of e.places || []) places.add(String(p).trim());
-
-    const issuesByMonth = {}, dlByMonth = {}, monthMi = {};
-    for (const e of all) {
-        const mo = issueMonthKey(e.date);
-        if (!mo) continue;
-        issuesByMonth[mo.key] = (issuesByMonth[mo.key] || 0) + 1;
-        dlByMonth[mo.key] = (dlByMonth[mo.key] || 0) + (e.deadlines || []).length;
-        monthMi[mo.key] = mo.mi;
-    }
-    const monthKeys = Object.keys(issuesByMonth).sort();
-    const issueCols = monthKeys.map((k) => ({ label: BG_MONTHS_SHORT[monthMi[k]], value: issuesByMonth[k], title: `${BG_MONTHS_SHORT[monthMi[k]]}: ${issuesByMonth[k]} броя` }));
-    const dlCols = monthKeys.map((k) => ({ label: BG_MONTHS_SHORT[monthMi[k]], value: dlByMonth[k], title: `${BG_MONTHS_SHORT[monthMi[k]]}: ${dlByMonth[k]} срока` }));
-
-    const audCount = {};
-    for (const a of AUDIENCES) audCount[a] = 0;
-    for (const e of all) for (const a of e.audiences || []) if (a in audCount) audCount[a]++;
-    const audRows = Object.entries(audCount).sort((a, b) => b[1] - a[1]).map(([label, value]) => ({ label, value }));
-
-    const kpis = [
-        { num: all.length, label: all.length === 1 ? 'брой' : 'броя' },
-        { num: sections, label: 'обобщени теми' },
-        { num: deadlines, label: 'срока' },
-        { num: places.size, label: 'места' },
-    ];
-    const head = '<div class="deadlines-page-top"><a class="deadlines-back" href="/">← Начало</a></div>' +
-        '<div class="section-head"><h1 class="section-title">Статистика</h1>' +
-        `<span class="section-count">${escapeHtml(String((all[all.length - 1] && all[all.length - 1].year) || ''))}</span></div>` +
-        '<p class="deadlines-note">Държавен вестник в числа — обем на изданието, кого засяга и кога текат сроковете. Изчислено от обобщенията.</p>';
-
-    return `<section class="stats-page" id="stats-page">${head}` +
-        '<div class="kpi-row">' + kpis.map((k) => `<div class="kpi"><span class="kpi-num">${escapeHtml(String(k.num))}</span><span class="kpi-label">${escapeHtml(k.label)}</span></div>`).join('') + '</div>' +
-        statBlock('Броеве по месец', '', renderColumnChart(issueCols, 'Брой издания по месец')) +
-        statBlock('Кого засягат броевете', 'По колко броя засяга всяка група читатели', renderStatBars(audRows)) +
-        statBlock('Нови срокове по месец', 'Действени срокове, започнати във всеки месец', renderColumnChart(dlCols, 'Брой нови срокове по месец')) +
-        '</section>';
-}
-
-function buildStatsPage(cleanTemplate, catalog) {
-    const title = 'Статистика — Държавен вестник';
-    const desc = 'Държавен вестник в числа: колко броя и теми, кого засягат най-често и кога текат сроковете — по обобщенията на всеки брой.';
-    const canonicalUrl = `${SITE_ORIGIN}/stats/`;
-    let html = cleanTemplate;
-    html = html.replace(/<title>[\s\S]*?<\/title>/, `<title>${escapeHtml(title)}</title>`);
-    html = html.replace(/(<meta name="description" content=")[^"]*("\s*\/>)/, `$1${escapeHtml(desc)}$2`);
-    html = html.replace(/(<meta property="og:title" content=")[^"]*("\s*\/>)/, `$1${escapeHtml(title)}$2`);
-    html = html.replace(/(<meta property="og:description" content=")[^"]*("\s*\/>)/, `$1${escapeHtml(desc)}$2`);
-    html = html.replace(/(<meta property="og:url" content=")[^"]*("\s*\/>)/, `$1${escapeHtml(canonicalUrl)}$2`);
-    html = html.replace(/(<link rel="canonical" href=")[^"]*("\s*\/>)/, `$1${escapeHtml(canonicalUrl)}$2`);
-    html = html.replace('<h1 class="masthead-title">', '<p class="masthead-title">')
-        .replace(/(<p class="masthead-title">[\s\S]*?)<\/h1>/, '$1</p>');
-    html = html.replace(/<body(\s|>)/, '<body class="stats-route"$1');
-    return replaceHomeContent(html, buildStatsPageInner(catalog));
-}
-
-// ─── Trackers (/tracks/) — big recurring storylines as timelines ───
-function buildTracksPageInner(catalog) {
-    const all = getAllIssuesNewestFirst(catalog).slice()
-        .sort((a, b) => (Number(a.year) - Number(b.year)) || (a.issue - b.issue)); // chronological
-    const head = '<div class="deadlines-page-top"><a class="deadlines-back" href="/">← Начало</a></div>' +
-        '<div class="section-head"><h1 class="section-title">Сюжети</h1></div>' +
-        '<p class="deadlines-note">Големите теми, които се връщат брой след брой — проследени във времето, от началото до сега.</p>';
-    const blocks = TRACKERS.map((t) => {
-        const steps = [];
-        for (const e of all) {
-            for (const s of e.sections || []) {
-                if (t.match.test(s.title)) {
-                    steps.push(`<li class="track-step"><a href="/issue/${e.year}/${e.issue}/#${encodeURIComponent(slugify(s.title))}">` +
-                        `<span class="track-step-meta">брой ${escapeHtml(String(e.issue))} · ${escapeHtml(formatDateShort(e.date))}</span>` +
-                        `<span class="track-step-what">${escapeHtml(s.title)}</span></a></li>`);
-                }
-            }
-        }
-        if (!steps.length) return '';
-        return `<div class="track"><h2 class="track-title">${escapeHtml(t.title)}</h2>` +
-            `<p class="track-sub">${escapeHtml(t.sub)}</p><ol class="track-timeline">${steps.join('')}</ol></div>`;
-    }).join('');
-    return `<section class="tracks-page" id="tracks-page">${head}${blocks}</section>`;
-}
-
-function buildTracksPage(cleanTemplate, catalog) {
-    const title = 'Сюжети — Държавен вестник';
-    const desc = 'Големите повтарящи се теми в Държавен вестник, проследени във времето — преходът към еврото и изборите за 52-ро Народно събрание.';
-    const canonicalUrl = `${SITE_ORIGIN}/tracks/`;
-    let html = cleanTemplate;
-    html = html.replace(/<title>[\s\S]*?<\/title>/, `<title>${escapeHtml(title)}</title>`);
-    html = html.replace(/(<meta name="description" content=")[^"]*("\s*\/>)/, `$1${escapeHtml(desc)}$2`);
-    html = html.replace(/(<meta property="og:title" content=")[^"]*("\s*\/>)/, `$1${escapeHtml(title)}$2`);
-    html = html.replace(/(<meta property="og:description" content=")[^"]*("\s*\/>)/, `$1${escapeHtml(desc)}$2`);
-    html = html.replace(/(<meta property="og:url" content=")[^"]*("\s*\/>)/, `$1${escapeHtml(canonicalUrl)}$2`);
-    html = html.replace(/(<link rel="canonical" href=")[^"]*("\s*\/>)/, `$1${escapeHtml(canonicalUrl)}$2`);
-    html = html.replace('<h1 class="masthead-title">', '<p class="masthead-title">')
-        .replace(/(<p class="masthead-title">[\s\S]*?)<\/h1>/, '$1</p>');
-    html = html.replace(/<body(\s|>)/, '<body class="tracks-route"$1');
-    return replaceHomeContent(html, buildTracksPageInner(catalog));
-}
-
-// ─── Glossary page (/glossary/) ───
-function buildGlossaryPageInner() {
-    const entries = Object.entries(GLOSSARY).sort((a, b) => a[0].localeCompare(b[0], 'bg'));
-    const head = '<div class="deadlines-page-top"><a class="deadlines-back" href="/">← Начало</a></div>' +
-        '<div class="section-head"><h1 class="section-title">Речник</h1>' +
-        `<span class="section-count">${entries.length} съкращения</span></div>` +
-        '<p class="deadlines-note">Институциите и съкращенията, които се срещат в обобщенията. В текста на всеки брой същите термини имат обяснение при посочване.</p>';
-    const rows = entries.map(([term, def]) =>
-        `<div class="glossary-item"><dt class="glossary-term">${escapeHtml(term)}</dt><dd class="glossary-def">${escapeHtml(def)}</dd></div>`
-    ).join('');
-    return `<section class="glossary-page" id="glossary-page">${head}<dl class="glossary-list">${rows}</dl></section>`;
-}
-
-function buildGlossaryPage(cleanTemplate) {
-    const title = 'Речник на съкращенията — Държавен вестник';
-    const desc = 'Кратък речник на институциите и съкращенията, които се срещат в обобщенията на Държавен вестник — НЗОК, НАП, КФН, ВАС и други.';
-    const canonicalUrl = `${SITE_ORIGIN}/glossary/`;
-    let html = cleanTemplate;
-    html = html.replace(/<title>[\s\S]*?<\/title>/, `<title>${escapeHtml(title)}</title>`);
-    html = html.replace(/(<meta name="description" content=")[^"]*("\s*\/>)/, `$1${escapeHtml(desc)}$2`);
-    html = html.replace(/(<meta property="og:title" content=")[^"]*("\s*\/>)/, `$1${escapeHtml(title)}$2`);
-    html = html.replace(/(<meta property="og:description" content=")[^"]*("\s*\/>)/, `$1${escapeHtml(desc)}$2`);
-    html = html.replace(/(<meta property="og:url" content=")[^"]*("\s*\/>)/, `$1${escapeHtml(canonicalUrl)}$2`);
-    html = html.replace(/(<link rel="canonical" href=")[^"]*("\s*\/>)/, `$1${escapeHtml(canonicalUrl)}$2`);
-    html = html.replace('<h1 class="masthead-title">', '<p class="masthead-title">')
-        .replace(/(<p class="masthead-title">[\s\S]*?)<\/h1>/, '$1</p>');
-    html = html.replace(/<body(\s|>)/, '<body class="glossary-route"$1');
-    return replaceHomeContent(html, buildGlossaryPageInner());
-}
-
 // ─── Full-text search index ───
 // The searchable plain text of every summary, keyed by "year/issue". Fetched
 // lazily by the client on first search, so it never weighs on a normal visit.
@@ -1189,7 +512,6 @@ function buildSearchIndex(catalog) {
 
 function build() {
     const catalog = JSON.parse(fs.readFileSync(CATALOG_PATH, 'utf8'));
-    CATALOG = catalog;
     const rawTemplate = fs.readFileSync(TEMPLATE_PATH, 'utf8');
     // Strip any pre-rendered home content so the template is clean for issue pages
     // and as the base for a fresh homepage build. Inline the stylesheet so it
@@ -1216,30 +538,12 @@ function build() {
     const homeHtml = replaceHomeContent(cleanTemplate, buildHomeContentHtml(catalog));
     fs.writeFileSync(TEMPLATE_PATH, homeHtml, 'utf8');
 
-    fs.mkdirSync(DEADLINES_PAGE_DIR, { recursive: true });
-    fs.writeFileSync(path.join(DEADLINES_PAGE_DIR, 'index.html'), buildDeadlinesPage(cleanTemplate, catalog), 'utf8');
-
-    fs.mkdirSync(PLACES_PAGE_DIR, { recursive: true });
-    fs.writeFileSync(path.join(PLACES_PAGE_DIR, 'index.html'), buildPlacesPage(cleanTemplate, catalog), 'utf8');
-
-    fs.mkdirSync(MAP_PAGE_DIR, { recursive: true });
-    fs.writeFileSync(path.join(MAP_PAGE_DIR, 'index.html'), buildMapPage(cleanTemplate, catalog), 'utf8');
-
-    fs.mkdirSync(STATS_PAGE_DIR, { recursive: true });
-    fs.writeFileSync(path.join(STATS_PAGE_DIR, 'index.html'), buildStatsPage(cleanTemplate, catalog), 'utf8');
-
-    fs.mkdirSync(GLOSSARY_PAGE_DIR, { recursive: true });
-    fs.writeFileSync(path.join(GLOSSARY_PAGE_DIR, 'index.html'), buildGlossaryPage(cleanTemplate), 'utf8');
-
-    fs.mkdirSync(TRACKS_PAGE_DIR, { recursive: true });
-    fs.writeFileSync(path.join(TRACKS_PAGE_DIR, 'index.html'), buildTracksPage(cleanTemplate, catalog), 'utf8');
-
     fs.writeFileSync(SITEMAP_PATH, buildSitemapXml(catalog), 'utf8');
     fs.writeFileSync(RSS_PATH, buildRssXml(catalog), 'utf8');
     buildSearchIndex(catalog);
     fs.writeFileSync(NOT_FOUND_PATH, buildNotFoundHtml(cleanTemplate), 'utf8');
 
-    console.log(`[build-issue-pages] Wrote ${count} pages to ${OUTPUT_DIR}, updated ${TEMPLATE_PATH}, wrote ${SITEMAP_PATH}, ${RSS_PATH}, deadlines/, places/, map/, stats/, glossary/, tracks/ and ${NOT_FOUND_PATH}`);
+    console.log(`[build-issue-pages] Wrote ${count} pages to ${OUTPUT_DIR}, updated ${TEMPLATE_PATH}, wrote ${SITEMAP_PATH}, ${RSS_PATH} and ${NOT_FOUND_PATH}`);
     return count;
 }
 

@@ -60,10 +60,8 @@ function extractIssueMeta(filePath) {
     }
 }
 
-// The issue's JSON carries the publication date and — once the summary has been
-// through the tagging pass — who it affects, the deadlines it starts, and the
-// places it names. All of it goes into the catalog now: the site surfaces the
-// places (per-issue chips, archive search) as well as the audiences and dates.
+// The issue's JSON carries one thing: the publication date, as scraped from
+// dv.parliament.bg when the PDF was downloaded.
 function readIssueJson(issueDirPath, issueNum) {
     const metaPath = path.join(issueDirPath, `${issueNum}.json`);
     try {
@@ -71,86 +69,6 @@ function readIssueJson(issueDirPath, issueNum) {
     } catch (_) {}
     return {};
 }
-// ─── "Проследи темата" — link sections across issues by topic similarity ───
-// TF-IDF cosine over each section's text (title weighted heavily). Only matches
-// above a high threshold are kept — a wrong "related" link is worse than none.
-const BG_STOPWORDS = new Set('и в на за с се да е че от по при като но или а то той тя те това този тази тези са ще не ако който която което които си ги го я му им вече само още също така там тук как защо между след преди без до над под през около срещу заради чрез спрямо всеки всяка всяко всички някой някоя някои нещо бъде били бил била било беше сме сте би бих ти ви ни ме брой броя закон закона нов нови нова ново промяна промени промяната правило правила наредба наредбата министър държавен вестник може можеш трябва имаш това като лева евро'.split(' '));
-
-function stemBg(w) {
-    return w.replace(/(ността|ните|ията|ята|ата|ове|овете|ият|ия|ен|на|но|ни|та|то|те|ът|а|о|и|е|я)$/, '');
-}
-function tokenize(text, repeat = 1) {
-    const out = [];
-    for (const m of (String(text).toLowerCase().match(/[а-яёѝ]{3,}/g) || [])) {
-        if (BG_STOPWORDS.has(m)) continue;
-        const s = stemBg(m);
-        if (s.length >= 3) for (let k = 0; k < repeat; k++) out.push(s);
-    }
-    return out;
-}
-function readSectionBodies(filePath) {
-    const map = new Map();
-    try {
-        const md = fs.readFileSync(filePath, 'utf8');
-        for (const part of md.split(/^##\s+/m).slice(1)) {
-            const nl = part.indexOf('\n');
-            const title = stripMarkdownInline(nl < 0 ? part : part.slice(0, nl)).trim();
-            if (title) map.set(title, nl < 0 ? '' : part.slice(nl));
-        }
-    } catch (_) {}
-    return map;
-}
-
-const RELATED_THRESHOLD = 0.14;
-const RELATED_MAX = 3;
-
-function attachRelated(catalog) {
-    const docs = [];
-    for (const year of Object.keys(catalog.years)) {
-        for (const entry of catalog.years[year]) {
-            const bodies = readSectionBodies(path.join(ROOT, entry.file));
-            (entry.sections || []).forEach((section, secIndex) => {
-                const title = String(section.title || '').trim();
-                if (!title || /^Накратко$/i.test(title)) return;
-                const toks = tokenize(title, 3).concat(tokenize(bodies.get(title) || '', 1));
-                if (toks.length) docs.push({ year: Number(year), issue: entry.issue, secIndex, section, toks });
-            });
-        }
-    }
-    const df = new Map();
-    for (const d of docs) for (const t of new Set(d.toks)) df.set(t, (df.get(t) || 0) + 1);
-    const N = docs.length;
-    const idf = (t) => Math.log(N / ((df.get(t) || 0) + 1));
-    for (const d of docs) {
-        const tf = new Map();
-        for (const t of d.toks) tf.set(t, (tf.get(t) || 0) + 1);
-        const vec = new Map();
-        let norm = 0;
-        for (const [t, f] of tf) { const w = (1 + Math.log(f)) * idf(t); vec.set(t, w); norm += w * w; }
-        d.vec = vec; d.norm = Math.sqrt(norm) || 1;
-    }
-    const cos = (a, b) => {
-        let dot = 0;
-        const [s, l] = a.vec.size < b.vec.size ? [a, b] : [b, a];
-        for (const [t, w] of s.vec) { const w2 = l.vec.get(t); if (w2) dot += w * w2; }
-        return dot / (a.norm * b.norm);
-    };
-    for (const d of docs) {
-        const matches = [];
-        for (const o of docs) {
-            if (o === d || o.issue === d.issue) continue;
-            const c = cos(d, o);
-            if (c >= RELATED_THRESHOLD) matches.push({ o, c });
-        }
-        matches.sort((a, b) => b.c - a.c);
-        // Compact ref [year, issue, sectionIndex]; the renderer resolves the
-        // target's title/date/anchor from the catalog, so nothing is duplicated.
-        const top = matches.slice(0, RELATED_MAX).map((m) => m.o).sort((a, b) => a.issue - b.issue);
-        if (top.length) d.section.related = top.map((o) => [o.year, o.issue, o.secIndex]);
-    }
-    console.log(`Related topics: ${docs.filter((d) => d.section.related).length}/${docs.length} sections linked (threshold ${RELATED_THRESHOLD})`);
-}
-
 function buildCatalog() {
     const catalog = { years: {} };
     if (!fs.existsSync(ISSUES_DIR)) {
@@ -189,18 +107,9 @@ function buildCatalog() {
                 file: `issues/${year}/${folderName}/${mdName}`,
                 lead,
                 topics,
-                audiences: meta.audiences || [],
-                places: meta.places || [],
-                sections: meta.sections || [],
-                deadlines: meta.deadlines || [],
-                // Only carried once the coverage check has run for this issue
-                // (new issues going forward); older issues simply omit it.
-                ...(meta.coverage ? { coverage: meta.coverage } : {}),
             });
         }
     }
-
-    attachRelated(catalog);
 
     fs.writeFileSync(CATALOG_PATH, JSON.stringify(catalog, null, 4), 'utf8');
     console.log('Catalog written to', CATALOG_PATH);

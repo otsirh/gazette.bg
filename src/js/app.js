@@ -27,26 +27,6 @@
     const WORDS_PER_MINUTE = 180;
     const COPY_LABEL = 'Копирай връзка';
 
-    // The closed audience vocabulary (mirrors scripts/issue-meta.js). Powers the
-    // "За мен" filter: the reader picks who they are and the archive narrows to
-    // the issues that touch them. The choice persists locally.
-    const AUDIENCES = [
-        'шофьор', 'собственик на имот', 'пенсионер', 'родител', 'ученик или студент',
-        'пациент', 'земеделец', 'фирма или самонает', 'работещ', 'потребител', 'жител на конкретно място',
-    ];
-    const AUDIENCE_KEY = 'gazette-audiences';
-
-    function loadSelectedAudiences() {
-        try {
-            const raw = JSON.parse(localStorage.getItem(AUDIENCE_KEY) || '[]');
-            return new Set(Array.isArray(raw) ? raw.filter((a) => AUDIENCES.includes(a)) : []);
-        } catch (e) { return new Set(); }
-    }
-    function saveSelectedAudiences() {
-        try { localStorage.setItem(AUDIENCE_KEY, JSON.stringify([...selectedAudiences])); } catch (e) { /* storage blocked */ }
-    }
-    const selectedAudiences = loadSelectedAudiences();
-
     // Honour prefers-reduced-motion for JS-driven scrolling: an explicit
     // behavior:'smooth' argument is not governed by CSS scroll-behavior, so the
     // stylesheet's reduced-motion block can't neutralise it — we must here.
@@ -280,7 +260,6 @@
 <p class="lead-dateline"><span>Последен брой</span><span class="rule"></span><span>Брой ${escapeHtml(String(item.issue))} · ${escapeHtml(formatDateLong(item.date))}</span></p>
 <a class="issue-card issue-card-lead" ${cardAttrs(item)}>
 <h2 class="lead-title">${escapeHtml(headline)}</h2>
-${renderTags(item.audiences)}
 <div class="${gridClass}">
 <div class="lead-main">${standfirstHtml}<span class="lead-read">Прочети обобщението →</span></div>
 ${contents}
@@ -294,8 +273,7 @@ ${contents}
     // further down the issue. Carry all of it in a hidden haystack.
     function searchHaystack(item) {
         const topics = Array.isArray(item.topics) ? item.topics : [];
-        const places = Array.isArray(item.places) ? item.places : [];
-        return [`Брой ${item.issue}`, formatDateLong(item.date), item.lead || '', ...topics, ...places]
+        return [`Брой ${item.issue}`, formatDateLong(item.date), item.lead || '', ...topics]
             .join(' ')
             .toLowerCase();
     }
@@ -303,8 +281,7 @@ ${contents}
     function renderRowCard(item) {
         const topics = Array.isArray(item.topics) ? item.topics : [];
         const title = topics[0] || item.lead || `Брой ${item.issue}`;
-        const auds = Array.isArray(item.audiences) ? item.audiences : [];
-        return `<a class="issue-card issue-card-row" ${cardAttrs(item)} data-search="${escapeHtml(searchHaystack(item))}" data-audiences="${escapeHtml(auds.join('|'))}">` +
+        return `<a class="issue-card issue-card-row" ${cardAttrs(item)} data-search="${escapeHtml(searchHaystack(item))}">` +
             `<span class="num">${escapeHtml(String(item.issue))}</span>` +
             `<span class="row-body"><span class="row-title">${escapeHtml(title)}</span><span class="date">${escapeHtml(formatDateShort(item.date))}</span></span>` +
             `</a>`;
@@ -315,212 +292,6 @@ ${contents}
             `<span class="num">Брой ${escapeHtml(String(item.issue))}</span>` +
             `<span class="date">${escapeHtml(formatDateShort(item.date))}</span>` +
             `</a>`;
-    }
-
-    /* ─── Tags and deadlines (mirrors scripts/build-issue-pages.js) ─── */
-
-    function renderTags(audiences) {
-        if (!Array.isArray(audiences) || !audiences.length) return '';
-        return `<p class="tags">${audiences.map((a) => `<span class="tag">${escapeHtml(a)}</span>`).join('')}</p>`;
-    }
-
-    // The places a brief names; each links to the archive pre-filtered to it.
-    function renderPlaces(places) {
-        if (!Array.isArray(places) || !places.length) return '';
-        const chips = places
-            .map((pl) => `<a class="place-chip" href="/?q=${encodeURIComponent(pl)}#archive">${escapeHtml(pl)}</a>`)
-            .join('');
-        return `<p class="issue-places"><span class="issue-places-label">Места в броя</span>${chips}</p>`;
-    }
-
-    // "Проследи темите" — mirrors scripts/build-issue-pages.js. Resolves the
-    // compact [year, issue, sectionIndex] refs against the loaded catalog.
-    function resolveRelated(ref) {
-        if (!Array.isArray(ref) || !catalog || !catalog.years) return null;
-        const [year, issue, secIndex] = ref;
-        const entry = (catalog.years[String(year)] || []).find((e) => String(e.issue) === String(issue));
-        const sec = entry && (entry.sections || [])[secIndex];
-        if (!sec || !sec.title) return null;
-        return { year, issue, title: sec.title, date: entry.date, slug: slugify(sec.title) };
-    }
-
-    function renderTopicThreads(item) {
-        const sections = Array.isArray(item.sections) ? item.sections : [];
-        const rows = [];
-        for (const s of sections) {
-            if (!Array.isArray(s.related) || !s.related.length) continue;
-            const links = s.related.map((ref) => {
-                const t = resolveRelated(ref);
-                if (!t) return '';
-                return `<a class="thread-link" href="/issue/${t.year}/${t.issue}/#${encodeURIComponent(t.slug)}" title="${escapeHtml(t.title)}">брой ${escapeHtml(String(t.issue))} · ${escapeHtml(formatDateShort(t.date))}</a>`;
-            }).filter(Boolean).join('');
-            if (links) rows.push(`<li class="thread"><span class="thread-topic">${escapeHtml(s.title)}</span><span class="thread-links">${links}</span></li>`);
-        }
-        if (!rows.length) return '';
-        return `<aside class="topic-threads" aria-label="Свързано отразяване"><p class="topic-threads-title">Проследи темите</p><ul class="topic-threads-list">${rows.join('')}</ul></aside>`;
-    }
-
-    // "Какво не влезе в това обобщение" — mirrors renderCoverage in the build so
-    // a client-navigated issue shows the same honesty panel as the pre-rendered
-    // page. Only issues that carry a coverage verdict render anything.
-    function renderCoverage(item) {
-        const cov = item.coverage;
-        if (!cov || !cov.checked) return '';
-        const omitted = Array.isArray(cov.omitted) ? cov.omitted : [];
-        const label = '<p class="coverage-label">Проверка за пълнота</p>';
-        if (omitted.length === 0) {
-            return `<aside class="coverage-note is-clear" aria-label="Проверка за пълнота">${label}` +
-                `<p class="coverage-clear">Нищо съществено от този брой не е останало извън обобщението. ` +
-                `Обобщението подбира важното за гражданите; назначения, вътрешни правилници и съобщения до конкретни лица нарочно не се включват.</p></aside>`;
-        }
-        const rows = omitted.map((o) => `<li>${escapeHtml(o)}</li>`).join('');
-        return `<aside class="coverage-note has-omissions" aria-label="Какво не влезе в обобщението">${label}` +
-            `<p class="coverage-title">Какво не влезе в това обобщение</p>` +
-            `<p class="coverage-intro">Обобщението подбира най-важното за гражданите. За прозрачност, ето какво друго от този брой засяга хора, но преценихме за по-маловажно и не включихме. Пълният официален текст е на <a href="https://dv.parliament.bg" target="_blank" rel="noopener">dv.parliament.bg</a>.</p>` +
-            `<ul class="coverage-list">${rows}</ul></aside>`;
-    }
-
-    function isoToday() {
-        const d = new Date();
-        return new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 10);
-    }
-
-    function daysUntil(iso) {
-        const then = new Date(iso + 'T00:00:00');
-        const now = new Date(isoToday() + 'T00:00:00');
-        return Math.round((then - now) / 86400000);
-    }
-
-    function formatIsoBg(iso) {
-        const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso || '');
-        return m ? `${parseInt(m[3], 10)} ${BG_MONTHS[parseInt(m[2], 10) - 1]}` : iso;
-    }
-
-    // A deadline as a downloadable all-day .ics event, encoded as a data: URI so
-    // the link works with no server (mirrors scripts/build-issue-pages.js).
-    function icsEscape(s) {
-        return String(s).replace(/\\/g, '\\\\').replace(/;/g, '\\;').replace(/,/g, '\\,').replace(/\r?\n/g, '\\n');
-    }
-    function icsFold(line) {
-        if (line.length <= 37) return line;
-        let out = line.slice(0, 37), rest = line.slice(37);
-        while (rest.length) { out += '\r\n ' + rest.slice(0, 36); rest = rest.slice(36); }
-        return out;
-    }
-    function icsAddDay(iso) {
-        const dt = new Date(iso + 'T00:00:00Z');
-        if (Number.isNaN(dt.getTime())) return iso;
-        dt.setUTCDate(dt.getUTCDate() + 1);
-        return dt.toISOString().slice(0, 10);
-    }
-    function utf8ToBase64(str) {
-        const bytes = new TextEncoder().encode(str);
-        let bin = '';
-        for (let i = 0; i < bytes.length; i++) bin += String.fromCharCode(bytes[i]);
-        return btoa(bin);
-    }
-    function deadlineIcs(d, item) {
-        const start = String(d.expires || '').replace(/-/g, '');
-        const end = icsAddDay(d.expires).replace(/-/g, '');
-        const url = location.origin + `/issue/${item.year}/${item.issue}/`;
-        const uid = `${item.year}-${item.issue}-${d.expires}-${String(d.what || '').length}@gazette.bg`;
-        const details = [d.who, `Държавен вестник, брой ${item.issue}`, url].filter(Boolean).join(' · ');
-        return [
-            'BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//gazette.bg//deadlines//BG', 'CALSCALE:GREGORIAN',
-            'BEGIN:VEVENT',
-            icsFold('UID:' + uid),
-            'DTSTAMP:' + start + 'T000000Z',
-            'DTSTART;VALUE=DATE:' + start,
-            'DTEND;VALUE=DATE:' + end,
-            icsFold('SUMMARY:Срок — ' + icsEscape(d.what || '')),
-            icsFold('DESCRIPTION:' + icsEscape(details)),
-            icsFold('URL:' + url),
-            'END:VEVENT', 'END:VCALENDAR', '',
-        ].join('\r\n');
-    }
-    function renderDeadlineCal(d, item) {
-        if (!d.expires) return '';
-        const href = 'data:text/calendar;charset=utf-8;base64,' + utf8ToBase64(deadlineIcs(d, item));
-        return `<a class="deadline-cal" download="gazette-deadline-${escapeHtml(String(item.issue))}.ics" href="${href}" aria-label="Добави срока в календара">＋ Календар</a>`;
-    }
-
-    function renderDeadlineRow(d, item, withIssue = true) {
-        const href = `/issue/${item.year}/${item.issue}/`;
-        // Inside the issue itself, saying which issue it came from is noise.
-        const who = [d.who, withIssue ? `брой ${item.issue}` : ''].filter(Boolean).join(' · ');
-        return `<li class="deadline" data-expires="${escapeHtml(d.expires)}">` +
-            `<span class="deadline-left">до ${escapeHtml(formatIsoBg(d.expires))}</span>` +
-            `<span class="deadline-body">` +
-            `<a class="deadline-what" href="${escapeHtml(href)}" data-file="${escapeHtml(item.file)}" data-issue="${escapeHtml(String(item.issue))}" data-date="${escapeHtml(item.date)}" data-year="${escapeHtml(String(item.year))}">${escapeHtml(d.what)}</a>` +
-            `<span class="deadline-who">${escapeHtml(who)}</span>` +
-            renderDeadlineCal(d, item) +
-            `</span></li>`;
-    }
-
-    // Only the soonest few are actionable; the rest would be a wall.
-    const DEADLINES_SHOWN = 8;
-
-    function renderDeadlinesSection(all) {
-        const today = isoToday();
-        const rows = [];
-        all.forEach((item) => {
-            (item.deadlines || []).forEach((d) => {
-                if (d.expires >= today) rows.push({ d, item });
-            });
-        });
-        if (!rows.length) return '';
-        rows.sort((a, b) => a.d.expires.localeCompare(b.d.expires));
-        const shown = rows.slice(0, DEADLINES_SHOWN);
-        const rest = rows.length - shown.length;
-        const moreLabel = rest > 0
-            ? `Всички срокове · още ${rest} ${rest === 1 ? 'срок' : 'срока'} →`
-            : 'Всички срокове →';
-        const restNote = `<p class="deadlines-rest"><a class="deadlines-more" href="/deadlines/">${moreLabel}</a></p>`;
-        return '<section class="deadlines-section" id="deadlines">' +
-            '<div class="section-head"><h2 class="section-title">Срокове, които текат</h2>' +
-            `<span class="section-count" id="deadline-count">${rows.length} ${rows.length === 1 ? 'срок' : 'срока'}</span></div>` +
-            '<p class="deadlines-note">Изчислени от датата на броя. Срокът е ориентировъчен — за сигурност проверете самия брой.</p>' +
-            `<ul class="deadline-list">${shown.map((r) => renderDeadlineRow(r.d, r.item)).join('')}</ul>` +
-            restNote +
-            '</section>';
-    }
-
-    // The pages are built once and read for weeks, so "до 24 юли" is what the
-    // server can honestly say. Only the browser knows what day it is — it turns
-    // that into "след 4 дни" and drops whatever has run out.
-    function refreshDeadlines(root) {
-        const scope = root || document;
-        const today = isoToday();
-        // The header count is the true number of open deadlines, but the list
-        // only ever renders the soonest few (the rest are folded into a note).
-        // So it can't be recounted from the DOM — instead track what actually
-        // expired here and subtract that from the total the count already shows.
-        let expiredFromMain = 0;
-        scope.querySelectorAll('.deadline').forEach((el) => {
-            const expires = el.dataset.expires;
-            if (!expires || expires < today) {
-                if (el.closest('.deadlines-section')) expiredFromMain++;
-                el.remove();
-                return;
-            }
-            const left = daysUntil(expires);
-            const label = el.querySelector('.deadline-left');
-            if (label) {
-                label.textContent = left === 0 ? 'днес изтича' : left === 1 ? 'утре изтича' : `след ${left} дни`;
-                label.title = 'до ' + formatIsoBg(expires);
-            }
-            el.classList.toggle('is-urgent', left <= 3);
-        });
-        scope.querySelectorAll('.deadline-list').forEach((list) => {
-            const section = list.closest('.deadlines-section, .issue-deadlines, .month-group');
-            if (section && !list.querySelector('.deadline')) section.remove();
-        });
-        const count = document.getElementById('deadline-count');
-        if (count && expiredFromMain > 0) {
-            const shown = parseInt(count.textContent, 10);
-            const n = Math.max(0, (Number.isNaN(shown) ? 0 : shown) - expiredFromMain);
-            count.textContent = n + ' ' + (n === 1 ? 'срок' : 'срока');
-        }
     }
 
     function renderArchive(items) {
@@ -536,7 +307,6 @@ ${contents}
         let html = '<section class="archive-section" id="archive">';
         html += `<div class="section-head"><h2 class="section-title">Архив</h2><span class="section-count">${total} ${total === 1 ? 'брой' : 'броя'}</span></div>`;
         html += '<div class="archive-search"><input type="search" id="archive-search" class="archive-search-input" placeholder="Търсене в текста на броевете…" aria-label="Търсене в текста на броевете" autocomplete="off" spellcheck="false" /></div>';
-        html += renderAudienceFilter();
         years.forEach((year) => {
             html += `<div class="year-group"><h3 class="year-title"><span>${escapeHtml(year)}</span></h3><div class="issue-list">`;
             byYear[year].forEach((item) => { html += renderRowCard(item); });
@@ -560,58 +330,13 @@ ${contents}
         const previous = document.getElementById('archive-search');
         const pendingQuery = previous ? previous.value : '';
 
-        homeContent.innerHTML = renderLeadCard(all[0]) + renderDeadlinesSection(all) + renderArchive(all.slice(1));
-        refreshDeadlines(homeContent);
-        syncAudienceChips();
+        homeContent.innerHTML = renderLeadCard(all[0]) + renderArchive(all.slice(1));
 
         if (pendingQuery) {
             const searchInput = document.getElementById('archive-search');
             if (searchInput) searchInput.value = pendingQuery;
-        }
-        if (pendingQuery || selectedAudiences.size) applyArchiveFilter();
-    }
-
-    // The "За мен" filter: a row of the audience vocabulary the reader can
-    // toggle. Sits inside the archive because that is what it narrows.
-    function renderAudienceFilter() {
-        const chips = AUDIENCES.map((a) =>
-            `<button type="button" class="aud-chip" data-aud="${escapeHtml(a)}" aria-pressed="false">${escapeHtml(a)}</button>`
-        ).join('');
-        return '<div class="audience-filter" role="group" aria-label="Покажи само това, което ме засяга">' +
-            '<span class="audience-filter-label">За мен</span>' +
-            chips +
-            '<button type="button" class="aud-clear" hidden>× изчисти</button>' +
-            '</div>';
-    }
-
-    // Reflect the saved selection on the freshly rendered chips.
-    function syncAudienceChips() {
-        if (!homeContent) return;
-        homeContent.querySelectorAll('.aud-chip').forEach((chip) => {
-            const on = selectedAudiences.has(chip.dataset.aud);
-            chip.classList.toggle('is-active', on);
-            chip.setAttribute('aria-pressed', String(on));
-        });
-        const clear = homeContent.querySelector('.aud-clear');
-        if (clear) clear.hidden = selectedAudiences.size === 0;
-    }
-
-    function onAudienceClick(e) {
-        if (e.target.closest('.aud-clear')) {
-            selectedAudiences.clear();
-            saveSelectedAudiences();
-            syncAudienceChips();
             applyArchiveFilter();
-            return;
         }
-        const chip = e.target.closest('.aud-chip');
-        if (!chip || !chip.dataset.aud) return;
-        const aud = chip.dataset.aud;
-        if (selectedAudiences.has(aud)) selectedAudiences.delete(aud);
-        else selectedAudiences.add(aud);
-        saveSelectedAudiences();
-        syncAudienceChips();
-        applyArchiveFilter();
     }
 
     // The full text of every summary, keyed "year/issue". Fetched once, lazily,
@@ -660,23 +385,20 @@ ${contents}
     }
 
     // Live filter over the archive register — and only over it. The lead story
-    // and the colophon stay put: controls that sit inside the archive are
-    // expected to narrow the archive, not to rearrange the page around them.
-    // Criteria combine (AND): the text query (metadata + full text) and the
-    // "За мен" audiences.
+    // and the colophon stay put: a control that sits inside the archive is
+    // expected to narrow the archive, not to rearrange the page around it.
+    // The criterion is the text query, matched on metadata and on full text.
     function applyArchiveFilter(rawQuery) {
         if (!homeContent) return;
         const input = document.getElementById('archive-search');
         const displayQ = (rawQuery != null ? rawQuery : (input ? input.value : '')).trim();
         const q = displayQ.toLowerCase();
-        const auds = selectedAudiences;
-        const hasAud = auds.size > 0;
         const archiveSection = homeContent.querySelector('.archive-section');
         const existingNote = homeContent.querySelector('.filter-empty');
         if (existingNote) existingNote.remove();
         homeContent.querySelectorAll('.row-snippet').forEach((el) => el.remove());
 
-        if (!q && !hasAud) {
+        if (!q) {
             homeContent.querySelectorAll('.filter-hidden').forEach((el) => el.classList.remove('filter-hidden'));
             announce('');
             return;
@@ -688,18 +410,17 @@ ${contents}
             group.querySelectorAll('.issue-card-row').forEach((row) => {
                 // Metadata (instant) OR the full summary text (once the index has
                 // loaded). A body-only match also gets a highlighted snippet.
-                const metaMatch = !q || ((row.dataset.search || '') + ' ' + row.textContent.toLowerCase()).includes(q);
+                const metaMatch = ((row.dataset.search || '') + ' ' + row.textContent.toLowerCase()).includes(q);
                 let bodyMatch = false;
-                if (q && searchIndexLower) {
+                if (searchIndexLower) {
                     const body = searchIndexLower[(row.dataset.year || '') + '/' + (row.dataset.issue || '')];
                     bodyMatch = !!(body && body.includes(q));
                 }
-                const audMatch = !hasAud || (row.dataset.audiences || '').split('|').some((a) => auds.has(a));
-                const match = (metaMatch || bodyMatch) && audMatch;
+                const match = metaMatch || bodyMatch;
                 row.classList.toggle('filter-hidden', !match);
                 if (match) {
                     groupVisible = true; anyVisible = true;
-                    if (bodyMatch && q) injectSnippet(row, q);
+                    if (bodyMatch) injectSnippet(row, q);
                 }
             });
             group.classList.toggle('filter-hidden', !groupVisible);
@@ -708,9 +429,7 @@ ${contents}
         if (archiveSection && !anyVisible) {
             const note = document.createElement('p');
             note.className = 'empty filter-empty';
-            note.textContent = displayQ
-                ? 'Няма намерени броеве за „' + displayQ + '“.'
-                : 'Няма броеве за избраните профили.';
+            note.textContent = 'Няма намерени броеве за „' + displayQ + '“.';
             archiveSection.appendChild(note);
             announce('Няма намерени броеве.');
         } else {
@@ -718,8 +437,8 @@ ${contents}
         }
     }
 
-    // A place chip on an issue page lands here as /?q=<place>#archive. Carry the
-    // query into the archive search, filter, and drop the reader at the register.
+    // A shared link of the form /?q=<term>#archive. Carry the query into the
+    // archive search, filter, and drop the reader at the register.
     function applyPendingArchiveQuery() {
         if (location.pathname !== '/') return;
         let q = '';
@@ -809,74 +528,6 @@ ${contents}
         };
     }
 
-    // Drops a row of "who this is for" tags under every heading it has tags for,
-    // so the reader can skip a section without reading it.
-    function injectSectionTags(container, sections) {
-        if (!container || !Array.isArray(sections) || !sections.length) return;
-        const byTitle = new Map(sections.map((s) => [s.title.trim(), s.audiences || []]));
-        container.querySelectorAll('h2').forEach((h2) => {
-            const audiences = byTitle.get(h2.textContent.trim());
-            if (!audiences || !audiences.length) return;
-            const p = document.createElement('p');
-            p.className = 'tags';
-            p.innerHTML = audiences.map((a) => `<span class="tag">${escapeHtml(a)}</span>`).join('');
-            h2.insertAdjacentElement('afterend', p);
-        });
-    }
-
-    // Abbreviation glossary. Pre-rendered issue pages get the tooltips from the
-    // build; client-rendered ones fetch the map once and apply it here. A
-    // multi-word term falls back to its first word ("БНТ 4" → БНТ).
-    let glossary = null;
-    let glossaryLoading = false;
-    function glossifyContent(container) {
-        if (!container || !glossary) return;
-        container.querySelectorAll('code:not(.gloss)').forEach((code) => {
-            const term = code.textContent.trim();
-            const def = glossary[term] || glossary[term.split(/\s+/)[0]];
-            if (def) { code.classList.add('gloss'); code.title = def; }
-        });
-    }
-    function ensureGlossary() {
-        if (glossary) { glossifyContent(mainContent); return; }
-        if (glossaryLoading) return;
-        glossaryLoading = true;
-        fetch('/glossary.json')
-            .then((r) => (r.ok ? r.json() : null))
-            .then((g) => { if (g) { glossary = g; glossifyContent(mainContent); } })
-            .catch(() => { /* terms just render without tooltips */ });
-    }
-
-    // Once the reader has picked a profile in "За мен", light up what touches
-    // them inside a brief: the matching audience tags, and a marker on every
-    // section that has one. Purely a reading aid — no profile, nothing shows.
-    function highlightRelevantSections(root) {
-        if (!root) return;
-        root.querySelectorAll('.tag.is-for-you').forEach((t) => t.classList.remove('is-for-you'));
-        root.querySelectorAll('h2.section-for-you').forEach((h) => h.classList.remove('section-for-you'));
-        if (!selectedAudiences.size) return;
-        root.querySelectorAll('.tag').forEach((tag) => {
-            if (selectedAudiences.has(tag.textContent.trim())) tag.classList.add('is-for-you');
-        });
-        root.querySelectorAll('.content .tags').forEach((tagsRow) => {
-            const match = [...tagsRow.querySelectorAll('.tag')].some((t) => selectedAudiences.has(t.textContent.trim()));
-            const h2 = tagsRow.previousElementSibling;
-            if (match && h2 && h2.tagName === 'H2') h2.classList.add('section-for-you');
-        });
-    }
-
-    function renderIssueDeadlines(item) {
-        const el = document.getElementById('issue-deadlines');
-        if (!el) return;
-        const today = isoToday();
-        const open = (item.deadlines || []).filter((d) => d.expires >= today);
-        el.innerHTML = open.length
-            ? '<section class="issue-deadlines"><p class="issue-deadlines-title">Срокове от този брой</p>' +
-              `<ul class="deadline-list">${open.map((d) => renderDeadlineRow(d, item, false)).join('')}</ul></section>`
-            : '';
-        refreshDeadlines(el);
-    }
-
     function renderIssueHeader(item, minutes) {
         const topics = Array.isArray(item.topics) ? item.topics : [];
         const meta = ['Обобщение с AI'];
@@ -888,9 +539,7 @@ ${contents}
 
         return `<p class="issue-kicker"><span>Брой ${escapeHtml(String(item.issue))}</span><span class="rule"></span><span>Държавен вестник</span></p>` +
             `<h1 class="title"><span class="visually-hidden">Държавен вестник, брой ${escapeHtml(String(item.issue))} — </span>${escapeHtml(formatDateLong(item.date))}</h1>` +
-            `<p class="issue-meta" id="issue-meta">${metaHtml}</p>` +
-            renderTags(item.audiences) +
-            renderPlaces(item.places);
+            `<p class="issue-meta" id="issue-meta">${metaHtml}</p>`;
     }
 
     function renderShare(item) {
@@ -959,8 +608,6 @@ ${contents}
         mainLoading.hidden = false;
         mainContent.innerHTML = '';
         if (issueShareEl) issueShareEl.innerHTML = '';
-        const deadlinesEl = document.getElementById('issue-deadlines');
-        if (deadlinesEl) deadlinesEl.innerHTML = '';
         const navEl = document.getElementById('issue-nav');
         if (navEl) navEl.innerHTML = '';
 
@@ -975,12 +622,8 @@ ${contents}
             const md = await r.text();
             const rawHtml = typeof marked !== 'undefined' ? marked.parse(md) : md;
             const { html: processedHtml, tocItems } = processRenderedContent(rawHtml);
-            mainContent.innerHTML = CONTENT_DISCLAIMER + buildTocHtml(tocItems) + processedHtml + renderTopicThreads(item) + renderCoverage(item) + END_MARK;
-            injectSectionTags(mainContent, item.sections);
-            ensureGlossary();
+            mainContent.innerHTML = CONTENT_DISCLAIMER + buildTocHtml(tocItems) + processedHtml + END_MARK;
             issueHeaderEl.innerHTML = renderIssueHeader(item, readingMinutes(md));
-            highlightRelevantSections(issueView);
-            renderIssueDeadlines(item);
             if (issueShareEl) issueShareEl.innerHTML = renderShare(item);
             announce(`Заредено: Държавен вестник, брой ${item.issue}.`);
             currentTocId = null;
@@ -1106,41 +749,6 @@ ${contents}
         }
     }
 
-    // The /map choropleth: hover/focus a province for a tooltip, click/enter to
-    // open the archive filtered to it. The ranked list below the map is the
-    // keyboard/screen-reader-friendly equivalent.
-    function initMap() {
-        const figure = document.querySelector('.map-figure');
-        const svg = document.querySelector('.bg-map');
-        const tip = document.getElementById('map-tooltip');
-        if (!figure || !svg || !tip) return;
-        const showTip = (el) => {
-            const name = el.getAttribute('data-name');
-            const count = el.getAttribute('data-count');
-            tip.textContent = `${name} · ${count} ${count === '1' ? 'брой' : 'броя'}`;
-            tip.hidden = false;
-        };
-        const go = (el) => {
-            const name = el.getAttribute('data-name');
-            if (name) location.href = `/?q=${encodeURIComponent(name)}#archive`;
-        };
-        svg.querySelectorAll('.province').forEach((el) => {
-            el.addEventListener('mouseenter', () => showTip(el));
-            el.addEventListener('focus', () => showTip(el));
-            el.addEventListener('blur', () => { tip.hidden = true; });
-            el.addEventListener('click', () => go(el));
-            el.addEventListener('keydown', (e) => {
-                if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); go(el); }
-            });
-        });
-        svg.addEventListener('mousemove', (e) => {
-            const r = figure.getBoundingClientRect();
-            tip.style.left = (e.clientX - r.left) + 'px';
-            tip.style.top = (e.clientY - r.top) + 'px';
-        });
-        svg.addEventListener('mouseleave', () => { tip.hidden = true; });
-    }
-
     async function init() {
         backBtns.forEach((btn) => btn.addEventListener('click', showHome));
         mainEl.addEventListener('click', onMainClick);
@@ -1160,7 +768,6 @@ ${contents}
         homeView.addEventListener('focusin', (e) => {
             if (e.target && e.target.id === 'archive-search') ensureSearchIndex();
         });
-        if (homeContent) homeContent.addEventListener('click', onAudienceClick);
         window.addEventListener('popstate', applyRoute);
         window.addEventListener('scroll', () => {
             updateScrollToTopVisibility();
@@ -1183,52 +790,12 @@ ${contents}
             return;
         }
 
-        // The /deadlines page is fully pre-rendered and static. Just live-update
-        // its deadline labels (and drop any that expired since the build); do
-        // not fetch the catalog or render the home view over it.
-        if (document.body.classList.contains('deadlines-route')) {
-            refreshDeadlines(document);
-            return;
-        }
-
-        // The /places index is fully static; leave its pre-rendered content be.
-        if (document.body.classList.contains('places-route')) {
-            return;
-        }
-
-        // The /map choropleth is pre-rendered; wire its hover/tap tooltip.
-        if (document.body.classList.contains('map-route')) {
-            initMap();
-            return;
-        }
-
-        // The /stats dashboard is fully static (values are labelled, native
-        // <title> tooltips); leave its pre-rendered content be.
-        if (document.body.classList.contains('stats-route')) {
-            return;
-        }
-
-        // The /glossary reference is fully static.
-        if (document.body.classList.contains('glossary-route')) {
-            return;
-        }
-
-        // The /tracks storylines are fully static.
-        if (document.body.classList.contains('tracks-route')) {
-            return;
-        }
-
         const initial = getIssueFromPath();
         const isPreRendered = !!(initial && mainContent && mainContent.children.length > 0);
-
-        // Pages are built once and read for weeks: whatever the build wrote as
-        // "до 24 юли" becomes "след 4 дни" here, and expired deadlines go away.
-        refreshDeadlines(document);
 
         if (isPreRendered) {
             currentIssue = { year: initial.year, issueNum: initial.issueNum };
             currentTocId = null;
-            highlightRelevantSections(issueView);
             updateCurrentTocItem();
             updateScrollToTopVisibility();
             updateReadingProgress();
