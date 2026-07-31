@@ -64,7 +64,7 @@ const PROMPT = `По-долу е обобщение на брой на Държ�
 
 # ЗАДЪЛЖИТЕЛНО ЗАПАЗИ
 
-- **Всички ## заглавия — дословно, дума по дума, в същия ред.** Не сменяй, не преподреждай, не добавяй и не махай нито едно.
+- **Толкова ## заглавия, колкото има сега, в същия ред и за същите теми.** Не сливай, не разделяй, не добавяй и не махай секция.
 - Всяко число, сума, процент, дата и срок — точно както са, включително удебеляването (**5,30 евро** остава **5,30 евро**).
 - Всички \`обратни кавички\` около термини (\`НЗОК\`, \`ЕООД\`).
 - Броя на параграфите и структурата (### подзаглавия, списъци).
@@ -72,7 +72,12 @@ const PROMPT = `По-долу е обобщение на брой на Държ�
 
 # ПРОМЕНИ САМО ТОВА
 
-- **Никакво второ лице.** Нито „ти", „твой", „теб", „можеш", „имаш", „ще плащаш", „трябва да подадеш". Нито „вие"/„Вашият".
+- **Никакво второ лице — включително в ## заглавията.** Нито „ти", „твой", „теб", „можеш", „имаш", „ще плащаш", „трябва да подадеш". Нито „вие"/„Вашият".
+- **Заглавие във второ лице се пренаписва в трето, но остава за същото нещо** и запазва ключовите си думи:
+  „## Кои билки можеш да береш и кои са забранени" → „## Кои билки могат да се берат и кои са забранени"
+  „## Техническият преглед на колата ти не може да се блокира заради стари глоби" → „## Техническият преглед не може да се блокира заради стари глоби"
+  „## Ако имаш имот в някоя от тези общини" → „## Собствениците на имоти в тези общини имат срок за възражение"
+  „## Две съдебни дела, за които трябва да знаеш" → „## Две съдебни дела с значение за потребителите"
 - **Никакви условни обръщения:** „Ако си шофьор…", „Ако имаш имот…", „Ако живееш в…", „Засяга те, ако…", „Провери дали…".
 - **Засегнатите се назовават като група, в трето лице** и стават подлог на изречението.
 - **Никакви подзаглавия-обръщения** („Какво означава за теб" → „За наемателите" или махни ###, ако групата е ясна).
@@ -125,9 +130,26 @@ function checkRewrite(before, after) {
     if (!after.startsWith('## ')) problems.push('does not start with "## "');
     if (/```/.test(after)) problems.push('contains a code fence');
 
+    // A heading in second person has to be rewritten, so it cannot be compared
+    // verbatim. Instead: same count, same order, and each one still recognisably
+    // about the same thing — at least one content word survives, compared on a
+    // 4-character prefix so inflection ("имот" / "имоти") still matches. Four,
+    // not five: "имот", "кола", "срок", "дете" are the subject of a heading as
+    // often as any longer word.
     const hb = headings(before), ha = headings(after);
-    if (hb.length !== ha.length) problems.push(`headings ${hb.length} → ${ha.length}`);
-    else hb.forEach((h, i) => { if (h !== ha[i]) problems.push(`heading ${i + 1} changed: ${JSON.stringify(h)} → ${JSON.stringify(ha[i])}`); });
+    if (hb.length !== ha.length) {
+        problems.push(`headings ${hb.length} → ${ha.length}`);
+    } else {
+        const stem = (w) => w.toLowerCase().replace(/[^\p{L}\p{N}]/gu, '').slice(0, 4);
+        hb.forEach((h, i) => {
+            const keys = h.split(/\s+/).map(stem).filter((w) => w.length >= 4);
+            if (!keys.length) return;
+            const target = ha[i].split(/\s+/).map(stem);
+            if (!keys.some((k) => target.includes(k))) {
+                problems.push(`heading ${i + 1} drifted: ${JSON.stringify(h)} → ${JSON.stringify(ha[i])}`);
+            }
+        });
+    }
 
     const nb = numbers(before), na = numbers(after);
     const missing = nb.filter((n) => { const i = na.indexOf(n); if (i < 0) return true; na.splice(i, 1); return false; });
