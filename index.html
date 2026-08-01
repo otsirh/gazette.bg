@@ -278,7 +278,6 @@ a { color: inherit; }
 .issue-meta,
 .issue-toc-title,
 .nav-label,
-.share-label,
 .colophon-label,
 .not-found-eyebrow {
     font-family: var(--font-mono);
@@ -1181,48 +1180,6 @@ body.issue-ready .back-bar-bottom { display: block; }
     line-height: 1;
 }
 
-/* ─── Share ─────────────────────────────────────────── */
-
-.issue-share:empty { display: none; }
-
-.issue-share {
-    display: flex;
-    align-items: center;
-    flex-wrap: wrap;
-    gap: var(--gap-sm) var(--gap-md);
-    margin-top: var(--gap-2xl);
-    padding-top: var(--gap-md);
-    border-top: 1px solid var(--hairline);
-}
-
-.share-label { color: var(--muted); margin-right: 0.25rem; }
-
-.share-btn {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.4rem;
-    padding: 0.35rem 0.7rem;
-    background: transparent;
-    border: 1px solid var(--hairline);
-    color: var(--ink-soft);
-    text-decoration: none;
-    font-family: var(--font-mono);
-    font-size: 0.6875rem;
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.14em;
-    cursor: pointer;
-    transition: color 0.18s var(--ease), border-color 0.18s var(--ease), background 0.18s var(--ease);
-}
-
-.share-btn:hover {
-    color: var(--accent);
-    border-color: var(--accent);
-    background: var(--accent-wash);
-}
-
-.share-btn svg { width: 0.8rem; height: 0.8rem; }
-
 /* ─── Prev / next ───────────────────────────────────── */
 
 .issue-nav-bottom {
@@ -1442,7 +1399,6 @@ body.issue-ready .back-bar-bottom { display: block; }
 
 @media (min-width: 1240px) {
     .issue-header,
-    .issue-share,
     .issue-nav-bottom,
     .back-bar { max-width: none; }
 }
@@ -1493,7 +1449,6 @@ body.issue-ready .back-bar-bottom { display: block; }
 @media (pointer: coarse) {
     .theme-toggle { width: 2.5rem; height: 2.5rem; }
     .scroll-to-top { width: 2.75rem; height: 2.75rem; }
-    .share-btn { padding: 0.6rem 0.85rem; }
 }
 
 /* ─── Reduced motion ────────────────────────────────── */
@@ -1512,7 +1467,6 @@ body.issue-ready .back-bar-bottom { display: block; }
     .folio,
     .back-bar,
     .issue-nav,
-    .issue-share,
     .scroll-to-top,
     .site-footer,
     .archive-search { display: none !important; }
@@ -1626,7 +1580,6 @@ body.issue-ready .back-bar-bottom { display: block; }
                 </div>
                 <div class="issue-header" id="issue-header"></div>
                 <article class="content" id="content"></article>
-                <div class="issue-share" id="issue-share"></div>
                 <div id="issue-nav" class="issue-nav issue-nav-bottom" aria-label="Навигация между броеве"></div>
                 <div class="back-bar back-bar-bottom">
                     <button type="button" class="back-btn" id="back-btn-bottom" aria-label="Обратно към всички броеве">← Всички броеве</button>
@@ -1656,6 +1609,6 @@ body.issue-ready .back-bar-bottom { display: block; }
 
     <button type="button" class="scroll-to-top" id="scroll-to-top" aria-label="Обратно нагоре" title="Обратно нагоре">↑</button>
     <script defer src="https://cdn.jsdelivr.net/npm/marked@18/lib/marked.umd.js"></script>
-    <script defer src="/src/js/app.js?v=3.2.0"></script>
+    <script defer src="/src/js/app.js?v=3.3.0"></script>
 </body>
 </html>

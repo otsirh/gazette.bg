@@ -10,7 +10,6 @@
     const backBtn = document.getElementById('back-btn');
     const mainLoading = document.getElementById('loading');
     const issueHeaderEl = document.getElementById('issue-header');
-    const issueShareEl = document.getElementById('issue-share');
     const mainContent = document.getElementById('content');
     const mainEl = document.getElementById('main');
     const scrollToTopBtn = document.getElementById('scroll-to-top');
@@ -541,14 +540,6 @@ ${contents}
             `<p class="issue-meta" id="issue-meta">${metaHtml}</p>`;
     }
 
-    function renderShare(item) {
-        const u = encodeURIComponent(location.origin + `/issue/${item.year}/${item.issue}/`);
-        const t = encodeURIComponent(`Държавен вестник, брой ${item.issue} — обобщение`);
-        return '<span class="share-label">Сподели</span>' +
-            `<a class="share-btn" href="https://www.facebook.com/sharer/sharer.php?u=${u}" target="_blank" rel="noopener">Facebook</a>` +
-            `<a class="share-btn" href="https://twitter.com/intent/tweet?url=${u}&text=${t}" target="_blank" rel="noopener">X</a>`;
-    }
-
     function renderIssueNav(prev, next) {
         const navEl = document.getElementById('issue-nav');
         if (!navEl) return;
@@ -602,7 +593,6 @@ ${contents}
         showIssue();
         mainLoading.hidden = false;
         mainContent.innerHTML = '';
-        if (issueShareEl) issueShareEl.innerHTML = '';
         const navEl = document.getElementById('issue-nav');
         if (navEl) navEl.innerHTML = '';
 
@@ -619,7 +609,6 @@ ${contents}
             const { html: processedHtml, tocItems } = processRenderedContent(rawHtml);
             mainContent.innerHTML = CONTENT_DISCLAIMER + buildTocHtml(tocItems) + processedHtml + END_MARK;
             issueHeaderEl.innerHTML = renderIssueHeader(item, readingMinutes(md));
-            if (issueShareEl) issueShareEl.innerHTML = renderShare(item);
             announce(`Заредено: Държавен вестник, брой ${item.issue}.`);
             currentTocId = null;
             updateCurrentTocItem();

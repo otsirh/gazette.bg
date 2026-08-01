@@ -240,14 +240,6 @@ function renderNavCard(item) {
         `</a>`;
 }
 
-function renderShare(item) {
-    const u = encodeURIComponent(`${SITE_ORIGIN}/issue/${item.year}/${item.issue}/`);
-    const t = encodeURIComponent(`Държавен вестник, брой ${item.issue} — обобщение`);
-    return '<span class="share-label">Сподели</span>' +
-        `<a class="share-btn" href="https://www.facebook.com/sharer/sharer.php?u=${u}" target="_blank" rel="noopener">Facebook</a>` +
-        `<a class="share-btn" href="https://twitter.com/intent/tweet?url=${u}&amp;text=${t}" target="_blank" rel="noopener">X</a>`;
-}
-
 function replaceHomeContent(html, content) {
     return html.replace(/(<!--HOME-CONTENT-START-->)[\s\S]*?(<!--HOME-CONTENT-END-->)/, `$1${lit(content)}$2`);
 }
@@ -359,7 +351,6 @@ function buildIssueViewInner(item, prev, next) {
                 </div>
                 <div class="issue-header" id="issue-header">${headerHtml}</div>
                 <article class="content" id="content">${contentHtml}</article>
-                <div class="issue-share" id="issue-share">${renderShare(item)}</div>
                 <div id="issue-nav" class="issue-nav issue-nav-bottom" aria-label="Навигация между броеве">${navHtml}</div>
                 <div class="back-bar back-bar-bottom">
                     <button type="button" class="back-btn" id="back-btn-bottom" aria-label="Обратно към всички броеве">← Всички броеве</button>
