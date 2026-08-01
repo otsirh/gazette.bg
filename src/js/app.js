@@ -25,7 +25,6 @@
     const THEME_KEY = 'gazette-theme';
     const THEME_COLORS = { light: '#fbf8f2', dark: '#100f0c' };
     const WORDS_PER_MINUTE = 180;
-    const COPY_LABEL = 'Копирай връзка';
 
     // Honour prefers-reduced-motion for JS-driven scrolling: an explicit
     // behavior:'smooth' argument is not governed by CSS scroll-behavior, so the
@@ -543,15 +542,11 @@ ${contents}
     }
 
     function renderShare(item) {
-        const url = location.origin + `/issue/${item.year}/${item.issue}/`;
-        const text = `Държавен вестник, брой ${item.issue} — обобщение`;
-        const u = encodeURIComponent(url);
-        const t = encodeURIComponent(text);
+        const u = encodeURIComponent(location.origin + `/issue/${item.year}/${item.issue}/`);
+        const t = encodeURIComponent(`Държавен вестник, брой ${item.issue} — обобщение`);
         return '<span class="share-label">Сподели</span>' +
-            `<button type="button" class="share-btn" id="share-copy" data-url="${escapeHtml(url)}">${COPY_LABEL}</button>` +
             `<a class="share-btn" href="https://www.facebook.com/sharer/sharer.php?u=${u}" target="_blank" rel="noopener">Facebook</a>` +
-            `<a class="share-btn" href="https://twitter.com/intent/tweet?url=${u}&text=${t}" target="_blank" rel="noopener">X</a>` +
-            `<a class="share-btn" href="mailto:?subject=${t}&body=${u}">Имейл</a>`;
+            `<a class="share-btn" href="https://twitter.com/intent/tweet?url=${u}&text=${t}" target="_blank" rel="noopener">X</a>`;
     }
 
     function renderIssueNav(prev, next) {
@@ -663,40 +658,7 @@ ${contents}
 
     /* ─── Events ────────────────────────────────────── */
 
-    let copyResetTimer = null;
-
-    async function copyLink(btn) {
-        const url = btn.dataset.url || location.href;
-        try {
-            await navigator.clipboard.writeText(url);
-        } catch (e) {
-            const input = document.createElement('input');
-            input.value = url;
-            document.body.appendChild(input);
-            input.select();
-            try { document.execCommand('copy'); } catch (_) { /* nothing else to try */ }
-            input.remove();
-        }
-        // Restore from the constant, not from the button's current label: a
-        // second click within the timeout would otherwise capture "Копирано ✓"
-        // as the label to restore and the button would keep it for good.
-        if (copyResetTimer) clearTimeout(copyResetTimer);
-        btn.textContent = 'Копирано ✓';
-        btn.classList.add('is-copied');
-        copyResetTimer = setTimeout(() => {
-            btn.textContent = COPY_LABEL;
-            btn.classList.remove('is-copied');
-            copyResetTimer = null;
-        }, 2000);
-    }
-
     function onMainClick(e) {
-        const copyBtn = e.target.closest('#share-copy');
-        if (copyBtn) {
-            copyLink(copyBtn);
-            return;
-        }
-
         const card = e.target.closest('a.issue-card');
         if (card) {
             if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button !== 0) return;

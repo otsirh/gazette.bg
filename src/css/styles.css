@@ -1191,7 +1191,6 @@ body.issue-ready .back-bar-bottom { display: block; }
 }
 
 .share-btn svg { width: 0.8rem; height: 0.8rem; }
-.share-btn.is-copied { color: var(--accent); border-color: var(--accent); }
 
 /* ─── Prev / next ───────────────────────────────────── */
 

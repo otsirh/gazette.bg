@@ -241,14 +241,11 @@ function renderNavCard(item) {
 }
 
 function renderShare(item) {
-    const url = `${SITE_ORIGIN}/issue/${item.year}/${item.issue}/`;
-    const u = encodeURIComponent(url);
+    const u = encodeURIComponent(`${SITE_ORIGIN}/issue/${item.year}/${item.issue}/`);
     const t = encodeURIComponent(`Държавен вестник, брой ${item.issue} — обобщение`);
     return '<span class="share-label">Сподели</span>' +
-        `<button type="button" class="share-btn" id="share-copy" data-url="${escapeHtml(url)}">Копирай връзка</button>` +
         `<a class="share-btn" href="https://www.facebook.com/sharer/sharer.php?u=${u}" target="_blank" rel="noopener">Facebook</a>` +
-        `<a class="share-btn" href="https://twitter.com/intent/tweet?url=${u}&amp;text=${t}" target="_blank" rel="noopener">X</a>` +
-        `<a class="share-btn" href="mailto:?subject=${t}&amp;body=${u}">Имейл</a>`;
+        `<a class="share-btn" href="https://twitter.com/intent/tweet?url=${u}&amp;text=${t}" target="_blank" rel="noopener">X</a>`;
 }
 
 function replaceHomeContent(html, content) {
