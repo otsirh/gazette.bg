@@ -27,6 +27,16 @@ function escapeHtml(s) {
     return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }
 
+// Anything spliced into a String.replace() replacement is data, not a pattern.
+// A summary that writes "глоба до $1 000 лв." would otherwise have its "$1"
+// read as a capture reference and rewrite the page around it — and "$&" or "$'"
+// would splice whole chunks of the template into the article. Escaping the
+// dollar makes the value literal; the $1/$2 written in the templates below stay
+// capture references, which is what they are meant to be.
+function lit(s) {
+    return String(s).replace(/\$/g, '$$$$');
+}
+
 // marked emits HTML entities (&quot;, &amp;, …) inside heading markup. Decode
 // them back to text before deriving slugs/TOC labels, otherwise escapeHtml
 // double-encodes (&amp;quot;) and slugify leaks "quot" into anchor ids —
@@ -242,7 +252,7 @@ function renderShare(item) {
 }
 
 function replaceHomeContent(html, content) {
-    return html.replace(/(<!--HOME-CONTENT-START-->)[\s\S]*?(<!--HOME-CONTENT-END-->)/, `$1${content}$2`);
+    return html.replace(/(<!--HOME-CONTENT-START-->)[\s\S]*?(<!--HOME-CONTENT-END-->)/, `$1${lit(content)}$2`);
 }
 
 function buildNotFoundHtml(cleanTemplate) {
@@ -255,10 +265,10 @@ function buildNotFoundHtml(cleanTemplate) {
                     <p><a class="not-found-link" href="/">Към началната страница →</a></p>
                 </section>`;
     let html = cleanTemplate;
-    html = html.replace(/<title>[\s\S]*?<\/title>/, `<title>${title}</title>`);
-    html = html.replace(/(<meta property="og:title" content=")[^"]*("\s*\/>)/, `$1${escapeHtml(title)}$2`);
-    html = html.replace(/(<meta name="description" content=")[^"]*("\s*\/>)/, `$1${escapeHtml(desc)}$2`);
-    html = html.replace(/(<meta property="og:description" content=")[^"]*("\s*\/>)/, `$1${escapeHtml(desc)}$2`);
+    html = html.replace(/<title>[\s\S]*?<\/title>/, `<title>${lit(title)}</title>`);
+    html = html.replace(/(<meta property="og:title" content=")[^"]*("\s*\/>)/, `$1${lit(escapeHtml(title))}$2`);
+    html = html.replace(/(<meta name="description" content=")[^"]*("\s*\/>)/, `$1${lit(escapeHtml(desc))}$2`);
+    html = html.replace(/(<meta property="og:description" content=")[^"]*("\s*\/>)/, `$1${lit(escapeHtml(desc))}$2`);
 
     // 404.html is served under whatever URL the visitor asked for, so it must
     // not claim the homepage as its canonical — that reads as a soft 404. Drop
@@ -274,7 +284,7 @@ function inlineCriticalCss(html) {
     const css = fs.readFileSync(CSS_PATH, 'utf8');
     return html.replace(
         /(<!--CRITICAL-CSS-START-->)[\s\S]*?(<!--CRITICAL-CSS-END-->)/,
-        `$1<style>${css}</style>$2`
+        `$1<style>${lit(css)}</style>$2`
     );
 }
 
@@ -376,13 +386,13 @@ function buildIssuePage(template, item, prev, next) {
 
     let html = template;
 
-    html = html.replace(/<title>[\s\S]*?<\/title>/, `<title>${escapeHtml(pageTitle)}</title>`);
-    html = html.replace(/(<meta name="description" content=")[^"]*("\s*\/>)/, `$1${escapeHtml(metaDesc)}$2`);
+    html = html.replace(/<title>[\s\S]*?<\/title>/, `<title>${lit(escapeHtml(pageTitle))}</title>`);
+    html = html.replace(/(<meta name="description" content=")[^"]*("\s*\/>)/, `$1${lit(escapeHtml(metaDesc))}$2`);
     html = html.replace(/(<meta property="og:type" content=")[^"]*("\s*\/>)/, `$1article$2`);
-    html = html.replace(/(<meta property="og:title" content=")[^"]*("\s*\/>)/, `$1${escapeHtml(pageTitle)}$2`);
-    html = html.replace(/(<meta property="og:description" content=")[^"]*("\s*\/>)/, `$1${escapeHtml(metaDesc)}$2`);
-    html = html.replace(/(<meta property="og:url" content=")[^"]*("\s*\/>)/, `$1${escapeHtml(canonicalUrl)}$2`);
-    html = html.replace(/(<link rel="canonical" href=")[^"]*("\s*\/>)/, `$1${escapeHtml(canonicalUrl)}$2`);
+    html = html.replace(/(<meta property="og:title" content=")[^"]*("\s*\/>)/, `$1${lit(escapeHtml(pageTitle))}$2`);
+    html = html.replace(/(<meta property="og:description" content=")[^"]*("\s*\/>)/, `$1${lit(escapeHtml(metaDesc))}$2`);
+    html = html.replace(/(<meta property="og:url" content=")[^"]*("\s*\/>)/, `$1${lit(escapeHtml(canonicalUrl))}$2`);
+    html = html.replace(/(<link rel="canonical" href=")[^"]*("\s*\/>)/, `$1${lit(escapeHtml(canonicalUrl))}$2`);
 
     const articleLd = {
         '@context': 'https://schema.org',
@@ -404,7 +414,7 @@ function buildIssuePage(template, item, prev, next) {
     }
     let headExtras = `<script type="application/ld+json">${JSON.stringify(articleLd)}</script>`;
     if (isoDate) headExtras = `<meta property="article:published_time" content="${isoDate}" />\n    ${headExtras}`;
-    html = html.replace('</head>', `    ${headExtras}\n</head>`);
+    html = html.replace('</head>', `    ${lit(headExtras)}\n</head>`);
 
     // Pre-apply the issue-open and issue-ready classes so initial paint shows the article.
     html = html.replace(/<body(\s|>)/, '<body class="issue-open issue-ready"$1');
@@ -415,7 +425,7 @@ function buildIssuePage(template, item, prev, next) {
         .replace(/(<p class="masthead-title">[\s\S]*?)<\/h1>/, '$1</p>');
 
     const innerHtml = buildIssueViewInner(item, prev, next);
-    html = html.replace(/(<div id="issue-view">)[\s\S]*?(<\/div>\s*<div class="loading")/, `$1${innerHtml}\n            $2`);
+    html = html.replace(/(<div id="issue-view">)[\s\S]*?(<\/div>\s*<div class="loading")/, `$1${lit(innerHtml)}\n            $2`);
 
     return html;
 }

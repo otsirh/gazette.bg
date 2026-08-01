@@ -49,11 +49,16 @@ function revertIssueDir(issueDir) {
     }
 }
 
+// The issue number comes from the PDF's filename, where it may be padded
+// ("07_26.pdf"). Every file on disk is named after the plain number, so the
+// guard has to ask about `7.md`, not `07.md` — otherwise a padded filename
+// looks like an issue we have never seen and gets downloaded again.
 function alreadyHaveIssue(issue, year) {
     const issueDir = getIssueDir(issue, year);
+    const num = Number(issue);
     return (
-        fs.existsSync(path.join(issueDir, `${issue}.md`)) ||
-        fs.existsSync(path.join(issueDir, `${issue}.json`))
+        fs.existsSync(path.join(issueDir, `${num}.md`)) ||
+        fs.existsSync(path.join(issueDir, `${num}.json`))
     );
 }
 

@@ -9,6 +9,11 @@ const SCRIPTS_DIR = path.join(ROOT, 'scripts');
 
 // Each step inherits stdio, so a failing step has already printed why. The
 // exit code is the only thing that has to travel back up.
+//
+// A step killed by a signal (out of memory, a job timeout) and a step that
+// never started at all both leave status null — and process.exit(null) exits
+// zero, which would report the run as green and let the workflow commit a
+// half-updated site. Anything that is not a clean zero becomes a real failure.
 function run(name, script, args = []) {
     console.log(`\n--- ${name} ---\n`);
     const result = spawnSync('node', [script, ...args], {
@@ -16,10 +21,12 @@ function run(name, script, args = []) {
         stdio: 'inherit',
         shell: false,
     });
-    if (result.status !== 0) {
-        console.error(`\n[update-gazette] ${name} failed (exit ${result.status}). Stopping.`);
-    }
-    return result.status;
+    if (result.status === 0) return 0;
+    const why = result.error ? result.error.message
+        : result.signal ? `killed by ${result.signal}`
+            : `exit ${result.status}`;
+    console.error(`\n[update-gazette] ${name} failed (${why}). Stopping.`);
+    return result.status || 1;
 }
 
 const STEPS = [
