@@ -6,7 +6,14 @@
   <atom:link href="https://gazette.bg/feed.xml" rel="self" type="application/rss+xml" />
   <description>Кратки обобщения на всеки брой на Държавен вестник, генерирани с изкуствен интелект — новите закони, правила и решения, обяснени ясно.</description>
   <language>bg</language>
-  <lastBuildDate>Tue, 18 Aug 2026 12:00:00 GMT</lastBuildDate>
+  <lastBuildDate>Wed, 19 Aug 2026 12:00:00 GMT</lastBuildDate>
+  <item>
+    <title>Държавата отделя над 3 милиарда евро за пътища, вода и детски градини в стотици общини</title>
+    <link>https://gazette.bg/issue/2026/75/</link>
+    <guid isPermaLink="true">https://gazette.bg/issue/2026/75/</guid>
+    <pubDate>Wed, 19 Aug 2026 12:00:00 GMT</pubDate>
+    <description>Държавен вестник, брой 75 от 19 август 2026: Държавата отделя над 3 милиарда евро за пътища, вода и детски градини в стотици общини; Купувачите на необслужвани кредити вече се следят по-строго от БНБ; Имот и сгради на бивше държавно дружество в Горна Оряховица излизат на приватизационна продан; Нови водопроводи и електрозахранване в пет населени места на община Божурище</description>
+  </item>
   <item>
     <title>Приет е държавният бюджет за 2026 година — всички плащания вече в евро</title>
     <link>https://gazette.bg/issue/2026/74/</link>
@@ -349,13 +356,6 @@
     <guid isPermaLink="true">https://gazette.bg/issue/2026/26/</guid>
     <pubDate>Fri, 13 Mar 2026 12:00:00 GMT</pubDate>
     <description>Държавен вестник, брой 26 от 13 март 2026: Нови правила за доставка на пощенски пратки; По-скъпо за финансовите фирми, работещи с криптовалути; Собствениците на имоти в тези общини имат срок за възражение</description>
-  </item>
-  <item>
-    <title>Подготовка за парламентарните избори</title>
-    <link>https://gazette.bg/issue/2026/25/</link>
-    <guid isPermaLink="true">https://gazette.bg/issue/2026/25/</guid>
-    <pubDate>Tue, 10 Mar 2026 12:00:00 GMT</pubDate>
-    <description>Държавен вестник, брой 25 от 10 март 2026: Подготовка за парламентарните избори; Нова колекционерска монета от БНБ</description>
   </item>
 </channel>
 </rss>
