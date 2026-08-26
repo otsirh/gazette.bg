@@ -6,7 +6,14 @@
   <atom:link href="https://gazette.bg/feed.xml" rel="self" type="application/rss+xml" />
   <description>Кратки обобщения на всеки брой на Държавен вестник, генерирани с изкуствен интелект — новите закони, правила и решения, обяснени ясно.</description>
   <language>bg</language>
-  <lastBuildDate>Tue, 25 Aug 2026 12:00:00 GMT</lastBuildDate>
+  <lastBuildDate>Wed, 26 Aug 2026 12:00:00 GMT</lastBuildDate>
+  <item>
+    <title>Ново „тест за почтеност“ за административни длъжности с висок риск от корупция</title>
+    <link>https://gazette.bg/issue/2026/78/</link>
+    <guid isPermaLink="true">https://gazette.bg/issue/2026/78/</guid>
+    <pubDate>Wed, 26 Aug 2026 12:00:00 GMT</pubDate>
+    <description>Държавен вестник, брой 78 от 26 август 2026: Ново „тест за почтеност“ за административни длъжности с висок риск от корупция; Удължен срок за продажба на алкохол и цигари със стари бандероли; Държавата обявява търгове за имоти в Самоков и Кюстендил; Забрана за сечене на вековни дървета в три села; Собственици на имоти в четири землища на Пазарджишко със срокове за възражения; Ново споразумение урежда автобусните и товарни превози с Монголия</description>
+  </item>
   <item>
     <title>Плащането в брой в градския транспорт остава гарантирано по закон</title>
     <link>https://gazette.bg/issue/2026/77/</link>
@@ -349,13 +356,6 @@
     <guid isPermaLink="true">https://gazette.bg/issue/2026/29/</guid>
     <pubDate>Tue, 24 Mar 2026 12:00:00 GMT</pubDate>
     <description>Държавен вестник, брой 29 от 24 март 2026: Цените за диагностика при професионални болести вече са в евро; Фондът за гарантиране на влоговете е стабилен</description>
-  </item>
-  <item>
-    <title>Помощ срещу скъпия ток и горивата</title>
-    <link>https://gazette.bg/issue/2026/28/</link>
-    <guid isPermaLink="true">https://gazette.bg/issue/2026/28/</guid>
-    <pubDate>Fri, 20 Mar 2026 12:00:00 GMT</pubDate>
-    <description>Държавен вестник, брой 28 от 20 март 2026: Помощ срещу скъпия ток и горивата; Частични избори на 14 юни; За фермерите — нови изисквания за субсидии; Такси за паркиране и гробни места в Бургас — оспорени в съда</description>
   </item>
 </channel>
 </rss>
