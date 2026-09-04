@@ -6,7 +6,14 @@
   <atom:link href="https://gazette.bg/feed.xml" rel="self" type="application/rss+xml" />
   <description>Кратки обобщения на всеки брой на Държавен вестник, генерирани с изкуствен интелект — новите закони, правила и решения, обяснени ясно.</description>
   <language>bg</language>
-  <lastBuildDate>Tue, 01 Sep 2026 12:00:00 GMT</lastBuildDate>
+  <lastBuildDate>Fri, 04 Sep 2026 12:00:00 GMT</lastBuildDate>
+  <item>
+    <title>Над 100 милиона евро допълнително за детски градини, училища и общежития</title>
+    <link>https://gazette.bg/issue/2026/81/</link>
+    <guid isPermaLink="true">https://gazette.bg/issue/2026/81/</guid>
+    <pubDate>Fri, 04 Sep 2026 12:00:00 GMT</pubDate>
+    <description>Държавен вестник, брой 81 от 4 септември 2026: Над 100 милиона евро допълнително за детски градини, училища и общежития; България поема дълг до 3,26 милиарда евро за отбрана; Пощенските станции въвеждат видеонаблюдение; Пренасочват се субсидии в градския и междуселищния транспорт; Нови правила за земеделските организации на производители; Колективният трудов договор в пивоварния бранш обхваща всички фирми; Нови условия за военнослужещи, командировани в чужбина; Собственици на имоти в над 20 общ…</description>
+  </item>
   <item>
     <title>Автоматичните камери за скорост получават официално основание, а глобите за неспазени пътни знаци отпадат</title>
     <link>https://gazette.bg/issue/2026/80/</link>
@@ -349,13 +356,6 @@
     <guid isPermaLink="true">https://gazette.bg/issue/2026/32/</guid>
     <pubDate>Wed, 01 Apr 2026 12:00:00 GMT</pubDate>
     <description>Държавен вестник, брой 32 от 1 април 2026: По-строги наказания за сексуални престъпления и незаконно изхвърляне на отпадъци; Изцяло нов закон за обществения транспорт</description>
-  </item>
-  <item>
-    <title>Оспорена наредба за курсове по първа помощ при шофьори</title>
-    <link>https://gazette.bg/issue/2026/31/</link>
-    <guid isPermaLink="true">https://gazette.bg/issue/2026/31/</guid>
-    <pubDate>Tue, 31 Mar 2026 12:00:00 GMT</pubDate>
-    <description>Държавен вестник, брой 31 от 31 март 2026: Оспорена наредба за курсове по първа помощ при шофьори</description>
   </item>
 </channel>
 </rss>
