@@ -6,7 +6,14 @@
   <atom:link href="https://gazette.bg/feed.xml" rel="self" type="application/rss+xml" />
   <description>Кратки обобщения на всеки брой на Държавен вестник, генерирани с изкуствен интелект — новите закони, правила и решения, обяснени ясно.</description>
   <language>bg</language>
-  <lastBuildDate>Fri, 18 Sep 2026 12:00:00 GMT</lastBuildDate>
+  <lastBuildDate>Thu, 24 Sep 2026 12:00:00 GMT</lastBuildDate>
+  <item>
+    <title>Нов закон дава повече права на пазаруващите онлайн — от гаранция до блокиране на измамни сайтове</title>
+    <link>https://gazette.bg/issue/2026/87/</link>
+    <guid isPermaLink="true">https://gazette.bg/issue/2026/87/</guid>
+    <pubDate>Thu, 24 Sep 2026 12:00:00 GMT</pubDate>
+    <description>Държавен вестник, брой 87 от 24 септември 2026: Нов закон дава повече права на пазаруващите онлайн — от гаранция до блокиране на измамни сайтове; От 2027 година линията на бедност е 443 евро; Собственици на имоти в няколко области имат срокове за възражения по нови устройствени планове</description>
+  </item>
   <item>
     <title>КПК получава правомощия да проверява имуществото на чиновници, а гражданите — достъп до регистрите ѝ</title>
     <link>https://gazette.bg/issue/2026/86/</link>
@@ -349,13 +356,6 @@
     <guid isPermaLink="true">https://gazette.bg/issue/2026/38/</guid>
     <pubDate>Fri, 24 Apr 2026 12:00:00 GMT</pubDate>
     <description>Държавен вестник, брой 38 от 24 април 2026: Нови такси за лични документи от 27 април; Промени в учебния план за деца със специални потребности; Данък върху наследство и дарения — нови образци на декларации; Кадастрални промени в области Благоевград и Враца</description>
-  </item>
-  <item>
-    <title>Издръжка от държавата — вече без чакане</title>
-    <link>https://gazette.bg/issue/2026/37/</link>
-    <guid isPermaLink="true">https://gazette.bg/issue/2026/37/</guid>
-    <pubDate>Tue, 21 Apr 2026 12:00:00 GMT</pubDate>
-    <description>Държавен вестник, брой 37 от 21 април 2026: Издръжка от държавата — вече без чакане; Паркиране в Пловдив — дело под наблюдение</description>
   </item>
 </channel>
 </rss>
