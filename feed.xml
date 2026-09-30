@@ -6,7 +6,14 @@
   <atom:link href="https://gazette.bg/feed.xml" rel="self" type="application/rss+xml" />
   <description>Кратки обобщения на всеки брой на Държавен вестник, генерирани с изкуствен интелект — новите закони, правила и решения, обяснени ясно.</description>
   <language>bg</language>
-  <lastBuildDate>Tue, 29 Sep 2026 12:00:00 GMT</lastBuildDate>
+  <lastBuildDate>Wed, 30 Sep 2026 12:00:00 GMT</lastBuildDate>
+  <item>
+    <title>Акцизът за автомобилния газ пада до нула до края на годината</title>
+    <link>https://gazette.bg/issue/2026/90/</link>
+    <guid isPermaLink="true">https://gazette.bg/issue/2026/90/</guid>
+    <pubDate>Wed, 30 Sep 2026 12:00:00 GMT</pubDate>
+    <description>Държавен вестник, брой 90 от 30 септември 2026: Акцизът за автомобилния газ пада до нула до края на годината; Фирмите ще подават финансови отчети по нов електронен формат от 2028 година; Нови правила за подаване на осигурителни данни от работодатели; Собственици на имоти в единайсет общини имат срок за възражения по нови устройствени планове; Актуализирани такси за обявления в „Държавен вестник“ и цена на абонамента</description>
+  </item>
   <item>
     <title>Минималната работна заплата вече се определя по нови правила</title>
     <link>https://gazette.bg/issue/2026/89/</link>
@@ -349,13 +356,6 @@
     <guid isPermaLink="true">https://gazette.bg/issue/2026/41/</guid>
     <pubDate>Tue, 05 May 2026 12:00:00 GMT</pubDate>
     <description>Държавен вестник, брой 41 от 5 май 2026: Онлайн консултации с лекар стават възможни — официално; Промени в сметките за парно; Нова професия „Кинология&quot; влиза в системата на образованието; Субсидии за биологично животновъдство</description>
-  </item>
-  <item>
-    <title>Новото Народно събрание заседава на 30 април</title>
-    <link>https://gazette.bg/issue/2026/40/</link>
-    <guid isPermaLink="true">https://gazette.bg/issue/2026/40/</guid>
-    <pubDate>Wed, 29 Apr 2026 12:00:00 GMT</pubDate>
-    <description>Държавен вестник, брой 40 от 29 април 2026: Новото Народно събрание заседава на 30 април; Частичен избор за кмет в Подайва на 14 юни; Отчуждават се земи край Брусарци за жп линията Видин — София</description>
   </item>
 </channel>
 </rss>
