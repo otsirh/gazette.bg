@@ -6,7 +6,14 @@
   <atom:link href="https://gazette.bg/feed.xml" rel="self" type="application/rss+xml" />
   <description>Кратки обобщения на всеки брой на Държавен вестник, генерирани с изкуствен интелект — новите закони, правила и решения, обяснени ясно.</description>
   <language>bg</language>
-  <lastBuildDate>Tue, 06 Oct 2026 12:00:00 GMT</lastBuildDate>
+  <lastBuildDate>Fri, 09 Oct 2026 12:00:00 GMT</lastBuildDate>
+  <item>
+    <title>Нови срокове и процедури за лечение на диабет и скъпоструващи лекарства</title>
+    <link>https://gazette.bg/issue/2026/93/</link>
+    <guid isPermaLink="true">https://gazette.bg/issue/2026/93/</guid>
+    <pubDate>Fri, 09 Oct 2026 12:00:00 GMT</pubDate>
+    <description>Държавен вестник, брой 93 от 9 октомври 2026: Нови срокове и процедури за лечение на диабет и скъпоструващи лекарства; Три града съдят собствените си наредби за платено паркиране; Строежи покрай летище София, пристанище Бургас и ново трасе край Монтана; Нови граници на имоти в няколко области — различни срокове за собствениците; Шест общински имота в София излизат на търг; Адвокат от Софийската колегия е лишен от право да практикува за 5 години</description>
+  </item>
   <item>
     <title>Нов закон срещу „стратегическите дела“ срещу критици и активисти</title>
     <link>https://gazette.bg/issue/2026/92/</link>
@@ -349,13 +356,6 @@
     <guid isPermaLink="true">https://gazette.bg/issue/2026/44/</guid>
     <pubDate>Thu, 14 May 2026 12:00:00 GMT</pubDate>
     <description>Държавен вестник, брой 44 от 14 май 2026: Матурите вече са окончателни — резултатите могат да се видят</description>
-  </item>
-  <item>
-    <title>България получи редовно правителство</title>
-    <link>https://gazette.bg/issue/2026/43/</link>
-    <guid isPermaLink="true">https://gazette.bg/issue/2026/43/</guid>
-    <pubDate>Tue, 12 May 2026 12:00:00 GMT</pubDate>
-    <description>Държавен вестник, брой 43 от 12 май 2026: България получи редовно правителство; Заплатите на държавните служители вече са в евро; Съдът отмени забраната да обжалваш оценка от матура; По-скъпи изпити за актюери; Нови правила за сечи при аварии в гори; Интернет свързаност в Южна България</description>
   </item>
 </channel>
 </rss>
