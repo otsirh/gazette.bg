@@ -6,7 +6,14 @@
   <atom:link href="https://gazette.bg/feed.xml" rel="self" type="application/rss+xml" />
   <description>Кратки обобщения на всеки брой на Държавен вестник, генерирани с изкуствен интелект — новите закони, правила и решения, обяснени ясно.</description>
   <language>bg</language>
-  <lastBuildDate>Fri, 09 Oct 2026 12:00:00 GMT</lastBuildDate>
+  <lastBuildDate>Tue, 13 Oct 2026 12:00:00 GMT</lastBuildDate>
+  <item>
+    <title>Нови такси за международни пощенски пратки и преводи</title>
+    <link>https://gazette.bg/issue/2026/94/</link>
+    <guid isPermaLink="true">https://gazette.bg/issue/2026/94/</guid>
+    <pubDate>Tue, 13 Oct 2026 12:00:00 GMT</pubDate>
+    <description>Държавен вестник, брой 94 от 13 октомври 2026: Нови такси за международни пощенски пратки и преводи; Нов публичен регистър за увеселителни съоръжения и водни атракции; Пари за ферибот в Белослав и водопровод в „Родопи“; Олимпийски медалисти влизат в университет без изпит по профилиращия предмет; Нови правила за преизчисляване на цени по обществени поръчки заради инфлация; Адвокат от Варненската колегия е лишен от право да практикува; Срокове за възражение по строителни и устройствени промени в…</description>
+  </item>
   <item>
     <title>Нови срокове и процедури за лечение на диабет и скъпоструващи лекарства</title>
     <link>https://gazette.bg/issue/2026/93/</link>
@@ -349,13 +356,6 @@
     <guid isPermaLink="true">https://gazette.bg/issue/2026/45/</guid>
     <pubDate>Fri, 15 May 2026 12:00:00 GMT</pubDate>
     <description>Държавен вестник, брой 45 от 15 май 2026: Как се обработва информацията след катастрофа; Системата BG-ALERT вече предупреждава и за терористична заплаха; Промени за животновъди, които кандидатстват за субсидии</description>
-  </item>
-  <item>
-    <title>Матурите вече са окончателни — резултатите могат да се видят</title>
-    <link>https://gazette.bg/issue/2026/44/</link>
-    <guid isPermaLink="true">https://gazette.bg/issue/2026/44/</guid>
-    <pubDate>Thu, 14 May 2026 12:00:00 GMT</pubDate>
-    <description>Държавен вестник, брой 44 от 14 май 2026: Матурите вече са окончателни — резултатите могат да се видят</description>
   </item>
 </channel>
 </rss>
