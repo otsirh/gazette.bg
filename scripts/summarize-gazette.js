@@ -21,10 +21,12 @@ dotenv.config({ path: path.join(__dirname, '..', '.env') });
 // there are — each seeing more of the issue — the less gets silently dropped.
 const PAGES_PER_CHUNK = 50;
 const DELAY_BETWEEN_CHUNKS_MS = 10 * 1000;
-// Intermediate chunk extraction runs at medium effort (≈ Sonnet 4.6 at high, the
-// previous baseline); the single-pass and refine calls keep the default (high),
-// where prioritization and rule-adherence matter most for the final output.
+// Intermediate chunk extraction runs at medium effort; the refine call runs at
+// high, where prioritization and rule-adherence matter most for the final
+// output. Both are explicit because Sonnet 5.5 recalibrated the levels — the
+// same name no longer means the same amount of thinking as on Sonnet 5.
 const CHUNK_EFFORT = 'medium';
+const REFINE_EFFORT = 'high';
 
 function delay(ms) {
     return new Promise((resolve) => setTimeout(resolve, ms));
@@ -34,11 +36,11 @@ const ROOT = path.join(__dirname, '..');
 const OFFICIAL_GAZETTES_DIR = path.join(ROOT, 'official-gazettes');
 const ISSUES_DIR = path.join(ROOT, 'issues');
 const SCRIPT_NAME = 'summarize-gazette';
-const MODEL = 'claude-sonnet-5';
+const MODEL = 'claude-sonnet-5-5';
 // Hard ceiling on the whole response — adaptive thinking is billed against it
-// too, so the budget covers thinking + the summary text. Sonnet 5's tokenizer
-// also emits noticeably more tokens for the same Bulgarian text than Sonnet 4.6
-// did, so the old 16k ceiling now sits close to the edge for a dense issue.
+// too, so the budget covers thinking + the summary text. The Sonnet 5 tokenizer
+// (Sonnet 5.5 shares it) emits noticeably more tokens for the same Bulgarian
+// text than Sonnet 4.6 did, so a 16k ceiling sits close to the edge for a dense issue.
 // Requests are streamed, so a high ceiling costs nothing until it's used.
 const MAX_TOKENS = 32000;
 
@@ -86,25 +88,36 @@ function extractText(message) {
         throw new Error(`Output hit max_tokens (${MAX_TOKENS}) — the summary would be truncated`);
     }
 
-    const textBlock = message.content?.find((c) => c.type === 'text');
-    if (!textBlock || !textBlock.text) throw new Error('No text in API response');
-    return textBlock.text;
+    // Join every text block: when a fallback takes over mid-answer, the text
+    // before the switch and the fallback model's continuation are separate
+    // blocks, and the summary is both of them together.
+    const text = (message.content ?? []).filter((c) => c.type === 'text').map((c) => c.text).join('');
+    if (!text) throw new Error('No text in API response');
+    return text;
 }
 
 async function runClaude(content, label, effort, system = CACHED_SYSTEM) {
     // Stream so large-PDF + adaptive-thinking requests don't hit HTTP timeouts;
     // finalMessage() aggregates the full response (usage, stop_reason, content).
-    const params = {
+    const stream = client.beta.messages.stream({
         model: MODEL,
         max_tokens: MAX_TOKENS,
         thinking: { type: 'adaptive' },
+        output_config: { effort },
         system,
         messages: [{ role: 'user', content }],
-    };
-    if (effort) params.output_config = { effort };
-    const stream = client.messages.stream(params);
+        // If a safety classifier declines an issue, the API re-runs it on the
+        // model Anthropic recommends for that refusal category instead of
+        // failing it. Only some categories have a fallback; the rest still come
+        // back as a refusal.
+        betas: ['server-side-fallback-2026-07-01'],
+        fallbacks: 'default',
+    });
     const message = await stream.finalMessage();
     logUsage(label, message.usage);
+    if (message.stop_reason !== 'refusal' && message.usage?.iterations?.some((it) => it.type === 'fallback_message')) {
+        console.log(`    [${label}] declined by ${MODEL}; written by fallback ${message.model}`);
+    }
     return extractText(message);
 }
 
@@ -183,7 +196,7 @@ async function splitPdfIntoChunks(pdfBytes) {
 
 async function refineSummaryWithClaude(fullMarkdown, year, issue) {
     const userPrompt = getRefineUserPrompt(fullMarkdown, year, issue);
-    return runClaude([{ type: 'text', text: userPrompt }], 'refine');
+    return runClaude([{ type: 'text', text: userPrompt }], 'refine', REFINE_EFFORT);
 }
 
 async function summarizePdfBase64(base64, userPrompt, label = 'chunk', effort, system) {

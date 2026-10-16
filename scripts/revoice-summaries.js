@@ -28,7 +28,7 @@ const ROOT = path.join(__dirname, '..');
 dotenv.config({ path: path.join(ROOT, '.env') });
 
 const ISSUES_DIR = path.join(ROOT, 'issues');
-const MODEL = 'claude-sonnet-5';
+const MODEL = 'claude-sonnet-5-5';
 const MAX_TOKENS = 16000;
 const apiKey = process.env.ANTHROPIC_API_KEY;
 

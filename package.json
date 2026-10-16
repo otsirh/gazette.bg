@@ -16,7 +16,7 @@
     "gazette": "npm run dev"
   },
   "dependencies": {
-    "@anthropic-ai/sdk": "^0.96.0",
+    "@anthropic-ai/sdk": "^0.135.0",
     "dotenv": "^16.4.5",
     "marked": "^18.0.3",
     "pdf-lib": "^1.17.1"
