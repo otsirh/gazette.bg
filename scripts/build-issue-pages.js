@@ -18,9 +18,10 @@ const SITEMAP_PATH = path.join(DIST_DIR, 'sitemap.xml');
 const RSS_PATH = path.join(DIST_DIR, 'feed.xml');
 const SEARCH_INDEX_PATH = path.join(DIST_DIR, 'search-index.json');
 const NOT_FOUND_PATH = path.join(DIST_DIR, '404.html');
-// Files the pages load by URL, copied as-is to the same path under dist/.
-// The summaries themselves are copied per issue from the catalog.
-const STATIC_ASSETS = ['favicon.ico', 'favicon.svg', 'og-image.png', 'robots.txt', 'fonts', 'src/js/app.js'];
+// Files the pages load by URL, copied as-is to the same path under dist/,
+// plus _headers, which Pages reads from the output root. The summaries
+// themselves are copied per issue from the catalog.
+const STATIC_ASSETS = ['_headers', 'favicon.ico', 'favicon.svg', 'og-image.png', 'robots.txt', 'fonts', 'src/js/app.js'];
 
 const BG_MONTHS = ['януари', 'февруари', 'март', 'април', 'май', 'юни', 'юли', 'август', 'септември', 'октомври', 'ноември', 'декември'];
 const BG_MONTHS_CAP = ['Януари', 'Февруари', 'Март', 'Април', 'Май', 'Юни', 'Юли', 'Август', 'Септември', 'Октомври', 'Ноември', 'Декември'];

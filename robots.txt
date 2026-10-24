@@ -1,3 +1,15 @@
+# Search engines, and AI assistants that fetch pages to answer someone's
+# question, may read everything. Crawlers that only gather training data may not.
+User-agent: GPTBot
+User-agent: ClaudeBot
+User-agent: anthropic-ai
+User-agent: Google-Extended
+User-agent: Applebot-Extended
+User-agent: meta-externalagent
+User-agent: CCBot
+User-agent: Bytespider
+Disallow: /
+
 User-agent: *
 Allow: /
 
