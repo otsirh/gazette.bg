@@ -24,7 +24,11 @@ the case locally).
      `npm run update-gazette`
    - Just re-render from the issues already on disk (no download/AI):
      `npm run build`
-   The pipeline order is: download → summarize → build catalog → build pages.
+   The pipeline order is: download → summarize → build catalog → build pages →
+   gap check. The download fetches every issue among the ten newest on
+   dv.parliament.bg that isn't in `issues/` yet (up to three per run, oldest
+   first); a failed issue is reverted and retried next run while the others
+   still go through. The gap check fails the run if the numbering has a hole.
    The build writes the whole site into `dist/` (gitignored): the home page,
    every page under `issue/<year>/<num>/`, `catalog.json`, `sitemap.xml`,
    `feed.xml`, `search-index.json` and `404.html`. Cloudflare Pages runs the
