@@ -10,8 +10,8 @@ self-maintains through the daily GitHub Action (`.github/workflows/update-gazett
 12:00 UTC) which runs `npm run update-gazette`. This skill is for doing that
 **now**, on demand.
 
-Run from the project root (`/home/hristo/Development/gazette.bg`). The `.env`
-must hold `ANTHROPIC_API_KEY` (already the case locally).
+Run from the project root. The `.env` must hold `ANTHROPIC_API_KEY` (already
+the case locally).
 
 ## Steps
 
@@ -25,15 +25,18 @@ must hold `ANTHROPIC_API_KEY` (already the case locally).
    - Just re-render from the issues already on disk (no download/AI):
      `npm run build`
    The pipeline order is: download → summarize → build catalog → build pages.
-   It regenerates `catalog.json`, the pre-rendered homepage in `index.html`,
-   every page under `issue/<year>/<num>/`, `sitemap.xml`, `feed.xml`,
-   `search-index.json` and `404.html`.
+   The build writes the whole site into `dist/` (gitignored): the home page,
+   every page under `issue/<year>/<num>/`, `catalog.json`, `sitemap.xml`,
+   `feed.xml`, `search-index.json` and `404.html`. Cloudflare Pages runs the
+   same `npm run build` on every push and publishes `dist/`, so the only files
+   that change in git are the new issue's `issues/<year>/<num>/` files.
 
 3. **Verify.** Serve and smoke-test before committing:
-   `npx --yes serve -p 4321 &` then check `/` and a couple of `/issue/<year>/<num>/`
+   `npx --yes serve dist -p 4321 &` then check `/` and a couple of `/issue/<year>/<num>/`
    routes return 200 with no console errors, and that the archive search still
-   filters. Kill the server after (`fuser -k 4321/tcp`). If Playwright is set up,
-   open the changed routes in light and dark and confirm zero console errors.
+   filters. Kill the server after (`lsof -ti tcp:4321 | xargs kill`). If
+   Playwright is set up, open the changed routes in light and dark and confirm
+   zero console errors.
 
 4. **Commit & push.** Only if there are changes. Use a message that names what
    actually changed (new issue N). Push with the rebase-retry loop the repo uses:

@@ -6,14 +6,21 @@ import { marked } from 'marked';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.join(__dirname, '..');
-const TEMPLATE_PATH = path.join(ROOT, 'index.html');
-const CATALOG_PATH = path.join(ROOT, 'catalog.json');
-const OUTPUT_DIR = path.join(ROOT, 'issue');
-const SITEMAP_PATH = path.join(ROOT, 'sitemap.xml');
-const RSS_PATH = path.join(ROOT, 'feed.xml');
-const SEARCH_INDEX_PATH = path.join(ROOT, 'search-index.json');
+const TEMPLATE_PATH = path.join(ROOT, 'src', 'index.html');
 const CSS_PATH = path.join(ROOT, 'src', 'css', 'styles.css');
-const NOT_FOUND_PATH = path.join(ROOT, '404.html');
+// dist/ is the site. Only what is written or copied here is published —
+// scripts, prompts and workflow files stay in the repo and off the web.
+const DIST_DIR = path.join(ROOT, 'dist');
+const CATALOG_PATH = path.join(DIST_DIR, 'catalog.json');
+const HOME_PATH = path.join(DIST_DIR, 'index.html');
+const OUTPUT_DIR = path.join(DIST_DIR, 'issue');
+const SITEMAP_PATH = path.join(DIST_DIR, 'sitemap.xml');
+const RSS_PATH = path.join(DIST_DIR, 'feed.xml');
+const SEARCH_INDEX_PATH = path.join(DIST_DIR, 'search-index.json');
+const NOT_FOUND_PATH = path.join(DIST_DIR, '404.html');
+// Files the pages load by URL, copied as-is to the same path under dist/.
+// The summaries themselves are copied per issue from the catalog.
+const STATIC_ASSETS = ['favicon.ico', 'favicon.svg', 'og-image.png', 'robots.txt', 'fonts', 'src/js/app.js'];
 
 const BG_MONTHS = ['януари', 'февруари', 'март', 'април', 'май', 'юни', 'юли', 'август', 'септември', 'октомври', 'ноември', 'декември'];
 const BG_MONTHS_CAP = ['Януари', 'Февруари', 'Март', 'Април', 'Май', 'Юни', 'Юли', 'Август', 'Септември', 'Октомври', 'Ноември', 'Декември'];
@@ -506,16 +513,28 @@ function buildSearchIndex(catalog) {
     return index;
 }
 
+// Start from an empty dist/ so nothing outlives the build that made it. The
+// one survivor is catalog.json, which the step before this one just wrote.
+function resetDist() {
+    for (const name of fs.readdirSync(DIST_DIR)) {
+        if (name !== 'catalog.json') fs.rmSync(path.join(DIST_DIR, name), { recursive: true, force: true });
+    }
+}
+
+function copyToDist(relPath) {
+    const dest = path.join(DIST_DIR, relPath);
+    fs.mkdirSync(path.dirname(dest), { recursive: true });
+    fs.cpSync(path.join(ROOT, relPath), dest, { recursive: true });
+}
+
 function build() {
     const catalog = JSON.parse(fs.readFileSync(CATALOG_PATH, 'utf8'));
-    const rawTemplate = fs.readFileSync(TEMPLATE_PATH, 'utf8');
-    // Strip any pre-rendered home content so the template is clean for issue pages
-    // and as the base for a fresh homepage build. Inline the stylesheet so it
-    // doesn't block initial render.
-    const cleanTemplate = inlineCriticalCss(replaceHomeContent(rawTemplate, ''));
+    // Inline the stylesheet so it doesn't block initial render.
+    const cleanTemplate = inlineCriticalCss(fs.readFileSync(TEMPLATE_PATH, 'utf8'));
     const all = getAllIssuesNewestFirst(catalog);
 
-    fs.mkdirSync(OUTPUT_DIR, { recursive: true });
+    resetDist();
+    STATIC_ASSETS.forEach(copyToDist);
 
     let count = 0;
     for (let idx = 0; idx < all.length; idx++) {
@@ -527,19 +546,21 @@ function build() {
         const dir = path.join(OUTPUT_DIR, String(entry.year), String(entry.issue));
         fs.mkdirSync(dir, { recursive: true });
         fs.writeFileSync(path.join(dir, 'index.html'), html, 'utf8');
+        // The client fetches the raw summary when it navigates between issues.
+        copyToDist(entry.file);
         count++;
     }
 
     // Pre-render homepage with the full issue list so crawlers see all internal links.
     const homeHtml = replaceHomeContent(cleanTemplate, buildHomeContentHtml(catalog));
-    fs.writeFileSync(TEMPLATE_PATH, homeHtml, 'utf8');
+    fs.writeFileSync(HOME_PATH, homeHtml, 'utf8');
 
     fs.writeFileSync(SITEMAP_PATH, buildSitemapXml(catalog), 'utf8');
     fs.writeFileSync(RSS_PATH, buildRssXml(catalog), 'utf8');
     buildSearchIndex(catalog);
     fs.writeFileSync(NOT_FOUND_PATH, buildNotFoundHtml(cleanTemplate), 'utf8');
 
-    console.log(`[build-issue-pages] Wrote ${count} pages to ${OUTPUT_DIR}, updated ${TEMPLATE_PATH}, wrote ${SITEMAP_PATH}, ${RSS_PATH} and ${NOT_FOUND_PATH}`);
+    console.log(`[build-issue-pages] Wrote the site to ${DIST_DIR}: home page, ${count} issue pages, sitemap, feed, search index and 404`);
     return count;
 }
 
