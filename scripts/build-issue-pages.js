@@ -527,6 +527,17 @@ function copyToDist(relPath) {
     fs.cpSync(path.join(ROOT, relPath), dest, { recursive: true });
 }
 
+// TRANSITIONAL — delete once the Cloudflare Pages project publishes dist/.
+// Until its build output directory is switched from the repo root to `dist`,
+// Pages serves the root, which no longer holds the site. Mirroring the build
+// there keeps gazette.bg up under either setting. Only on Pages (CF_PAGES=1),
+// so local and CI checkouts stay clean.
+function mirrorToRootOnPages() {
+    if (process.env.CF_PAGES !== '1') return;
+    fs.cpSync(DIST_DIR, ROOT, { recursive: true });
+    console.log('[build-issue-pages] CF_PAGES: also mirrored dist/ into the repo root (transitional)');
+}
+
 function build() {
     const catalog = JSON.parse(fs.readFileSync(CATALOG_PATH, 'utf8'));
     // Inline the stylesheet so it doesn't block initial render.
@@ -561,6 +572,7 @@ function build() {
     fs.writeFileSync(NOT_FOUND_PATH, buildNotFoundHtml(cleanTemplate), 'utf8');
 
     console.log(`[build-issue-pages] Wrote the site to ${DIST_DIR}: home page, ${count} issue pages, sitemap, feed, search index and 404`);
+    mirrorToRootOnPages();
     return count;
 }
 
