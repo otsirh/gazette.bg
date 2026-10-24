@@ -25,24 +25,35 @@ function run(name, script, args = []) {
     const why = result.error ? result.error.message
         : result.signal ? `killed by ${result.signal}`
             : `exit ${result.status}`;
-    console.error(`\n[update-gazette] ${name} failed (${why}). Stopping.`);
+    console.error(`\n[update-gazette] ${name} failed (${why}).`);
     return result.status || 1;
 }
 
+// A step marked keepGoing fails the run without stopping it. A failed download
+// reverts its own issue folder, so whatever is on disk afterwards is complete
+// and still worth building and committing; the gap check only reports.
 const STEPS = [
-    ['Download latest gazette', 'download-latest-gazette.js'],
+    ['Download new issues', 'download-latest-gazette.js', { keepGoing: true }],
     ['Summarize gazette', 'summarize-gazette.js'],
     ['Build gazette catalog', 'build-gazette-catalog.js'],
     ['Build issue pages', 'build-issue-pages.js'],
+    ['Check for missing issues', 'check-issue-gaps.js', { keepGoing: true }],
 ];
 
 function main() {
-    STEPS.forEach(([name, script], i) => {
+    let failed = 0;
+    STEPS.forEach(([name, script, { keepGoing = false } = {}], i) => {
         console.log(`${i ? '\n' : ''}[update-gazette] ${i + 1}. ${name}`);
         const code = run(name, path.join(SCRIPTS_DIR, script));
-        if (code !== 0) process.exit(code);
+        if (code === 0) return;
+        if (!keepGoing) process.exit(code);
+        failed = failed || code;
     });
-    console.log('\n[update-gazette] Done. New issue(s) are in issues/ and the website catalog is updated.\n');
+    if (failed) {
+        console.error('\n[update-gazette] Finished with failures (see above). Complete issues were still built.\n');
+        process.exit(failed);
+    }
+    console.log('\n[update-gazette] Done. New issue(s) are in issues/ and the site is built in dist/.\n');
 }
 
 try {

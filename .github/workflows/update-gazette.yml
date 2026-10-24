@@ -52,7 +52,22 @@ jobs:
           PLAYWRIGHT_BROWSERS_PATH: /ms-playwright
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
 
+      # When the scrape stalls, the script leaves the page it saw behind. Keep
+      # it: it is the only look at dv.parliament.bg the next fix will get.
+      - name: Upload scrape diagnostics
+        if: failure()
+        uses: actions/upload-artifact@v7.0.2
+        with:
+          name: gazette-scrape-diagnostics
+          path: diagnostics/
+          if-no-files-found: ignore
+          retention-days: 14
+
+      # Runs after a failed update too: a failed issue is reverted on disk, so
+      # what is left is complete issues, and one bad issue must not hold back
+      # the others. The run itself still ends red.
       - name: Commit and push if there are changes
+        if: ${{ !cancelled() }}
         run: |
           # Avoid git "dubious ownership" inside the container.
           git config --global --add safe.directory "$GITHUB_WORKSPACE"
@@ -64,7 +79,7 @@ jobs:
             exit 0
           fi
           COMMIT_DATE=$(date +"%Y-%m-%d")
-          git commit -m "Update gazette: new issues and catalog ($COMMIT_DATE)"
+          git commit -m "Update gazette: new issues ($COMMIT_DATE)"
           # main may have advanced since checkout; rebase and retry the push.
           for attempt in 1 2 3; do
             if git push; then

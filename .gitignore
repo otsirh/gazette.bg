@@ -4,4 +4,5 @@
 !.env.example
 node_modules/
 vendor/
-issue/
+dist/
+diagnostics/

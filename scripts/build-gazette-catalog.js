@@ -6,7 +6,10 @@ import { fileURLToPath } from 'url';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.join(__dirname, '..');
 const ISSUES_DIR = path.join(ROOT, 'issues');
-const CATALOG_PATH = path.join(ROOT, 'catalog.json');
+// The catalog is build output like everything else under dist/ — the page
+// builder reads it from here and the client fetches it as /catalog.json.
+const DIST_DIR = path.join(ROOT, 'dist');
+const CATALOG_PATH = path.join(DIST_DIR, 'catalog.json');
 
 const BG_MONTHS = ['януари', 'февруари', 'март', 'април', 'май', 'юни', 'юли', 'август', 'септември', 'октомври', 'ноември', 'декември'];
 const BG_MONTHS_CAP = ['Януари', 'Февруари', 'Март', 'Април', 'Май', 'Юни', 'Юли', 'Август', 'Септември', 'Октомври', 'Ноември', 'Декември'];
@@ -69,6 +72,7 @@ function readIssueJson(issueDirPath, issueNum) {
 }
 function buildCatalog() {
     const catalog = { years: {} };
+    fs.mkdirSync(DIST_DIR, { recursive: true });
     if (!fs.existsSync(ISSUES_DIR)) {
         fs.writeFileSync(CATALOG_PATH, JSON.stringify(catalog, null, 4), 'utf8');
         console.log('Catalog written to', CATALOG_PATH);
