@@ -10,7 +10,7 @@ The site is unofficial and not affiliated with any state body. The summaries
 are written by AI, may contain mistakes and have no legal force. The official
 text is at [dv.parliament.bg](https://dv.parliament.bg).
 
-Spotted a mistake in a summary? [Open an issue](https://github.com/otsirh/gazette.bg/issues).
+Spotted a mistake in a summary? [Report it](https://github.com/otsirh/gazette.bg/issues/new?template=mistake.yml).
 
 ## How it works
 

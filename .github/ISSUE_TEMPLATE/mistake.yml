@@ -1,0 +1,24 @@
+name: Грешка в обобщение
+description: Нещо в обобщението на брой не отговаря на официалния текст.
+labels: ["грешка в обобщение"]
+body:
+  - type: input
+    id: issue
+    attributes:
+      label: Брой
+      description: Връзка към страницата на броя или номер и година.
+      placeholder: https://gazette.bg/issue/2026/97/
+    validations:
+      required: true
+  - type: textarea
+    id: wrong
+    attributes:
+      label: Какво е грешно
+      description: Цитирайте изречението от обобщението и обяснете какво не е наред.
+    validations:
+      required: true
+  - type: textarea
+    id: official
+    attributes:
+      label: Какво пише в официалния текст
+      description: По желание — цитат или страница от броя на dv.parliament.bg.
