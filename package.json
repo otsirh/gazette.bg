@@ -1,6 +1,9 @@
 {
   "name": "gazette-bg",
   "version": "1.0.0",
+  "description": "Plain-language AI summaries of every issue of Bulgaria's State Gazette",
+  "homepage": "https://gazette.bg",
+  "license": "UNLICENSED",
   "private": true,
   "type": "module",
   "scripts": {
