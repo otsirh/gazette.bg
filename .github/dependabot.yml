@@ -1,0 +1,34 @@
+version: 2
+updates:
+  # Minor and patch updates arrive as one weekly pull request that merges
+  # itself once CI passes (see the automerge job in workflows/ci.yml). Major
+  # versions are left out: they can change behaviour CI does not see, such as
+  # the scrape of dv.parliament.bg or the summaries themselves.
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+    # Skip releases younger than a week: time for a bad or hijacked release
+    # to be caught and pulled before it reaches this repo.
+    cooldown:
+      default-days: 7
+    groups:
+      npm:
+        patterns: ['*']
+    ignore:
+      - dependency-name: '*'
+        update-types: ['version-update:semver-major']
+    commit-message:
+      prefix: deps
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: monthly
+    cooldown:
+      default-days: 7
+    groups:
+      actions:
+        patterns: ['*']
+    commit-message:
+      prefix: ci
