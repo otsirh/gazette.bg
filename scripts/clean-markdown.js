@@ -1,7 +1,8 @@
 const EMPTY_MARKER = 'В този брой няма промени, които засягат директно гражданите.';
 
 const META_INTRO_RE = /^(В\s+(този|настоящия)\s+брой|Този\s+брой|Настоящият\s+брой)[^\n]*$/;
-const META_OUTRO_RE = /^(В\s+останалата\s+част|Останалата\s+част|Останалото\s+съдържание|Останалите\s+документи)[^\n]*$/;
+const META_OUTRO_RE =
+    /^(В\s+останалата\s+част|Останалата\s+част|Останалото\s+съдържание|Останалите\s+документи)[^\n]*$/;
 
 // Bulgarian quotes are a house rule the model mostly follows and occasionally
 // forgets. Straight quotes are cheaper to fix here than to police in the prompt.
@@ -9,19 +10,21 @@ const META_OUTRO_RE = /^(В\s+останалата\s+част|Останалат
 function normalizeQuotes(text) {
     return text
         .split('\n')
-        .map((line) => line
-            .split('`')
-            .map((segment, i) => {
-                if (i % 2 === 1) return segment; // inside a code span
-                // Decide by what precedes the quote rather than by toggling an
-                // open/closed flag: the text may already contain Bulgarian
-                // quotes, and a flag would fall out of step with them.
-                return segment.replace(/"/g, (m, offset, s) => {
-                    const prev = s[offset - 1];
-                    return !prev || /[\s(\[{«„—–-]/.test(prev) ? '„' : '“';
-                });
-            })
-            .join('`'))
+        .map((line) =>
+            line
+                .split('`')
+                .map((segment, i) => {
+                    if (i % 2 === 1) return segment; // inside a code span
+                    // Decide by what precedes the quote rather than by toggling an
+                    // open/closed flag: the text may already contain Bulgarian
+                    // quotes, and a flag would fall out of step with them.
+                    return segment.replace(/"/g, (_m, offset, s) => {
+                        const prev = s[offset - 1];
+                        return !prev || /[\s([{«„—–-]/.test(prev) ? '„' : '“';
+                    });
+                })
+                .join('`'),
+        )
         .join('\n');
 }
 
@@ -39,9 +42,13 @@ function cleanMarkdown(text) {
     if (!text) return '';
     let t = String(text).replace(/\r\n/g, '\n');
 
-    t = t.split('\n').map((l) => l.replace(/[ \t]+$/, '')).join('\n').trim();
+    t = t
+        .split('\n')
+        .map((l) => l.replace(/[ \t]+$/, ''))
+        .join('\n')
+        .trim();
 
-    if (t === EMPTY_MARKER) return t + '\n';
+    if (t === EMPTY_MARKER) return `${t}\n`;
 
     t = t.replace(/(^|\n)[ \t]*-{3,}[ \t]*(?=\n|$)/g, '$1');
 
@@ -68,9 +75,12 @@ function cleanMarkdown(text) {
         }
     }
 
-    t = paragraphs.map((p) => p.trim()).filter(Boolean).join('\n\n');
+    t = paragraphs
+        .map((p) => p.trim())
+        .filter(Boolean)
+        .join('\n\n');
 
-    return t.trim() + '\n';
+    return `${t.trim()}\n`;
 }
 
 // The model occasionally types a Bulgarian word with Latin letters — "obhвата"
@@ -82,4 +92,4 @@ function findMixedScriptWords(text) {
     return [...new Set(words.filter((w) => /\p{Script=Cyrillic}/u.test(w) && /\p{Script=Latin}/u.test(w)))];
 }
 
-export { cleanMarkdown, findMixedScriptWords, EMPTY_MARKER };
+export { cleanMarkdown, EMPTY_MARKER, findMixedScriptWords };

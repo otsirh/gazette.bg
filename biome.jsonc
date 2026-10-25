@@ -1,0 +1,71 @@
+{
+    "$schema": "https://biomejs.dev/schemas/2.6.3/schema.json",
+    "vcs": {
+        "enabled": true,
+        "clientKind": "git",
+        "useIgnoreFile": true
+    },
+    "files": {
+        // Code only: JavaScript, CSS and JSON. issues/ is generated content;
+        // the template's markup and markers are byte-sensitive for the build,
+        // so HTML stays hand-formatted, as do SVG, Markdown and YAML.
+        "includes": [
+            "**",
+            "!issues",
+            "!fonts",
+            "!**/*.html",
+            "!**/*.svg",
+            "!**/*.md",
+            "!**/*.yml",
+            "!**/*.yaml",
+            "!package-lock.json"
+        ]
+    },
+    "formatter": {
+        "enabled": true,
+        "indentStyle": "space",
+        "indentWidth": 4,
+        "lineWidth": 120
+    },
+    "javascript": {
+        "formatter": {
+            "quoteStyle": "single"
+        }
+    },
+    "linter": {
+        "enabled": true,
+        "rules": {
+            "preset": "recommended"
+        }
+    },
+    "assist": {
+        "enabled": true,
+        "actions": {
+            "source": {
+                "organizeImports": "on"
+            }
+        }
+    },
+    "overrides": [
+        {
+            // npm rewrites package.json with two spaces; match it.
+            "includes": ["package.json"],
+            "json": { "formatter": { "indentWidth": 2 } }
+        },
+        {
+            "includes": ["**/*.css"],
+            "linter": {
+                "rules": {
+                    // !important is deliberate where it is used: the
+                    // reduced-motion override and one-purpose utility classes
+                    // (.filter-hidden) must beat every other rule.
+                    "complexity": { "noImportantStyles": "off" },
+                    // Flags rule order, not conflicts: the selectors it pairs
+                    // never match the same element, and reordering a
+                    // stylesheet to please it risks real cascade changes.
+                    "style": { "noDescendingSpecificity": "off" }
+                }
+            }
+        }
+    ]
+}

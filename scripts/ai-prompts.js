@@ -272,9 +272,4 @@ function getRefineUserPrompt(fullMarkdown, year, issue) {
 ${fullMarkdown}`;
 }
 
-export {
-    SYSTEM_PROMPT,
-    EXTRACT_SYSTEM_PROMPT,
-    getSummarizeChunkPrompt,
-    getRefineUserPrompt,
-};
+export { EXTRACT_SYSTEM_PROMPT, getRefineUserPrompt, getSummarizeChunkPrompt, SYSTEM_PROMPT };

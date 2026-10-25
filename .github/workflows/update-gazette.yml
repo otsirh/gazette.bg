@@ -6,43 +6,52 @@ on:
     # Run daily at 12:00 UTC
     - cron: '0 12 * * *'
 
+# A manual run and the scheduled one must not race each other to push.
+concurrency:
+  group: update-gazette
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
 jobs:
+  # The update runs inside Playwright's official image, so Chromium and its
+  # system dependencies are baked in (no flaky browser download to hang on).
+  # The image has to match the Playwright in package-lock.json; reading the
+  # version from there means a dependency update moves both at once.
+  playwright-version:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      version: ${{ steps.lock.outputs.version }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - id: lock
+        run: echo "version=$(jq -r '.packages["node_modules/playwright"].version' package-lock.json)" >> "$GITHUB_OUTPUT"
+
   update:
+    needs: playwright-version
     runs-on: ubuntu-latest
     timeout-minutes: 60
-    strategy:
-      matrix:
-        # Single source of truth for the Playwright version. Run inside
-        # Playwright's official image so Chromium + its system deps are baked
-        # in (no flaky CDN download to hang on). The guard step below fails the
-        # run if this drifts from package-lock.json, so you can't forget.
-        playwright-version: ['1.58.1']
     container:
-      image: mcr.microsoft.com/playwright:v${{ matrix.playwright-version }}-noble
+      image: mcr.microsoft.com/playwright:v${{ needs.playwright-version.outputs.version }}-noble
     permissions:
       contents: write  # needed to push commits
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v6.0.2
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Setup Node.js
-        uses: actions/setup-node@v6.4.0
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
-          node-version: '24'
-          cache: 'npm'
+          node-version-file: .nvmrc
+          cache: npm
 
       - name: Install dependencies
         run: npm ci
-
-      - name: Verify Playwright version matches the container image
-        run: |
-          LOCKED=$(node -e "console.log(require('playwright/package.json').version)")
-          if [ "$LOCKED" != "${{ matrix.playwright-version }}" ]; then
-            echo "::error::package-lock.json has playwright $LOCKED but the container image is v${{ matrix.playwright-version }}. Set playwright-version in .github/workflows/update-gazette.yml to $LOCKED."
-            exit 1
-          fi
-          echo "Playwright $LOCKED matches the container image."
 
       - name: Run update-gazette
         run: npm run update-gazette
@@ -56,7 +65,7 @@ jobs:
       # it: it is the only look at dv.parliament.bg the next fix will get.
       - name: Upload scrape diagnostics
         if: failure()
-        uses: actions/upload-artifact@v7.0.2
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: gazette-scrape-diagnostics
           path: diagnostics/

@@ -1,27 +1,13 @@
 #!/usr/bin/env node
-import fs from 'fs';
-import path from 'path';
-import { fileURLToPath } from 'url';
+import fs from 'node:fs';
+import path from 'node:path';
+import { formatDateBulgarian } from '../src/js/shared.js';
+import { isMain } from './lib/cli.js';
+import { ISSUES_DIR, ROOT } from './lib/issues.js';
 
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const ROOT = path.join(__dirname, '..');
-const ISSUES_DIR = path.join(ROOT, 'issues');
 // The catalog is build output like everything else under dist/ — the page
 // builder reads it from here and the client fetches it as /catalog.json.
 const DIST_DIR = path.join(ROOT, 'dist');
-const CATALOG_PATH = path.join(DIST_DIR, 'catalog.json');
-
-const BG_MONTHS = ['януари', 'февруари', 'март', 'април', 'май', 'юни', 'юли', 'август', 'септември', 'октомври', 'ноември', 'декември'];
-const BG_MONTHS_CAP = ['Януари', 'Февруари', 'Март', 'Април', 'Май', 'Юни', 'Юли', 'Август', 'Септември', 'Октомври', 'Ноември', 'Декември'];
-
-function normalizeDate(str) {
-    if (!str || typeof str !== 'string') return str;
-    let s = str.replace(/\s*г\.\s*$/, '').trim();
-    for (let i = 0; i < BG_MONTHS.length; i++) {
-        s = s.replace(BG_MONTHS[i], BG_MONTHS_CAP[i]);
-    }
-    return s;
-}
 
 function stripMarkdownInline(s) {
     return String(s)
@@ -56,7 +42,7 @@ function extractIssueMeta(filePath) {
             }
         }
         return { lead, topics };
-    } catch (_) {
+    } catch {
         return { lead: '', topics: [] };
     }
 }
@@ -67,31 +53,30 @@ function readIssueJson(issueDirPath, issueNum) {
     const metaPath = path.join(issueDirPath, `${issueNum}.json`);
     try {
         if (fs.existsSync(metaPath)) return JSON.parse(fs.readFileSync(metaPath, 'utf8'));
-    } catch (_) {}
+    } catch {
+        // An unreadable JSON leaves the issue without a date, not off the site.
+    }
     return {};
 }
-function buildCatalog() {
+
+export function buildCatalog({ issuesDir = ISSUES_DIR, distDir = DIST_DIR } = {}) {
     const catalog = { years: {} };
-    fs.mkdirSync(DIST_DIR, { recursive: true });
-    if (!fs.existsSync(ISSUES_DIR)) {
-        fs.writeFileSync(CATALOG_PATH, JSON.stringify(catalog, null, 4), 'utf8');
-        console.log('Catalog written to', CATALOG_PATH);
-        return catalog;
-    }
-    const years = fs.readdirSync(ISSUES_DIR).filter((name) => {
-        const p = path.join(ISSUES_DIR, name);
-        return fs.statSync(p).isDirectory() && /^\d{4}$/.test(name);
-    }).sort();
+    const catalogPath = path.join(distDir, 'catalog.json');
+    fs.mkdirSync(distDir, { recursive: true });
+    const years = fs.existsSync(issuesDir)
+        ? fs
+              .readdirSync(issuesDir)
+              .filter((name) => /^\d{4}$/.test(name) && fs.statSync(path.join(issuesDir, name)).isDirectory())
+              .sort()
+        : [];
 
     for (const year of years) {
-        const yearDir = path.join(ISSUES_DIR, year);
-        const issueDirs = fs.readdirSync(yearDir)
-            .filter((name) => {
-                const p = path.join(yearDir, name);
-                // Folders are zero-padded to at least two digits; ДВ runs past
-                // 100 issues a year, so a hard \d{2} would drop 100+ silently.
-                return fs.statSync(p).isDirectory() && /^\d{2,}$/.test(name);
-            })
+        const yearDir = path.join(issuesDir, year);
+        const issueDirs = fs
+            .readdirSync(yearDir)
+            // Folders are zero-padded to at least two digits; ДВ runs past
+            // 100 issues a year, so a hard \d{2} would drop 100+ silently.
+            .filter((name) => /^\d{2,}$/.test(name) && fs.statSync(path.join(yearDir, name)).isDirectory())
             .map((name) => ({ name, num: parseInt(name, 10) }))
             .sort((a, b) => a.num - b.num);
 
@@ -105,7 +90,7 @@ function buildCatalog() {
             const meta = readIssueJson(issueDirPath, issueNum);
             catalog.years[year].push({
                 issue: issueNum,
-                date: meta.date ? normalizeDate(String(meta.date).trim()) : '',
+                date: meta.date ? formatDateBulgarian(String(meta.date).trim()) : '',
                 file: `issues/${year}/${folderName}/${mdName}`,
                 lead,
                 topics,
@@ -113,14 +98,18 @@ function buildCatalog() {
         }
     }
 
-    fs.writeFileSync(CATALOG_PATH, JSON.stringify(catalog, null, 4), 'utf8');
-    console.log('Catalog written to', CATALOG_PATH);
+    fs.writeFileSync(catalogPath, JSON.stringify(catalog, null, 4), 'utf8');
+    console.log('Catalog written to', catalogPath);
     return catalog;
 }
 
-try {
-    buildCatalog();
-} catch (e) {
-    console.error('[build-gazette-catalog]', e.message || e);
-    process.exit(1);
+export { extractIssueMeta };
+
+if (isMain(import.meta.url)) {
+    try {
+        buildCatalog();
+    } catch (e) {
+        console.error('[build-gazette-catalog]', e.message || e);
+        process.exit(1);
+    }
 }

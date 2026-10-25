@@ -8,12 +8,11 @@
  * Mirrors the site: cream paper, Playfair nameplate, mono apparatus, a
  * vermilion rule. It is the front page of the paper, shrunk to a card.
  */
-import path from 'path';
-import { fileURLToPath } from 'url';
+import path from 'node:path';
 import { chromium } from 'playwright';
+import { ROOT } from './lib/issues.js';
 
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const OUT = path.join(__dirname, '..', 'og-image.png');
+const OUT = path.join(ROOT, 'og-image.png');
 
 const html = `<!DOCTYPE html><html lang="bg"><head><meta charset="utf-8"/>
 <style>

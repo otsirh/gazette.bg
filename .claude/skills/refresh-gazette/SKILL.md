@@ -24,18 +24,19 @@ the case locally).
      `npm run update-gazette`
    - Just re-render from the issues already on disk (no download/AI):
      `npm run build`
-   The pipeline order is: download → summarize → build catalog → build pages →
-   gap check. The download fetches every issue among the ten newest on
-   dv.parliament.bg that isn't in `issues/` yet (up to three per run, oldest
-   first); a failed issue is reverted and retried next run while the others
-   still go through. The gap check fails the run if the numbering has a hole.
+   The pipeline order is: download (which summarizes each issue it fetches) →
+   build catalog → build pages → gap check. The download fetches every issue
+   among the ten newest on dv.parliament.bg that isn't in `issues/` yet (up to
+   three per run, oldest first); a failed issue is reverted and retried next run
+   while the others still go through. The gap check fails the run if the numbering has a hole.
    The build writes the whole site into `dist/` (gitignored): the home page,
    every page under `issue/<year>/<num>/`, `catalog.json`, `sitemap.xml`,
    `feed.xml`, `search-index.json` and `404.html`. Cloudflare Pages runs the
    same `npm run build` on every push and publishes `dist/`, so the only files
    that change in git are the new issue's `issues/<year>/<num>/` files.
 
-3. **Verify.** Serve and smoke-test before committing:
+3. **Verify.** If any code changed, `npm run check` (Biome + tests) must pass.
+   Then serve and smoke-test before committing:
    `npx --yes serve dist -p 4321 &` then check `/` and a couple of `/issue/<year>/<num>/`
    routes return 200 with no console errors, and that the archive search still
    filters. Kill the server after (`lsof -ti tcp:4321 | xargs kill`). If

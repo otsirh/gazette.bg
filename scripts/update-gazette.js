@@ -1,10 +1,8 @@
 #!/usr/bin/env node
-import { spawnSync } from 'child_process';
-import path from 'path';
-import { fileURLToPath } from 'url';
+import { spawnSync } from 'node:child_process';
+import path from 'node:path';
+import { ROOT } from './lib/issues.js';
 
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const ROOT = path.join(__dirname, '..');
 const SCRIPTS_DIR = path.join(ROOT, 'scripts');
 
 // Each step inherits stdio, so a failing step has already printed why. The
@@ -22,19 +20,21 @@ function run(name, script, args = []) {
         shell: false,
     });
     if (result.status === 0) return 0;
-    const why = result.error ? result.error.message
-        : result.signal ? `killed by ${result.signal}`
-            : `exit ${result.status}`;
+    const why = result.error
+        ? result.error.message
+        : result.signal
+          ? `killed by ${result.signal}`
+          : `exit ${result.status}`;
     console.error(`\n[update-gazette] ${name} failed (${why}).`);
     return result.status || 1;
 }
 
-// A step marked keepGoing fails the run without stopping it. A failed download
-// reverts its own issue folder, so whatever is on disk afterwards is complete
-// and still worth building and committing; the gap check only reports.
+// The download step also summarizes each issue it fetches. A step marked
+// keepGoing fails the run without stopping it. A failed issue reverts its own
+// folder, so whatever is on disk afterwards is complete and still worth
+// building and committing; the gap check only reports.
 const STEPS = [
-    ['Download new issues', 'download-latest-gazette.js', { keepGoing: true }],
-    ['Summarize gazette', 'summarize-gazette.js'],
+    ['Download and summarize new issues', 'download-latest-gazette.js', { keepGoing: true }],
     ['Build gazette catalog', 'build-gazette-catalog.js'],
     ['Build issue pages', 'build-issue-pages.js'],
     ['Check for missing issues', 'check-issue-gaps.js', { keepGoing: true }],
