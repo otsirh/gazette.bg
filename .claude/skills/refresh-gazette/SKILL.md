@@ -7,7 +7,7 @@ description: Bring the whole gazette.bg site up to date in one go — pull, down
 
 This is the one-command way to keep the site current. Everything already
 self-maintains through the daily GitHub Action (`.github/workflows/update-gazette.yml`,
-12:00 UTC) which runs `npm run update-gazette`. This skill is for doing that
+12:00 and 17:00 UTC) which runs `npm run update-gazette`. This skill is for doing that
 **now**, on demand.
 
 Run from the project root. The `.env` must hold `ANTHROPIC_API_KEY` (already

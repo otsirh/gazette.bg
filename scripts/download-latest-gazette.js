@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 import fs from 'node:fs';
 import path from 'node:path';
+import { setTimeout as sleep } from 'node:timers/promises';
 import { chromium } from 'playwright';
 import { formatDateBulgarian } from '../src/js/shared.js';
 import { createLogger, isMain } from './lib/cli.js';
@@ -15,6 +16,11 @@ const LIST_URL = 'https://dv.parliament.bg/DVWeb/broeveList.faces';
 // beyond this waits for the next run — it stays on the list's first page
 // (the ten newest issues) for weeks.
 const MAX_ISSUES_PER_RUN = 3;
+// From GitHub's runners the list page sometimes hangs while it loads at once
+// from elsewhere, and a run that gave up on the first try held an issue back
+// a whole day. Waits grow: 30s, then 60s.
+const LIST_LOAD_ATTEMPTS = 3;
+const LIST_RETRY_DELAY_MS = 30000;
 
 const log = createLogger('download-latest-gazette');
 
@@ -66,14 +72,31 @@ async function saveDiagnostics(page, label) {
     }
 }
 
+export async function gotoWithRetry(page, url, { attempts = LIST_LOAD_ATTEMPTS, delayMs = LIST_RETRY_DELAY_MS } = {}) {
+    for (let attempt = 1; ; attempt++) {
+        try {
+            return await page.goto(url, { waitUntil: 'domcontentloaded', timeout: STEP_TIMEOUT_MS });
+        } catch (e) {
+            if (attempt >= attempts) throw e;
+            const wait = delayMs * attempt;
+            // Playwright's message goes on with a call log; the first line says what failed.
+            const why = String(e?.message).split('\n')[0];
+            log(`${url} did not load (attempt ${attempt}/${attempts}): ${why}. Retrying in ${wait / 1000}s.`, 'WARN');
+            await sleep(wait);
+        }
+    }
+}
+
 // Every issue on the list's first page, newest first, each with the link that
 // opens its files. Loads the list afresh, so the links are good until the
 // page next navigates.
 async function listIssues(page) {
     try {
-        await page.goto(LIST_URL, { waitUntil: 'domcontentloaded', timeout: STEP_TIMEOUT_MS });
+        await gotoWithRetry(page, LIST_URL);
     } catch (e) {
-        throw new Error(`List page did not load (site down or URL changed?): ${e.message}`);
+        throw new Error(
+            `List page did not load after ${LIST_LOAD_ATTEMPTS} attempts (site down or URL changed?): ${e.message}`,
+        );
     }
 
     const links = page.getByRole('link', { name: 'Изтегли броя' });

@@ -3,8 +3,10 @@ name: Update Gazette
 on:
   workflow_dispatch: {}
   schedule:
-    # Run daily at 12:00 UTC
+    # Daily at 12:00 UTC, and again at 17:00 UTC for a day dv.parliament.bg
+    # did not answer at noon. A run with nothing new is done in a minute.
     - cron: '0 12 * * *'
+    - cron: '0 17 * * *'
 
 # A manual run and the scheduled one must not race each other to push.
 concurrency:

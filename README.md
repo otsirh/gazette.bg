@@ -15,12 +15,13 @@ Anthropic), за да видите за минути какво ви засяг�
 
 ## Как работи
 
-Всеки ден в 12:00 UTC работният поток `.github/workflows/update-gazette.yml`
-изпълнява `npm run update-gazette`:
+Всеки ден в 12:00 и в 17:00 UTC работният поток
+`.github/workflows/update-gazette.yml` изпълнява `npm run update-gazette`:
 
 1. **Изтегляне.** `scripts/download-latest-gazette.js` отваря dv.parliament.bg с
    Playwright и изтегля PDF файла на всеки от десетте най-нови броя, който още
-   липсва в `issues/` — до три на изпълнение, като започва от най-стария.
+   липсва в `issues/` — до три на изпълнение, като започва от най-стария. Ако
+   списъкът с броевете не се зареди, опитва още два пъти.
 2. **Обобщение.** `scripts/summarize-gazette.js` изпраща PDF файла на Claude на
    части, с указанията от `scripts/ai-prompts.js`, и записва
    `issues/<година>/<брой>/<брой>.md`, а датата на броя — в `<брой>.json` до него.
