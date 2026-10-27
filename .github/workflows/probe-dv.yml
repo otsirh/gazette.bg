@@ -1,0 +1,68 @@
+name: Probe dv.parliament.bg
+
+# Throwaway: lives only on the probe/dv-reachability branch.
+on:
+  push:
+    branches: [probe/dv-reachability]
+
+permissions:
+  contents: read
+
+jobs:
+  # Plain runner, no container: curl each address, then trace the route.
+  host:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        n: [1, 2, 3, 4, 5, 6]
+    steps:
+      - name: Probe
+        run: |
+          set +e
+          echo "runner: $(curl -s --max-time 10 https://ipinfo.io/json | jq -r '"\(.ip) \(.org) \(.city) \(.country)"')"
+          echo "MTU: $(ip -o link show eth0 | grep -o 'mtu [0-9]*')"
+          IPS=$(dig +short A dv.parliament.bg)
+          echo "A: $(echo $IPS)  AAAA: $(dig +short AAAA dv.parliament.bg)"
+          URL=https://dv.parliament.bg/DVWeb/broeveList.faces
+          FMT='http=%{http_code} tcp=%{time_connect}s tls=%{time_appconnect}s ttfb=%{time_starttransfer}s total=%{time_total}s %{size_download}B'
+          for ip in $IPS; do
+            for port in 80 443; do
+              if timeout 15 bash -c "</dev/tcp/$ip/$port" 2>/dev/null; then r=open; else r="no answer in 15s"; fi
+              echo "tcp   $ip:$port  $r"
+            done
+            echo "curl  $ip  $(curl -sS -o /dev/null --resolve dv.parliament.bg:443:$ip --connect-timeout 15 --max-time 40 -w "$FMT" $URL 2>&1)"
+            echo "curl  $ip  (HeadlessChrome UA) $(curl -sS -o /dev/null --resolve dv.parliament.bg:443:$ip --connect-timeout 15 --max-time 40 -A 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/140.0.0.0 Safari/537.36' -w "$FMT" $URL 2>&1)"
+          done
+          echo "control www.parliament.bg  $(curl -sS -o /dev/null --connect-timeout 15 --max-time 30 -w "$FMT" https://www.parliament.bg/ 2>&1)"
+          command -v traceroute >/dev/null || sudo apt-get install -y -qq traceroute >/dev/null 2>&1
+          for ip in $IPS; do
+            echo "--- traceroute -T -p 443 $ip"
+            sudo traceroute -T -p 443 -n -q 1 -w 2 -m 25 $ip
+          done
+          exit 0
+
+  # Same container as the real update job, with the real Chromium.
+  container:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    container:
+      image: mcr.microsoft.com/playwright:v1.64.1-noble
+    strategy:
+      fail-fast: false
+      matrix:
+        n: [1, 2, 3, 4, 5, 6]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - name: Probe
+        run: node scripts/probe-dv.mjs
+        env:
+          PLAYWRIGHT_BROWSERS_PATH: /ms-playwright
