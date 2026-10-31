@@ -69,6 +69,7 @@ jobs:
           TS_OAUTH_SECRET: ${{ secrets.TS_OAUTH_SECRET }}
           TS_EXIT_NODE: ${{ vars.TS_EXIT_NODE }}
         run: |
+          [ -n "$TS_OAUTH_SECRET" ] || { echo "::error::The TS_OAUTH_SECRET secret is missing or empty."; exit 1; }
           cd /tmp
           curl -fsSL -o tailscale.tgz "https://pkgs.tailscale.com/stable/tailscale_${TS_VERSION}_amd64.tgz"
           echo "${TS_SHA256}  tailscale.tgz" | sha256sum -c -
@@ -80,7 +81,9 @@ jobs:
           # ephemeral, so it leaves the tailnet on its own after the run.
           ./tailscale --socket=/tmp/tailscaled.sock up \
             --auth-key="${TS_OAUTH_SECRET}?ephemeral=true&preauthorized=true" --advertise-tags=tag:ci \
-            --hostname="gazette-ci-${GITHUB_RUN_ID}" --exit-node="${TS_EXIT_NODE}" --accept-dns=false --timeout=2m
+            --hostname="gazette-ci-${GITHUB_RUN_ID}" --accept-dns=false --timeout=2m
+          # By name, the exit node can be chosen only once the node is up.
+          ./tailscale --socket=/tmp/tailscaled.sock set --exit-node="${TS_EXIT_NODE}"
           # Say why here, rather than after three list-page timeouts.
           if ! curl -sS -o /dev/null --socks5-hostname 127.0.0.1:1055 --max-time 30 https://dv.parliament.bg/; then
             echo "::error::dv.parliament.bg did not answer through ${TS_EXIT_NODE}. Is the Mac mini awake and on Tailscale?"
