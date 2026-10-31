@@ -55,10 +55,43 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      # Since 26 October 2026 dv.parliament.bg answers only Bulgarian
+      # addresses, so the browser goes out through the Mac mini at home: an
+      # exit node on our tailnet. The container has no TUN device, so
+      # tailscaled runs in userspace and gives the browser a SOCKS5 proxy;
+      # the Claude API, npm and git still go out directly. Dependabot does not
+      # see this pin: bump TS_VERSION and TS_SHA256 together, both from
+      # https://pkgs.tailscale.com/stable/.
+      - name: Connect to the exit node in Bulgaria
+        env:
+          TS_VERSION: '1.104.4'
+          TS_SHA256: 624ea093d47d62cf56f17b8332d74b8decda4a1faa610ebc60a1de334b2b3dc9
+          TS_OAUTH_SECRET: ${{ secrets.TS_OAUTH_SECRET }}
+          TS_EXIT_NODE: ${{ vars.TS_EXIT_NODE }}
+        run: |
+          cd /tmp
+          curl -fsSL -o tailscale.tgz "https://pkgs.tailscale.com/stable/tailscale_${TS_VERSION}_amd64.tgz"
+          echo "${TS_SHA256}  tailscale.tgz" | sha256sum -c -
+          tar -xzf tailscale.tgz --strip-components=1
+          nohup ./tailscaled --tun=userspace-networking --state=mem: --socket=/tmp/tailscaled.sock \
+            --socks5-server=127.0.0.1:1055 > tailscaled.log 2>&1 &
+          for i in $(seq 20); do [ -S /tmp/tailscaled.sock ] && break; sleep 1; done
+          # An OAuth client secret serves as the auth key; the node is
+          # ephemeral, so it leaves the tailnet on its own after the run.
+          ./tailscale --socket=/tmp/tailscaled.sock up \
+            --auth-key="${TS_OAUTH_SECRET}?ephemeral=true&preauthorized=true" --advertise-tags=tag:ci \
+            --hostname="gazette-ci-${GITHUB_RUN_ID}" --exit-node="${TS_EXIT_NODE}" --accept-dns=false --timeout=2m
+          # Say why here, rather than after three list-page timeouts.
+          if ! curl -sS -o /dev/null --socks5-hostname 127.0.0.1:1055 --max-time 30 https://dv.parliament.bg/; then
+            echo "::error::dv.parliament.bg did not answer through ${TS_EXIT_NODE}. Is the Mac mini awake and on Tailscale?"
+            exit 1
+          fi
+
       - name: Run update-gazette
         run: npm run update-gazette
         env:
           HEADLESS: 'true'
+          DV_PROXY: socks5://127.0.0.1:1055
           # Browsers are pre-installed here in the image.
           PLAYWRIGHT_BROWSERS_PATH: /ms-playwright
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}

@@ -12,13 +12,16 @@ const DIAGNOSTICS_DIR = path.join(ROOT, 'diagnostics');
 const HEADLESS = process.env.HEADLESS !== 'false';
 const STEP_TIMEOUT_MS = 30000;
 const LIST_URL = 'https://dv.parliament.bg/DVWeb/broeveList.faces';
+// dv.parliament.bg answers only Bulgarian addresses, and GitHub's runners are
+// not, so in CI the browser goes out through a SOCKS proxy that ends at a
+// Mac mini in Bulgaria (see update-gazette.yml). Run from Bulgaria, leave it unset.
+const PROXY = process.env.DV_PROXY;
 // A dense issue takes ~10 minutes to summarize and the job gets 60. Anything
 // beyond this waits for the next run — it stays on the list's first page
 // (the ten newest issues) for weeks.
 const MAX_ISSUES_PER_RUN = 3;
-// From GitHub's runners the list page sometimes hangs while it loads at once
-// from elsewhere, and a run that gave up on the first try held an issue back
-// a whole day. Waits grow: 30s, then 60s.
+// A slow moment on dv.parliament.bg, or on the home connection the proxy goes
+// out through, must not hold an issue back a whole day. Waits grow: 30s, then 60s.
 const LIST_LOAD_ATTEMPTS = 3;
 const LIST_RETRY_DELAY_MS = 30000;
 
@@ -95,7 +98,7 @@ async function listIssues(page) {
         await gotoWithRetry(page, LIST_URL);
     } catch (e) {
         throw new Error(
-            `List page did not load after ${LIST_LOAD_ATTEMPTS} attempts (site down or URL changed?): ${e.message}`,
+            `List page did not load after ${LIST_LOAD_ATTEMPTS} attempts (site down, URL changed, or not reached from a Bulgarian address?): ${e.message}`,
         );
     }
 
@@ -179,7 +182,7 @@ async function run() {
 
     const failures = [];
     const downloaded = [];
-    const browser = await chromium.launch({ headless: HEADLESS });
+    const browser = await chromium.launch({ headless: HEADLESS, proxy: PROXY ? { server: PROXY } : undefined });
     try {
         const page = await browser.newPage();
         const missing = (await listIssues(page))
