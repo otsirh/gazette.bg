@@ -1,8 +1,8 @@
 **/.tmp.pdf
+.DS_Store
 .env
 .env.*
 !.env.example
 node_modules/
-vendor/
 dist/
 diagnostics/

@@ -105,11 +105,29 @@ export function issueDateToIso(str) {
 
 /* ─── Text ─── */
 
+// marked emits HTML entities (&quot;, &amp;, …) inside heading markup. Decode
+// them back to text before deriving slugs/TOC labels, otherwise escapeHtml
+// double-encodes (&amp;quot;) and slugify leaks "quot" into anchor ids.
+function decodeEntities(s) {
+    return String(s)
+        .replace(/&lt;/g, '<')
+        .replace(/&gt;/g, '>')
+        .replace(/&quot;/g, '"')
+        .replace(/&#0?39;/g, "'")
+        .replace(/&apos;/g, "'")
+        .replace(/&amp;/g, '&');
+}
+
+function htmlToText(html) {
+    return decodeEntities(String(html).replace(/<[^>]+>/g, '')).trim();
+}
+
 export function stripMarkdownInline(s) {
     return String(s)
-        .replace(/\*+|_+/g, '')
-        .replace(/`+/g, '')
+        .replace(/!\[[^\]]*\]\([^)]*\)/g, '')
         .replace(/\[([^\]]*)\]\([^)]*\)/g, '$1')
+        .replace(/\*+|_+|`+/g, '')
+        .replace(/\s+/g, ' ')
         .trim();
 }
 
@@ -122,6 +140,29 @@ export function slugify(text) {
             .replace(/-+/g, '-')
             .replace(/^-|-$/g, '') || 'section'
     );
+}
+
+// Promote any h1 to h2, assign unique heading IDs, and collect TOC items.
+// Shared by the static build and client-side navigation so anchor IDs are
+// always identical.
+export function processRenderedContent(html) {
+    let out = String(html).replace(/<h1(\s[^>]*)?>([\s\S]*?)<\/h1>/gi, '<h2$1>$2</h2>');
+    const used = new Set();
+    const tocItems = [];
+    out = out.replace(/<h([1-6])(\s[^>]*)?>([\s\S]*?)<\/h\1>/gi, (_m, level, attrs, inner) => {
+        const text = htmlToText(inner);
+        let id = slugify(text);
+        if (used.has(id)) {
+            let n = 2;
+            while (used.has(`${id}-${n}`)) n++;
+            id = `${id}-${n}`;
+        }
+        used.add(id);
+        tocItems.push({ level: parseInt(level, 10), text, id });
+        const attrStr = attrs || '';
+        return `<h${level}${attrStr} id="${escapeHtml(id)}">${inner}</h${level}>`;
+    });
+    return { html: out, tocItems };
 }
 
 export function readingMinutes(markdown) {
@@ -164,12 +205,11 @@ function cardAttrs(item) {
     return `href="${escapeHtml(issuePath(item))}" data-file="${escapeHtml(item.file)}" data-issue="${escapeHtml(String(item.issue))}" data-date="${escapeHtml(item.date)}" data-year="${escapeHtml(String(item.year))}"`;
 }
 
-// The front page. Headline is the issue's first topic; the lead sentence, when
-// there is one, runs underneath as the standfirst.
+// The front page. Headline is the issue's first topic; the remaining topics
+// run below as the contents list.
 function renderLeadCard(item) {
     const topics = topicsOf(item);
-    const headline = topics[0] || item.lead || `Брой ${item.issue}`;
-    const standfirst = item.lead && item.lead !== headline ? item.lead : '';
+    const headline = topics[0] || `Брой ${item.issue}`;
     const rest = topics.slice(1);
 
     let contents = '';
@@ -181,15 +221,12 @@ function renderLeadCard(item) {
         contents = `<div class="lead-contents"><p class="contents-label">Още в броя</p><ol class="contents-list">${items}</ol></div>`;
     }
 
-    const standfirstHtml = standfirst ? `<p class="lead-standfirst">${escapeHtml(standfirst)}</p>` : '';
-    const gridClass = standfirst ? 'lead-grid' : 'lead-grid no-standfirst';
-
     return `<section class="lead-section">
 <p class="lead-dateline"><span>Последен брой</span><span class="rule"></span><span>Брой ${escapeHtml(String(item.issue))} · ${escapeHtml(formatDateLong(item.date))}</span></p>
 <a class="issue-card issue-card-lead" ${cardAttrs(item)}>
 <h2 class="lead-title">${escapeHtml(headline)}</h2>
-<div class="${gridClass}">
-<div class="lead-main">${standfirstHtml}<span class="lead-read">Прочети обобщението →</span></div>
+<div class="lead-grid">
+<div class="lead-main"><span class="lead-read">Прочети обобщението →</span></div>
 ${contents}
 </div>
 </a>
@@ -197,18 +234,17 @@ ${contents}
 }
 
 // The register shows a bare number and one headline, but readers search for
-// things it does not print — "брой 63", the year, the lead sentence, a topic
-// further down the issue. Carry all of it in a hidden haystack.
+// things it does not print — "брой 63", the year, a topic further down the
+// issue. Carry all of it in a hidden haystack.
 function searchHaystack(item) {
-    return [`Брой ${item.issue}`, formatDateLong(item.date), item.lead || '', ...topicsOf(item)]
-        .join(' ')
-        .toLowerCase();
+    return [`Брой ${item.issue}`, formatDateLong(item.date), ...topicsOf(item)].join(' ').toLowerCase();
 }
 
-function renderRowCard(item) {
-    const title = topicsOf(item)[0] || item.lead || `Брой ${item.issue}`;
+function renderRowCard(item, extraClass = '') {
+    const title = topicsOf(item)[0] || `Брой ${item.issue}`;
+    const cls = extraClass ? `issue-card issue-card-row ${extraClass}` : 'issue-card issue-card-row';
     return (
-        `<a class="issue-card issue-card-row" ${cardAttrs(item)} data-search="${escapeHtml(searchHaystack(item))}">` +
+        `<a class="${cls}" ${cardAttrs(item)} data-search="${escapeHtml(searchHaystack(item))}">` +
         `<span class="num">${escapeHtml(String(item.issue))}</span>` +
         `<span class="row-body"><span class="row-title">${escapeHtml(title)}</span><span class="date">${escapeHtml(formatDateShort(item.date))}</span></span>` +
         `</a>`
@@ -224,12 +260,16 @@ function renderNavCard(item) {
     );
 }
 
-function renderArchive(items) {
+// The newest issue is already shown above as the lead story, so its row in the
+// archive stays hidden while browsing and only appears when the reader filters
+// the register by search query.
+function renderArchive(items, leadItem) {
     if (!items.length) return '';
     const byYear = {};
+    if (leadItem) byYear[leadItem.year] = [{ item: leadItem, isLead: true }];
     for (const item of items) {
         if (!byYear[item.year]) byYear[item.year] = [];
-        byYear[item.year].push(item);
+        byYear[item.year].push({ item, isLead: false });
     }
     const years = Object.keys(byYear).sort((a, b) => Number(b) - Number(a));
     const total = items.length;
@@ -239,8 +279,12 @@ function renderArchive(items) {
     html +=
         '<div class="archive-search"><input type="search" id="archive-search" class="archive-search-input" placeholder="Търсене в текста на броевете…" aria-label="Търсене в текста на броевете" autocomplete="off" spellcheck="false" /></div>';
     for (const year of years) {
-        html += `<div class="year-group"><h3 class="year-title"><span>${escapeHtml(year)}</span></h3><div class="issue-list">`;
-        for (const item of byYear[year]) html += renderRowCard(item);
+        const entries = byYear[year];
+        const groupCls = entries.every((e) => e.isLead) ? 'year-group is-lead-group filter-hidden' : 'year-group';
+        html += `<div class="${groupCls}"><h3 class="year-title"><span>${escapeHtml(year)}</span></h3><div class="issue-list">`;
+        for (const { item, isLead } of entries) {
+            html += renderRowCard(item, isLead ? 'is-lead-row filter-hidden' : '');
+        }
         html += '</div></div>';
     }
     html += '</section>';
@@ -253,7 +297,7 @@ export function renderHomeContent(all) {
     if (!all.length) {
         return '<p class="empty">В момента няма налични броеве. Опитайте отново по-късно.</p>';
     }
-    return renderLeadCard(all[0]) + renderArchive(all.slice(1));
+    return renderLeadCard(all[0]) + renderArchive(all.slice(1), all[0]);
 }
 
 /* ─── Issue page ─── */

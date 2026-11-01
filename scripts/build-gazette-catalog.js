@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 import fs from 'node:fs';
 import path from 'node:path';
-import { formatDateBulgarian } from '../src/js/shared.js';
+import { formatDateBulgarian, stripMarkdownInline } from '../src/js/shared.js';
 import { isMain } from './lib/cli.js';
 import { ISSUES_DIR, ROOT } from './lib/issues.js';
 
@@ -9,41 +9,19 @@ import { ISSUES_DIR, ROOT } from './lib/issues.js';
 // builder reads it from here and the client fetches it as /catalog.json.
 const DIST_DIR = path.join(ROOT, 'dist');
 
-function stripMarkdownInline(s) {
-    return String(s)
-        .replace(/!\[[^\]]*\]\([^)]*\)/g, '')
-        .replace(/\[([^\]]*)\]\([^)]*\)/g, '$1')
-        .replace(/[*_`]/g, '')
-        .replace(/\s+/g, ' ')
-        .trim();
-}
-
-// Pull the issue's lead sentence (a leading *italic* line, present on only a
-// few issues) and its topic headlines (the level-2 headings). These power the
-// front-page teaser and the per-row previews on the homepage.
+// Pull the issue's topic headlines (the level-2 headings). These power the
+// front-page lead card and the per-row previews on the homepage.
 function extractIssueMeta(filePath) {
     try {
         const md = fs.readFileSync(filePath, 'utf8');
         const topics = [];
-        let lead = '';
-        let sawHeading = false;
         for (const raw of md.split('\n')) {
-            const line = raw.trim();
-            if (!line) continue;
-            const h = /^(#{1,6})\s+(.+?)\s*$/.exec(line);
-            if (h) {
-                sawHeading = true;
-                if (h[1].length === 2) topics.push(stripMarkdownInline(h[2]));
-                continue;
-            }
-            if (!sawHeading && !lead) {
-                const it = /^\*(.+?)\*$/.exec(line);
-                lead = stripMarkdownInline(it ? it[1] : line);
-            }
+            const m = /^##\s+(.+?)\s*$/.exec(raw.trim());
+            if (m) topics.push(stripMarkdownInline(m[1]));
         }
-        return { lead, topics };
+        return { topics };
     } catch {
-        return { lead: '', topics: [] };
+        return { topics: [] };
     }
 }
 
@@ -86,19 +64,18 @@ export function buildCatalog({ issuesDir = ISSUES_DIR, distDir = DIST_DIR } = {}
             const mdName = `${issueNum}.md`;
             const filePath = path.join(issueDirPath, mdName);
             if (!fs.existsSync(filePath)) continue;
-            const { lead, topics } = extractIssueMeta(filePath);
+            const { topics } = extractIssueMeta(filePath);
             const meta = readIssueJson(issueDirPath, issueNum);
             catalog.years[year].push({
                 issue: issueNum,
                 date: meta.date ? formatDateBulgarian(String(meta.date).trim()) : '',
                 file: `issues/${year}/${folderName}/${mdName}`,
-                lead,
                 topics,
             });
         }
     }
 
-    fs.writeFileSync(catalogPath, JSON.stringify(catalog, null, 4), 'utf8');
+    fs.writeFileSync(catalogPath, JSON.stringify(catalog), 'utf8');
     console.log('Catalog written to', catalogPath);
     return catalog;
 }

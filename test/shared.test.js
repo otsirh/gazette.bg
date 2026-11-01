@@ -46,10 +46,10 @@ test('text helpers', () => {
 
 const catalog = {
     years: {
-        2025: [{ issue: 104, date: '30 Декември 2025', file: 'issues/2025/104/104.md', lead: '', topics: ['Старо'] }],
+        2025: [{ issue: 104, date: '30 Декември 2025', file: 'issues/2025/104/104.md', topics: ['Старо'] }],
         2026: [
-            { issue: 1, date: '6 Януари 2026', file: 'issues/2026/01/1.md', lead: '', topics: ['Първа <тема>'] },
-            { issue: 2, date: '9 Януари 2026', file: 'issues/2026/02/2.md', lead: '', topics: ['Водеща', 'Втора'] },
+            { issue: 1, date: '6 Януари 2026', file: 'issues/2026/01/1.md', topics: ['Първа <тема>'] },
+            { issue: 2, date: '9 Януари 2026', file: 'issues/2026/02/2.md', topics: ['Водеща', 'Втора'] },
         ],
     },
 };
@@ -67,9 +67,20 @@ test('the home page leads with the newest issue and files the rest by year', () 
     assert.match(html, /^<section class="lead-section">/);
     assert.match(html, /<h2 class="lead-title">Водеща<\/h2>/);
     assert.match(html, /<span class="section-count">2 броя<\/span>/);
+    assert.match(html, /class="issue-card issue-card-row is-lead-row filter-hidden"[^>]*data-issue="2"/);
     assert.ok(html.indexOf('<span>2026</span>') < html.indexOf('<span>2025</span>'));
     assert.match(html, /Първа &lt;тема&gt;/, 'topics are escaped');
     assert.match(renderHomeContent([]), /няма налични броеве/);
+
+    const firstOfNewYear = renderHomeContent(
+        issuesNewestFirst({
+            years: {
+                2026: [{ issue: 104, date: '30 Декември 2026', file: 'issues/2026/104/104.md', topics: ['Старо'] }],
+                2027: [{ issue: 1, date: '5 Януари 2027', file: 'issues/2027/01/1.md', topics: ['Ново'] }],
+            },
+        }),
+    );
+    assert.match(firstOfNewYear, /class="year-group is-lead-group filter-hidden"><h3 class="year-title"><span>2027/);
 });
 
 test('issue navigation links the neighbours that exist', () => {

@@ -51,7 +51,9 @@ test('the home page links every issue', () => {
         assert.ok(home.includes(`href="/issue/${year}/${issue}/"`), `${year}/${issue}`);
     assert.match(home, /<style>/, 'the stylesheet is inlined');
     assert.match(home, /<script type="module" src="\/src\/js\/app\.js/);
+    assert.doesNotMatch(home, /cdn\.jsdelivr\.net/, 'no external CDN scripts');
     assert.ok(fs.existsSync(path.join(dist, 'src/js/shared.js')), 'the module app.js imports is published');
+    assert.ok(fs.existsSync(path.join(dist, 'src/js/marked.js')), 'marked is self-hosted for client navigation');
 });
 
 test('sitemap, feed and search index cover the issues', () => {

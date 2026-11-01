@@ -12,12 +12,11 @@ import {
     issuePath,
     issuesNewestFirst,
     issueTitle,
+    processRenderedContent,
     readingMinutes,
     renderHomeContent,
     renderIssueHeader,
     renderIssueNav,
-    slugify,
-    stripMarkdownInline,
 } from '../src/js/shared.js';
 import { isMain } from './lib/cli.js';
 import { ROOT } from './lib/issues.js';
@@ -54,65 +53,10 @@ function lit(s) {
     return String(s).replace(/\$/g, '$$$$');
 }
 
-// marked emits HTML entities (&quot;, &amp;, …) inside heading markup. Decode
-// them back to text before deriving slugs/TOC labels, otherwise escapeHtml
-// double-encodes (&amp;quot;) and slugify leaks "quot" into anchor ids —
-// which also desyncs the pre-rendered ids from the client-generated ones.
-function decodeEntities(s) {
-    return String(s)
-        .replace(/&lt;/g, '<')
-        .replace(/&gt;/g, '>')
-        .replace(/&quot;/g, '"')
-        .replace(/&#0?39;/g, "'")
-        .replace(/&apos;/g, "'")
-        .replace(/&amp;/g, '&');
-}
-
-function htmlToText(html) {
-    return decodeEntities(String(html).replace(/<[^>]+>/g, '')).trim();
-}
-
-// Level-2 markdown headings are the issue's topics — used to build a unique
-// meta description and JSON-LD articleSection per page.
-function extractTopicsFromFile(file) {
-    try {
-        const md = fs.readFileSync(path.join(ROOT, file), 'utf8');
-        const topics = [];
-        for (const line of md.split('\n')) {
-            const m = /^##\s+(.+?)\s*$/.exec(line);
-            if (m) topics.push(stripMarkdownInline(m[1]));
-        }
-        return topics;
-    } catch {
-        return [];
-    }
-}
-
 function truncate(s, max) {
     const clean = String(s).replace(/\s+/g, ' ').trim();
     if (clean.length <= max) return clean;
     return `${clean.slice(0, max - 1).replace(/[\s.,;:–-]+$/, '')}…`;
-}
-
-function processRenderedContent(html) {
-    // Promote any h1 to h2, assign unique heading IDs, collect TOC items
-    html = html.replace(/<h1(\s[^>]*)?>([\s\S]*?)<\/h1>/gi, '<h2$1>$2</h2>');
-    const used = new Set();
-    const tocItems = [];
-    html = html.replace(/<h([1-6])(\s[^>]*)?>([\s\S]*?)<\/h\1>/gi, (_m, level, attrs, inner) => {
-        const text = htmlToText(inner);
-        let id = slugify(text);
-        if (used.has(id)) {
-            let n = 2;
-            while (used.has(`${id}-${n}`)) n++;
-            id = `${id}-${n}`;
-        }
-        used.add(id);
-        tocItems.push({ level: parseInt(level, 10), text, id });
-        const attrStr = attrs || '';
-        return `<h${level}${attrStr} id="${escapeHtml(id)}">${inner}</h${level}>`;
-    });
-    return { html, tocItems };
 }
 
 function replaceHomeContent(html, content) {
@@ -178,7 +122,7 @@ function buildIssuePage(template, item, prev, next) {
     const isoDate = issueDateToIso(item.date);
 
     // Unique, content-rich description per issue (kills duplicate snippets).
-    const topics = extractTopicsFromFile(item.file);
+    const topics = Array.isArray(item.topics) ? item.topics : [];
     const lead = topics[0] || `Брой ${item.issue}`;
     const metaDesc = truncate(
         `Държавен вестник, брой ${item.issue} от ${titleDate}: ` +
@@ -282,7 +226,7 @@ function buildRssXml(all) {
     const items = latest
         .map((item) => {
             const topics = Array.isArray(item.topics) ? item.topics : [];
-            const title = topics[0] || item.lead || `Брой ${item.issue}`;
+            const title = topics[0] || `Брой ${item.issue}`;
             const link = SITE_ORIGIN + issuePath(item);
             const desc = truncate(
                 `Държавен вестник, брой ${item.issue} от ${formatDateLong(item.date)}: ` +
@@ -345,6 +289,7 @@ export function buildSite({ distDir = DIST_DIR } = {}) {
         if (name !== 'catalog.json') fs.rmSync(path.join(distDir, name), { recursive: true, force: true });
     }
     STATIC_ASSETS.forEach(copy);
+    fs.cpSync(path.join(ROOT, 'node_modules/marked/lib/marked.esm.js'), path.join(distDir, 'src/js/marked.js'));
 
     all.forEach((item, idx) => {
         const prev = all[idx + 1] || null;

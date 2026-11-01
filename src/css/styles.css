@@ -87,7 +87,6 @@
 
 :root {
     --paper: #fbf8f2;
-    --paper-2: #ffffff;
     --paper-3: #f3eee3;
     --ink: #14120d;
     --ink-soft: #46413a;
@@ -98,13 +97,6 @@
     --accent: #ad2c20;
     --accent-hover: #8e241b;
     --accent-wash: #f7ebe6;
-
-    /* Sequential map ramp (light theme): light → accent, by issue count. */
-    --mb-1: #f3d7cf;
-    --mb-2: #e2a99c;
-    --mb-3: #d07c68;
-    --mb-4: #bd4f39;
-    --mb-5: #a5271b;
 
     --font-display: "Playfair Display", "Iowan Old Style", Georgia, serif;
     --font-text: "Source Serif 4", "Iowan Old Style", Cambria, Georgia, serif;
@@ -118,7 +110,6 @@
     --gap-xl: 2rem;
     --gap-2xl: 3rem;
     --gap-3xl: 4.5rem;
-    --gap-4xl: 6.5rem;
 
     --maxw: 1180px;
     --measure: 34rem;
@@ -129,7 +120,6 @@
 
 :root[data-theme="dark"] {
     --paper: #100f0c;
-    --paper-2: #17160f;
     --paper-3: #1c1a14;
     --ink: #f2ede3;
     --ink-soft: #c9c2b4;
@@ -141,19 +131,12 @@
     --accent-hover: #f09184;
     --accent-wash: #2a1d19;
 
-    --mb-1: #33241f;
-    --mb-2: #5c352d;
-    --mb-3: #8a473c;
-    --mb-4: #b85a4c;
-    --mb-5: #e4776b;
-
     color-scheme: dark;
 }
 
 @media (prefers-color-scheme: dark) {
     :root:not([data-theme="light"]) {
         --paper: #100f0c;
-        --paper-2: #17160f;
         --paper-3: #1c1a14;
         --ink: #f2ede3;
         --ink-soft: #c9c2b4;
@@ -164,12 +147,6 @@
         --accent: #e4776b;
         --accent-hover: #f09184;
         --accent-wash: #2a1d19;
-
-        --mb-1: #33241f;
-        --mb-2: #5c352d;
-        --mb-3: #8a473c;
-        --mb-4: #b85a4c;
-        --mb-5: #e4776b;
 
         color-scheme: dark;
     }
@@ -257,7 +234,6 @@ a {
 
 /* Small caps label used everywhere the printed page would set
    a caption, folio, or standing head. */
-.label,
 .lead-dateline,
 .section-count,
 .contents-label,
@@ -618,41 +594,15 @@ main .loading {
 
 .lead-grid {
     display: grid;
-    grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr);
-    gap: var(--gap-xl) var(--gap-2xl);
+    grid-template-columns: minmax(0, 1fr);
+    gap: var(--gap-md);
     margin-top: var(--gap-lg);
     padding-top: var(--gap-lg);
     border-top: 1px solid var(--hairline);
 }
 
-/* Some issues carry no lead sentence. Without a standfirst the left column
-   would be an empty well, so the contents take the full measure and the
-   read-on line drops beneath them. */
-.lead-grid.no-standfirst {
-    grid-template-columns: minmax(0, 1fr);
-    gap: var(--gap-md);
-}
-
-.lead-grid.no-standfirst .lead-main {
+.lead-grid .lead-main {
     order: 2;
-}
-
-.lead-standfirst {
-    margin: 0;
-    font-size: 1.125rem;
-    line-height: 1.6;
-    color: var(--ink-soft);
-}
-
-/* Drop cap — the one on the front page sets the tone for the site. */
-.lead-standfirst::first-letter {
-    float: left;
-    font-family: var(--font-display);
-    font-size: 3.6em;
-    font-weight: 700;
-    line-height: 0.82;
-    padding: 0.06em 0.1em 0 0;
-    color: var(--accent);
 }
 
 .lead-read {
@@ -1581,20 +1531,9 @@ body.issue-ready .back-bar-bottom {
     }
 }
 
-@media (min-width: 1240px) {
-    .issue-header,
-    .issue-nav-bottom,
-    .back-bar {
-        max-width: none;
-    }
-}
-
 /* ─── Small screens ─────────────────────────────────── */
 
 @media (max-width: 900px) {
-    .lead-grid {
-        grid-template-columns: minmax(0, 1fr);
-    }
     .colophon {
         grid-template-columns: minmax(0, 1fr);
         gap: var(--gap-xl);
@@ -1638,10 +1577,6 @@ body.issue-ready .back-bar-bottom {
     }
     main {
         padding: var(--gap-xl) 0 var(--gap-2xl);
-    }
-
-    .lead-standfirst::first-letter {
-        font-size: 3.1em;
     }
 
     .content {

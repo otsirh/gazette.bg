@@ -5,11 +5,11 @@ import {
     escapeHtml,
     issuesNewestFirst,
     issueTitle,
+    processRenderedContent,
     readingMinutes,
     renderHomeContent,
     renderIssueHeader,
     renderIssueNav,
-    slugify,
 } from './shared.js';
 
 const catalogUrl = '/catalog.json';
@@ -90,35 +90,15 @@ function toggleTheme() {
     }
 }
 
-/* ─── Article rendering ─────────────────────────── */
-
-function processRenderedContent(html) {
-    const div = document.createElement('div');
-    div.innerHTML = html;
-    div.querySelectorAll('h1').forEach((h1) => {
-        const h2 = document.createElement('h2');
-        for (const attr of Array.from(h1.attributes)) h2.setAttribute(attr.name, attr.value);
-        h2.innerHTML = h1.innerHTML;
-        h1.replaceWith(h2);
-    });
-    const used = new Set();
-    const tocItems = [];
-    div.querySelectorAll('h1, h2, h3, h4, h5, h6').forEach((h) => {
-        const text = h.textContent.trim();
-        let id = slugify(text);
-        if (used.has(id)) {
-            let n = 2;
-            while (used.has(`${id}-${n}`)) n++;
-            id = `${id}-${n}`;
-        }
-        used.add(id);
-        h.id = id;
-        tocItems.push({ level: parseInt(h.tagName.slice(1), 10), text, id });
-    });
-    return { html: div.innerHTML, tocItems };
-}
-
 /* ─── Catalog ───────────────────────────────────── */
+
+function syncCanonicalUrl(path) {
+    const url = `https://gazette.bg${path}`;
+    const canonical = document.querySelector('link[rel="canonical"]');
+    if (canonical) canonical.setAttribute('href', url);
+    const ogUrl = document.querySelector('meta[property="og:url"]');
+    if (ogUrl) ogUrl.setAttribute('content', url);
+}
 
 function findIssueByYearAndNumber(year, issueNum) {
     if (!catalog?.years?.[year]) return null;
@@ -136,6 +116,7 @@ function setIssuePath(year, issueNum) {
     // Pages 308-redirects the non-slash form), so canonical == current URL.
     const path = `/issue/${year}/${issueNum}/`;
     if (location.pathname !== path) history.pushState(null, '', path);
+    syncCanonicalUrl(path);
 }
 
 let currentIssue = null;
@@ -176,13 +157,17 @@ function ensureSearchIndex() {
     fetch('/search-index.json')
         .then((r) => (r.ok ? r.json() : null))
         .then((idx) => {
-            if (!idx) return;
+            if (!idx) {
+                searchIndexLoading = false;
+                return;
+            }
             searchIndex = idx;
             searchIndexLower = {};
             for (const k in idx) searchIndexLower[k] = String(idx[k]).toLowerCase();
             applyArchiveFilter(); // re-run with the current query now that the text is here
         })
         .catch(() => {
+            searchIndexLoading = false;
             /* full text just stays unavailable; metadata search still works */
         });
 }
@@ -227,7 +212,14 @@ function applyArchiveFilter(rawQuery) {
     for (const el of homeContent.querySelectorAll('.row-snippet')) el.remove();
 
     if (!q) {
-        for (const el of homeContent.querySelectorAll('.filter-hidden')) el.classList.remove('filter-hidden');
+        for (const el of homeContent.querySelectorAll('.filter-hidden')) {
+            if (!el.classList.contains('is-lead-row') && !el.classList.contains('is-lead-group')) {
+                el.classList.remove('filter-hidden');
+            }
+        }
+        for (const el of homeContent.querySelectorAll('.is-lead-row, .is-lead-group')) {
+            el.classList.add('filter-hidden');
+        }
         announce('');
         return;
     }
@@ -301,6 +293,7 @@ function showHome() {
     if (progressEl) progressEl.style.width = '0';
     currentTocId = null;
     if (location.pathname !== '/') history.pushState(null, '', '/');
+    syncCanonicalUrl('/');
     if (lastFocusedCard && typeof lastFocusedCard.focus === 'function') {
         lastFocusedCard.focus();
         lastFocusedCard = null;
@@ -401,7 +394,9 @@ function scrollToHashTarget(behavior) {
 }
 
 async function openIssue(item) {
-    currentIssue = { year: String(item.year), issueNum: String(item.issue) };
+    const targetYear = String(item.year);
+    const targetIssue = String(item.issue);
+    currentIssue = { year: targetYear, issueNum: targetIssue };
     setIssuePath(item.year, item.issue);
     showIssue();
     mainLoading.hidden = false;
@@ -414,11 +409,11 @@ async function openIssue(item) {
 
     try {
         const fileUrl = item.file.startsWith('/') ? item.file : `/${item.file}`;
-        const r = await fetch(fileUrl);
+        const [{ marked }, r] = await Promise.all([import('./marked.js'), fetch(fileUrl)]);
         if (!r.ok) throw new Error(r.statusText);
         const md = await r.text();
-        const rawHtml = typeof marked !== 'undefined' ? marked.parse(md) : md;
-        const { html: processedHtml, tocItems } = processRenderedContent(rawHtml);
+        if (!currentIssue || currentIssue.year !== targetYear || currentIssue.issueNum !== targetIssue) return;
+        const { html: processedHtml, tocItems } = processRenderedContent(marked.parse(md));
         mainContent.innerHTML = CONTENT_DISCLAIMER + buildTocHtml(tocItems) + processedHtml + END_MARK;
         issueHeaderEl.innerHTML = renderIssueHeader(item, readingMinutes(md));
         announce(`Заредено: Държавен вестник, брой ${item.issue}.`);
@@ -427,6 +422,7 @@ async function openIssue(item) {
         if (location.hash) requestAnimationFrame(() => scrollToHashTarget('auto'));
         else if (backBtn) backBtn.focus();
     } catch {
+        if (!currentIssue || currentIssue.year !== targetYear || currentIssue.issueNum !== targetIssue) return;
         mainContent.innerHTML =
             '<p>Този брой не може да бъде зареден в момента. Моля, опитайте отново или изберете друг брой от началната страница.</p>';
         announce('Броят не можа да бъде зареден.');
@@ -572,6 +568,7 @@ async function init() {
 
     const initial = getIssueFromPath();
     const isPreRendered = !!(initial && mainContent && mainContent.children.length > 0);
+    const isHomePreRendered = !initial && !!(homeContent && homeContent.children.length > 0);
 
     if (isPreRendered) {
         currentIssue = { year: initial.year, issueNum: initial.issueNum };
@@ -580,6 +577,8 @@ async function init() {
         updateScrollToTopVisibility();
         updateReadingProgress();
         if (location.hash) requestAnimationFrame(() => scrollToHashTarget('auto'));
+    } else if (isHomePreRendered) {
+        applyPendingArchiveQuery();
     }
 
     try {
@@ -587,15 +586,17 @@ async function init() {
         if (!r.ok) throw new Error(r.statusText);
         catalog = await r.json();
     } catch {
-        if (!isPreRendered) {
+        if (!isPreRendered && !isHomePreRendered) {
             homeContent.innerHTML =
                 '<p class="empty">Каталогът временно не е наличен. Моля, опитайте да презаредите страницата или да се върнете по-късно.</p>';
         }
         return;
     }
 
-    renderHome();
-    applyPendingArchiveQuery();
+    if (!isHomePreRendered) {
+        renderHome();
+        applyPendingArchiveQuery();
+    }
 
     if (isPreRendered) {
         const { prev, next } = getAdjacentIssues();
