@@ -1,15 +1,15 @@
 import {
-    buildTocHtml,
-    END_MARK,
     escapeHtml,
+    formatDateLong,
     issuesNewestFirst,
     issueTitle,
     processRenderedContent,
     readingMinutes,
-    renderDisclaimer,
     renderHomeContent,
+    renderIssueArticleHtml,
     renderIssueHeader,
     renderIssueNav,
+    searchTermVariants,
     slugify,
 } from './shared.js';
 
@@ -27,9 +27,12 @@ const mainEl = document.getElementById('main');
 const scrollToTopBtn = document.getElementById('scroll-to-top');
 const progressEl = document.getElementById('reading-progress');
 const themeToggle = document.getElementById('theme-toggle');
+const folioContextBtn = document.getElementById('folio-context');
 
 let catalog = null;
 let catalogPromise = null;
+let markedPromise = null;
+const markdownCache = new Map();
 
 function ensureCatalog() {
     if (catalog) return Promise.resolve(catalog);
@@ -51,15 +54,48 @@ function ensureCatalog() {
     return catalogPromise;
 }
 
+function ensureMarked() {
+    if (!markedPromise) {
+        markedPromise = import('./marked.js').catch((err) => {
+            markedPromise = null;
+            throw err;
+        });
+    }
+    return markedPromise;
+}
+
+function fetchMarkdown(file) {
+    const fileUrl = file.startsWith('/') ? file : `/${file}`;
+    let pending = markdownCache.get(fileUrl);
+    if (!pending) {
+        pending = fetch(fileUrl)
+            .then((r) => {
+                if (!r.ok) throw new Error(r.statusText);
+                return r.text();
+            })
+            .catch((err) => {
+                markdownCache.delete(fileUrl);
+                throw err;
+            });
+        markdownCache.set(fileUrl, pending);
+    }
+    return pending;
+}
+
+function warmIssue(file) {
+    if (!file) return;
+    fetchMarkdown(file).catch(() => {});
+    ensureMarked().catch(() => {});
+    ensureCatalog();
+}
+
 // Must match the server-rendered home <title> in index.html, so returning
 // to the home view via the SPA doesn't rewrite it to a different string.
 const PAGE_TITLE_BASE = 'Държавен вестник — кратки обобщения на всеки брой с AI';
 const THEME_KEY = 'gazette-theme';
 const THEME_COLORS = { light: '#fbf8f2', dark: '#100f0c' };
+const DESKTOP_TOC_MQ = window.matchMedia?.('(min-width: 1000px)');
 
-// Honour prefers-reduced-motion for JS-driven scrolling: an explicit
-// behavior:'smooth' argument is not governed by CSS scroll-behavior, so the
-// stylesheet's reduced-motion block can't neutralise it — we must here.
 function prefersReducedMotion() {
     return !!window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
 }
@@ -67,9 +103,20 @@ function scrollBehavior() {
     return prefersReducedMotion() ? 'auto' : 'smooth';
 }
 
-// A single polite live region announces state changes (issue loaded, load
-// failed, empty search) to screen readers. Guard against re-announcing an
-// unchanged message.
+function withViewTransition(mutate) {
+    if (!document.startViewTransition || prefersReducedMotion()) {
+        mutate();
+        return Promise.resolve();
+    }
+    try {
+        const vt = document.startViewTransition(() => mutate());
+        return vt.updateCallbackDone.catch(() => {});
+    } catch {
+        mutate();
+        return Promise.resolve();
+    }
+}
+
 const statusRegion = document.getElementById('a11y-status');
 function announce(message) {
     if (statusRegion && statusRegion.textContent !== message) statusRegion.textContent = message;
@@ -83,10 +130,6 @@ function currentTheme() {
     return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
 }
 
-// The two <meta name="theme-color"> tags are keyed to prefers-color-scheme,
-// so an explicitly chosen theme would leave the browser chrome the opposite
-// colour of the page. Once the reader has chosen, the OS preference no
-// longer decides: drop the media gate and pin both tags to the live colour.
 function syncThemeColor(theme) {
     const color = THEME_COLORS[theme];
     if (!color) return;
@@ -102,9 +145,11 @@ function syncThemeToggleState(theme) {
 
 function toggleTheme() {
     const next = currentTheme() === 'dark' ? 'light' : 'dark';
-    document.documentElement.setAttribute('data-theme', next);
-    syncThemeColor(next);
-    syncThemeToggleState(next);
+    withViewTransition(() => {
+        document.documentElement.setAttribute('data-theme', next);
+        syncThemeColor(next);
+        syncThemeToggleState(next);
+    });
     try {
         localStorage.setItem(THEME_KEY, next);
     } catch {
@@ -112,7 +157,7 @@ function toggleTheme() {
     }
 }
 
-/* ─── Catalog ───────────────────────────────────── */
+/* ─── Catalog & Routing ─────────────────────────── */
 
 function syncCanonicalUrl(path) {
     const url = `https://gazette.bg${path}`;
@@ -134,8 +179,6 @@ function getIssueFromPath() {
 }
 
 function setIssuePath(year, issueNum, hash = '') {
-    // Trailing slash matches the URL the host actually serves (Cloudflare
-    // Pages 308-redirects the non-slash form), so canonical == current URL.
     const path = `/issue/${year}/${issueNum}/`;
     const full = `${path}${hash}`;
     if (`${location.pathname}${location.hash}` !== full) history.pushState(null, '', full);
@@ -154,9 +197,6 @@ function renderHome() {
         return;
     }
 
-    // The pre-rendered register is searchable before catalog.json lands, so
-    // a query may already be in flight. Carry it over to the fresh input —
-    // reading the value after the re-render would always find it empty.
     const previous = document.getElementById('archive-search');
     const pendingQuery = previous ? previous.value : '';
 
@@ -169,62 +209,96 @@ function renderHome() {
     }
 }
 
-// The full text of every summary, keyed "year/issue". Fetched once, lazily,
-// the first time the reader searches — so it never weighs on a normal visit.
+/* ─── Full-Text Morphological Search ────────────── */
+
 let searchIndex = null;
 let searchIndexLower = null;
 let searchIndexLoading = false;
+let searchUrlTimer = null;
+
 function ensureSearchIndex() {
     if (searchIndex || searchIndexLoading) return;
     searchIndexLoading = true;
     fetch('/search-index.json')
         .then((r) => (r.ok ? r.json() : null))
         .then((idx) => {
-            if (!idx) {
-                searchIndexLoading = false;
-                return;
-            }
+            searchIndexLoading = false;
+            if (!idx) return;
             searchIndex = idx;
             searchIndexLower = {};
             for (const k in idx) searchIndexLower[k] = String(idx[k]).toLowerCase();
-            applyArchiveFilter(); // re-run with the current query now that the text is here
+            applyArchiveFilter();
         })
         .catch(() => {
             searchIndexLoading = false;
-            /* full text just stays unavailable; metadata search still works */
         });
 }
 
-// A ~140-char window around the first hit, with every matched term highlighted.
-// Built from escaped parts so <mark> is the only markup.
 function escapeRegExp(s) {
     return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
-function buildSnippet(original, terms) {
-    if (!original || !terms.length) return '';
+function parseQueryGroups(rawQuery) {
+    return String(rawQuery || '')
+        .trim()
+        .toLowerCase()
+        .split(/\s+/)
+        .filter(Boolean)
+        .map((word) => searchTermVariants(word))
+        .filter((g) => g.length > 0);
+}
+
+function matchesAllGroups(haystackLower, groups) {
+    if (!haystackLower) return false;
+    for (const variants of groups) {
+        let hit = false;
+        for (const v of variants) {
+            if (haystackLower.includes(v)) {
+                hit = true;
+                break;
+            }
+        }
+        if (!hit) return false;
+    }
+    return true;
+}
+
+// A ~150-char window snapped to word boundaries around the first match, with
+// whole inflected words wrapped in <mark>.
+function buildSnippet(original, groups) {
+    if (!original || !groups.length) return '';
     const text = original.replace(/\t/g, ' — ');
     const lower = text.toLowerCase();
+    const allVariants = [...new Set(groups.flat())].sort((a, b) => b.length - a.length);
+    if (!allVariants.length) return '';
+
     let firstIdx = -1;
-    for (const t of terms) {
-        const idx = lower.indexOf(t);
-        if (idx >= 0 && (firstIdx < 0 || idx < firstIdx)) firstIdx = idx;
+    let firstLen = 0;
+    for (const v of allVariants) {
+        const idx = lower.indexOf(v);
+        if (idx >= 0 && (firstIdx < 0 || idx < firstIdx)) {
+            firstIdx = idx;
+            firstLen = v.length;
+        }
     }
     if (firstIdx < 0) return '';
-    const start = Math.max(0, firstIdx - 45);
-    const end = Math.min(text.length, firstIdx + terms[0].length + 95);
-    const slice = text.slice(start, end);
+
+    let start = Math.max(0, firstIdx - 48);
+    if (start > 0) {
+        const ws = text.indexOf(' ', start);
+        if (ws >= 0 && ws < firstIdx) start = ws + 1;
+    }
+    let end = Math.min(text.length, firstIdx + firstLen + 102);
+    if (end < text.length) {
+        const ws = text.lastIndexOf(' ', end);
+        if (ws > firstIdx + firstLen) end = ws;
+    }
+
+    const slice = text.slice(start, end).trim();
     const prefix = start > 0 ? '…' : '';
     const suffix = end < text.length ? '…' : '';
 
-    const pattern = new RegExp(
-        `(${terms
-            .slice()
-            .sort((a, b) => b.length - a.length)
-            .map(escapeRegExp)
-            .join('|')})`,
-        'gi',
-    );
+    const pattern = new RegExp(`([\\p{L}\\p{N}]*(?:${allVariants.map(escapeRegExp).join('|')})[\\p{L}\\p{N}]*)`, 'giu');
     const parts = slice.split(pattern);
     const highlighted = parts
         .map((part, i) => (i % 2 === 1 ? `<mark>${escapeHtml(part)}</mark>` : escapeHtml(part)))
@@ -233,10 +307,9 @@ function buildSnippet(original, terms) {
 }
 
 // Each line in searchIndex[key] is one level-2 section ("heading\tbody").
-// Find the section that matches the query terms best, return its anchor ID and
-// raw text so the search result row can link straight to that #section.
-function findBestMatchingSection(rawIssueText, terms) {
-    if (!rawIssueText || !terms.length) return null;
+// Pick the section matching the most query groups and derive its exact #anchor.
+function findBestMatchingSection(rawIssueText, groups) {
+    if (!rawIssueText || !groups.length) return null;
     const lines = rawIssueText.split('\n');
     const used = new Set();
     let best = null;
@@ -258,26 +331,26 @@ function findBestMatchingSection(rawIssueText, terms) {
         }
         const lower = line.toLowerCase();
         let count = 0;
-        for (const t of terms) {
-            if (lower.includes(t)) count++;
+        for (const variants of groups) {
+            if (variants.some((v) => lower.includes(v))) count++;
         }
         if (count > bestCount) {
             bestCount = count;
             best = { id, text: heading && body ? `${heading} — ${body}` : body || heading };
-            if (count === terms.length) break;
+            if (count === groups.length) break;
         }
     }
     return best;
 }
 
-function injectSnippet(row, terms) {
+function injectSnippet(row, groups) {
     const raw = searchIndex?.[`${row.dataset.year || ''}/${row.dataset.issue || ''}`];
     const body = row.querySelector('.row-body');
     if (!raw || !body) return;
-    const section = findBestMatchingSection(raw, terms);
+    const section = findBestMatchingSection(raw, groups);
     const baseHref = `/issue/${row.dataset.year}/${row.dataset.issue}/`;
     row.setAttribute('href', section?.id ? `${baseHref}#${section.id}` : baseHref);
-    const html = buildSnippet(section ? section.text : raw, terms);
+    const html = buildSnippet(section ? section.text : raw, groups);
     if (!html) return;
     const el = document.createElement('span');
     el.className = 'row-snippet';
@@ -285,22 +358,50 @@ function injectSnippet(row, terms) {
     body.appendChild(el);
 }
 
-// Live filter over the archive register — and only over it. The lead story
-// and the colophon stay put: a control that sits inside the archive is
-// expected to narrow the archive, not to rearrange the page around it.
-// The criterion is the text query (split into words), matched on metadata
-// and on full text.
-function applyArchiveFilter(rawQuery) {
+function syncSearchChrome(rawValue) {
+    const clearBtn = document.getElementById('archive-search-clear');
+    const kbdEl = document.getElementById('archive-search-kbd');
+    const hasText = Boolean(rawValue?.trim());
+    if (clearBtn) clearBtn.hidden = !hasText;
+    if (kbdEl) kbdEl.hidden = hasText;
+}
+
+function syncSearchUrl(displayQ) {
+    if (isIssueOpen() || location.pathname !== '/') return;
+    clearTimeout(searchUrlTimer);
+    searchUrlTimer = setTimeout(() => {
+        if (isIssueOpen() || location.pathname !== '/') return;
+        const target = displayQ
+            ? `/?q=${encodeURIComponent(displayQ)}#archive`
+            : location.hash === '#archive'
+              ? '/#archive'
+              : '/';
+        const current = `${location.pathname}${location.search}${location.hash}`;
+        if (current !== target) history.replaceState(null, '', target);
+    }, 180);
+}
+
+function applyArchiveFilter(rawQuery, { syncUrl = false } = {}) {
     if (!homeContent) return;
     const input = document.getElementById('archive-search');
-    const displayQ = (rawQuery != null ? rawQuery : input ? input.value : '').trim();
-    const terms = displayQ.toLowerCase().split(/\s+/).filter(Boolean);
+    const raw = rawQuery !== undefined ? rawQuery : input ? input.value : '';
+    const displayQ = raw.trim();
+    const groups = parseQueryGroups(displayQ);
+
+    syncSearchChrome(displayQ);
+    if (syncUrl) syncSearchUrl(displayQ);
+
     const archiveSection = homeContent.querySelector('.archive-section');
-    const existingNote = homeContent.querySelector('.filter-empty');
+    const countEl = archiveSection?.querySelector('.section-count');
+    if (countEl && !countEl.dataset.defaultText) {
+        countEl.dataset.defaultText = countEl.textContent || '';
+    }
+
+    const existingNote = archiveSection?.querySelector('.filter-empty');
     if (existingNote) existingNote.remove();
     for (const el of homeContent.querySelectorAll('.row-snippet')) el.remove();
 
-    if (!terms.length) {
+    if (!groups.length) {
         for (const row of homeContent.querySelectorAll('.issue-card-row')) {
             if (row.dataset.year && row.dataset.issue) {
                 row.setAttribute('href', `/issue/${row.dataset.year}/${row.dataset.issue}/`);
@@ -314,52 +415,56 @@ function applyArchiveFilter(rawQuery) {
         for (const el of homeContent.querySelectorAll('.is-lead-row, .is-lead-group')) {
             el.classList.add('filter-hidden');
         }
+        if (countEl?.dataset.defaultText) countEl.textContent = countEl.dataset.defaultText;
         announce('');
         return;
     }
 
-    let anyVisible = false;
+    let visibleCount = 0;
+    let totalCount = 0;
     homeContent.querySelectorAll('.year-group').forEach((group) => {
         let groupVisible = false;
         group.querySelectorAll('.issue-card-row').forEach((row) => {
-            // Metadata (instant) OR the full summary text (once the index has
-            // loaded). Every word in the query must appear.
+            totalCount++;
             const metaHaystack = `${row.dataset.search || ''} ${row.textContent.toLowerCase()}`;
-            const metaMatch = terms.every((t) => metaHaystack.includes(t));
+            const metaMatch = matchesAllGroups(metaHaystack, groups);
             let bodyMatch = false;
             if (searchIndexLower) {
                 const body = searchIndexLower[`${row.dataset.year || ''}/${row.dataset.issue || ''}`];
-                bodyMatch = !!body && terms.every((t) => body.includes(t));
+                bodyMatch = matchesAllGroups(body, groups);
             }
             const match = metaMatch || bodyMatch;
             row.classList.toggle('filter-hidden', !match);
             if (match) {
                 groupVisible = true;
-                anyVisible = true;
-                if (bodyMatch || searchIndex) injectSnippet(row, terms);
+                visibleCount++;
+                if (bodyMatch || searchIndex) injectSnippet(row, groups);
             }
         });
         group.classList.toggle('filter-hidden', !groupVisible);
     });
 
-    if (archiveSection && !anyVisible) {
+    if (countEl) {
+        const suffix = !searchIndex && searchIndexLoading ? ' · търсене…' : '';
+        countEl.textContent = `${visibleCount} от ${totalCount} ${totalCount === 1 ? 'брой' : 'броя'}${suffix}`;
+    }
+
+    if (archiveSection && visibleCount === 0) {
         const note = document.createElement('p');
         note.className = 'empty filter-empty';
         note.textContent = `Няма намерени броеве за „${displayQ}“.`;
         archiveSection.appendChild(note);
         announce('Няма намерени броеве.');
     } else {
-        announce('');
+        announce(`Намерени броеве: ${visibleCount}.`);
     }
 }
 
-// A shared link of the form /?q=<term>#archive. Carry the query into the
-// archive search, filter, and drop the reader at the register.
 function applyPendingArchiveQuery() {
     if (location.pathname !== '/') return;
     let q = '';
     try {
-        q = new URLSearchParams(location.search).get('q') || '';
+        q = (new URLSearchParams(location.search).get('q') || '').trim();
     } catch {
         return;
     }
@@ -374,39 +479,65 @@ function applyPendingArchiveQuery() {
     if (archive) requestAnimationFrame(() => archive.scrollIntoView({ behavior: scrollBehavior(), block: 'start' }));
 }
 
-/* ─── Views ─────────────────────────────────────── */
+/* ─── Views & Running Folio ─────────────────────── */
+
+function updateFolioContext(item) {
+    if (!folioContextBtn) return;
+    if (!item) {
+        folioContextBtn.hidden = true;
+        folioContextBtn.classList.remove('is-visible');
+        folioContextBtn.textContent = '';
+        return;
+    }
+    const dateStr = formatDateLong(item.date);
+    folioContextBtn.textContent = `Брой ${item.issue}${dateStr ? ` · ${dateStr}` : ''}`;
+    folioContextBtn.hidden = false;
+    updateFolioVisibility();
+}
+
+function updateFolioVisibility() {
+    if (!folioContextBtn || folioContextBtn.hidden) return;
+    if (!isIssueOpen()) {
+        folioContextBtn.classList.remove('is-visible');
+        return;
+    }
+    const headerBottom = issueHeaderEl ? issueHeaderEl.getBoundingClientRect().bottom : 0;
+    folioContextBtn.classList.toggle('is-visible', headerBottom < 48);
+}
 
 function showHome() {
-    currentIssue = null;
-    document.title = PAGE_TITLE_BASE;
-    document.documentElement.classList.remove('initial-issue-route');
-    document.body.classList.remove('issue-open', 'issue-ready');
-    homeView.style.display = 'block';
-    issueView.style.display = 'none';
-    window.scrollTo(0, 0);
-    if (scrollToTopBtn) scrollToTopBtn.classList.remove('is-visible');
-    if (progressEl) progressEl.style.width = '0';
-    currentTocId = null;
-    if (location.pathname !== '/') history.pushState(null, '', '/');
-    syncCanonicalUrl('/');
-    if (homeContent && !homeContent.children.length) {
-        ensureCatalog().then((cat) => {
-            if (cat) renderHome();
-            else {
-                homeContent.innerHTML =
-                    '<p class="empty">Каталогът временно не е наличен. Моля, опитайте да презаредите страницата или да се върнете по-късно.</p>';
-            }
-        });
-    }
-    if (lastFocusedCard && typeof lastFocusedCard.focus === 'function') {
-        lastFocusedCard.focus();
-        lastFocusedCard = null;
-    } else {
-        // Direct-load path (no originating card): move focus to the top of
-        // the home view instead of letting it fall to <body>.
-        const home = document.querySelector('.masthead-title a');
-        if (home && typeof home.focus === 'function') home.focus();
-    }
+    const commit = () => {
+        currentIssue = null;
+        document.title = PAGE_TITLE_BASE;
+        document.documentElement.classList.remove('initial-issue-route');
+        document.body.classList.remove('issue-open', 'issue-ready');
+        homeView.style.display = 'block';
+        issueView.style.display = 'none';
+        window.scrollTo(0, 0);
+        if (scrollToTopBtn) scrollToTopBtn.classList.remove('is-visible');
+        if (progressEl) progressEl.style.width = '0';
+        updateFolioContext(null);
+        currentTocId = null;
+        if (location.pathname !== '/') history.pushState(null, '', '/');
+        syncCanonicalUrl('/');
+        if (homeContent && !homeContent.children.length) {
+            ensureCatalog().then((cat) => {
+                if (cat) renderHome();
+                else {
+                    homeContent.innerHTML =
+                        '<p class="empty">Каталогът временно не е наличен. Моля, опитайте да презаредите страницата или да се върнете по-късно.</p>';
+                }
+            });
+        }
+        if (lastFocusedCard && typeof lastFocusedCard.focus === 'function') {
+            lastFocusedCard.focus();
+            lastFocusedCard = null;
+        } else {
+            const home = document.querySelector('.masthead-title a');
+            if (home && typeof home.focus === 'function') home.focus();
+        }
+    };
+    withViewTransition(commit);
 }
 
 function showIssue() {
@@ -420,8 +551,6 @@ function getWindowScrollTop() {
     return window.scrollY ?? document.documentElement.scrollTop ?? 0;
 }
 
-// Server-rendered issue pages are shown by CSS (body.issue-open), never by
-// an inline style — so the body class is the only reliable signal here.
 function isIssueOpen() {
     return document.body.classList.contains('issue-open');
 }
@@ -449,7 +578,7 @@ function updateReadingProgress() {
     progressEl.style.width = `${(ratio * 100).toFixed(1)}%`;
 }
 
-/* ─── Issue page ────────────────────────────────── */
+/* ─── Issue Page & TOC ──────────────────────────── */
 
 function getAdjacentIssues() {
     if (!currentIssue || !catalog) return { prev: null, next: null };
@@ -463,6 +592,18 @@ function getAdjacentIssues() {
     };
 }
 
+function syncTocDisclosureForViewport(isInitialOpen = false) {
+    if (!mainContent) return;
+    const details = mainContent.querySelector('.issue-toc-details');
+    if (!details) return;
+    if (DESKTOP_TOC_MQ?.matches) {
+        details.open = true;
+    } else if (isInitialOpen) {
+        const count = details.querySelectorAll('.issue-toc-item').length;
+        details.open = count <= 4;
+    }
+}
+
 const TOC_ACTIVE_OFFSET = 140;
 
 function updateCurrentTocItem() {
@@ -470,17 +611,46 @@ function updateCurrentTocItem() {
     const headings = mainContent.querySelectorAll('h1[id], h2[id]');
     if (!headings.length) return;
     let activeId = null;
-    for (const h of headings) {
-        if (h.getBoundingClientRect().top <= TOC_ACTIVE_OFFSET) activeId = h.id;
-        else break;
+    if (window.innerHeight + getWindowScrollTop() >= document.documentElement.scrollHeight - 8) {
+        activeId = headings[headings.length - 1].id;
+    } else {
+        for (const h of headings) {
+            if (h.getBoundingClientRect().top <= TOC_ACTIVE_OFFSET) activeId = h.id;
+            else break;
+        }
     }
     if (activeId === currentTocId) return;
     currentTocId = activeId;
+
+    let activeLink = null;
     mainContent.querySelectorAll('.issue-toc a[href^="#"]').forEach((a) => {
         const href = a.getAttribute('href');
         const targetId = href ? href.slice(1) : '';
-        a.classList.toggle('is-current', activeId !== null && targetId === activeId);
+        const isCurrent = activeId !== null && targetId === activeId;
+        a.classList.toggle('is-current', isCurrent);
+        if (isCurrent) activeLink = a;
     });
+
+    // Keep the active TOC entry visible inside the sticky desktop TOC scrollport.
+    if (activeLink && DESKTOP_TOC_MQ?.matches) {
+        const toc = mainContent.querySelector('.issue-toc');
+        if (toc && toc.scrollHeight > toc.clientHeight) {
+            const tocRect = toc.getBoundingClientRect();
+            const linkRect = activeLink.getBoundingClientRect();
+            const relTop = linkRect.top - tocRect.top;
+            const relBottom = linkRect.bottom - tocRect.top;
+            if (relTop < 24 || relBottom > toc.clientHeight - 24) {
+                const targetTop = Math.max(0, toc.scrollTop + relTop - toc.clientHeight / 2 + linkRect.height / 2);
+                toc.scrollTo({ top: targetTop, behavior: scrollBehavior() });
+            }
+        }
+    }
+}
+
+function flashTargetHeading(el) {
+    if (!el || !mainContent) return;
+    for (const prev of mainContent.querySelectorAll('.is-targeted')) prev.classList.remove('is-targeted');
+    el.classList.add('is-targeted');
 }
 
 function scrollToHashTarget(behavior) {
@@ -494,6 +664,7 @@ function scrollToHashTarget(behavior) {
     const el = document.getElementById(id);
     if (!el) return false;
     el.scrollIntoView({ behavior: behavior || 'auto', block: 'start' });
+    flashTargetHeading(el);
     return true;
 }
 
@@ -502,46 +673,78 @@ async function openIssue(item, hash = '') {
     const targetIssue = String(item.issue);
     currentIssue = { year: targetYear, issueNum: targetIssue };
     setIssuePath(item.year, item.issue, hash);
-    showIssue();
-    mainLoading.hidden = false;
-    mainContent.innerHTML = '';
-    const navEl = document.getElementById('issue-nav');
-    if (navEl) navEl.innerHTML = '';
 
-    document.title = issueTitle(item);
-    issueHeaderEl.innerHTML = renderIssueHeader(item, 0);
+    const navEl = document.getElementById('issue-nav');
+
+    // Only paint a loading placeholder if network/parse takes over 100ms —
+    // prefetched issues swap directly into the rendered article in one transition.
+    let showedSkeleton = false;
+    const skeletonTimer = setTimeout(() => {
+        if (!currentIssue || currentIssue.year !== targetYear || currentIssue.issueNum !== targetIssue) return;
+        showedSkeleton = true;
+        showIssue();
+        window.scrollTo(0, 0);
+        mainLoading.hidden = false;
+        mainContent.innerHTML = '';
+        if (navEl) navEl.innerHTML = '';
+        document.title = issueTitle(item);
+        issueHeaderEl.innerHTML = renderIssueHeader(item, 0);
+        updateFolioContext(item);
+    }, 100);
 
     try {
-        const fileUrl = item.file.startsWith('/') ? item.file : `/${item.file}`;
-        const [{ marked }, r] = await Promise.all([import('./marked.js'), fetch(fileUrl), ensureCatalog()]);
-        if (!r.ok) throw new Error(r.statusText);
-        const md = await r.text();
+        const [{ marked }, md] = await Promise.all([ensureMarked(), fetchMarkdown(item.file), ensureCatalog()]);
+        clearTimeout(skeletonTimer);
         if (!currentIssue || currentIssue.year !== targetYear || currentIssue.issueNum !== targetIssue) return;
+
         const resolved = findIssueByYearAndNumber(targetYear, targetIssue) || item;
         const { html: processedHtml, tocItems } = processRenderedContent(marked.parse(md));
-        mainContent.innerHTML = renderDisclaimer(resolved) + buildTocHtml(tocItems) + processedHtml + END_MARK;
-        issueHeaderEl.innerHTML = renderIssueHeader(resolved, readingMinutes(md));
-        announce(`Заредено: Държавен вестник, брой ${item.issue}.`);
-        currentTocId = null;
-        updateCurrentTocItem();
-        if (location.hash) requestAnimationFrame(() => scrollToHashTarget('auto'));
-        else if (backBtn) backBtn.focus();
+        const articleHtml = renderIssueArticleHtml(resolved, processedHtml, tocItems);
+        const headerHtml = renderIssueHeader(resolved, readingMinutes(md));
+        const { prev, next } = getAdjacentIssues();
+        const navHtml = renderIssueNav(prev, next);
+
+        const renderReady = () => {
+            showIssue();
+            mainLoading.hidden = true;
+            document.title = issueTitle(resolved);
+            issueHeaderEl.innerHTML = headerHtml;
+            mainContent.innerHTML = articleHtml;
+            if (navEl) navEl.innerHTML = navHtml;
+            document.body.classList.add('issue-ready');
+            syncTocDisclosureForViewport(true);
+            updateFolioContext(resolved);
+            currentTocId = null;
+            if (location.hash) {
+                if (!scrollToHashTarget('auto')) window.scrollTo(0, 0);
+            } else {
+                window.scrollTo(0, 0);
+            }
+            updateCurrentTocItem();
+            updateReadingProgress();
+            updateScrollToTopVisibility();
+        };
+
+        if (showedSkeleton) renderReady();
+        else await withViewTransition(renderReady);
+
+        announce(`Заредено: Държавен вестник, брой ${resolved.issue}.`);
+        if (!location.hash && backBtn) backBtn.focus({ preventScroll: true });
+
+        if (prev?.file) fetchMarkdown(prev.file).catch(() => {});
+        if (next?.file) fetchMarkdown(next.file).catch(() => {});
     } catch {
+        clearTimeout(skeletonTimer);
         if (!currentIssue || currentIssue.year !== targetYear || currentIssue.issueNum !== targetIssue) return;
+        showIssue();
+        mainLoading.hidden = true;
+        document.title = issueTitle(item);
+        issueHeaderEl.innerHTML = renderIssueHeader(item, 0);
         mainContent.innerHTML =
             '<p>Този брой не може да бъде зареден в момента. Моля, опитайте отново или изберете друг брой от началната страница.</p>';
+        document.body.classList.add('issue-ready');
         announce('Броят не можа да бъде зареден.');
     }
-
-    const { prev, next } = getAdjacentIssues();
-    if (navEl) navEl.innerHTML = renderIssueNav(prev, next);
-    mainLoading.hidden = true;
-    document.body.classList.add('issue-ready');
-    updateReadingProgress();
-
-    // Warm the neighbours — most readers step through issues in order.
-    if (prev?.file) fetch(prev.file.startsWith('/') ? prev.file : `/${prev.file}`).catch(() => {});
-    if (next?.file) fetch(next.file.startsWith('/') ? next.file : `/${next.file}`).catch(() => {});
 }
 
 async function applyRoute() {
@@ -567,7 +770,63 @@ async function applyRoute() {
 
 /* ─── Events ────────────────────────────────────── */
 
+let hoverWarmTimer = null;
+
+function onMainPointerOver(e) {
+    const card = e.target.closest('a.issue-card[data-file]');
+    if (!card) return;
+    clearTimeout(hoverWarmTimer);
+    hoverWarmTimer = setTimeout(() => warmIssue(card.dataset.file), 60);
+}
+
+function onMainTouchStart(e) {
+    const card = e.target.closest('a.issue-card[data-file]');
+    if (card) warmIssue(card.dataset.file);
+}
+
+async function shareCurrentIssue(btn) {
+    const canonical = document.querySelector('link[rel="canonical"]')?.getAttribute('href') || location.href;
+    if (navigator.share && window.matchMedia?.('(pointer: coarse)').matches) {
+        try {
+            await navigator.share({ title: document.title, url: canonical });
+            return;
+        } catch {
+            /* user cancelled or share unavailable — fall back to clipboard */
+        }
+    }
+    try {
+        await navigator.clipboard?.writeText(canonical);
+    } catch {
+        /* ignore clipboard restrictions */
+    }
+    btn.dataset.copied = 'true';
+    btn.textContent = 'Копирано ✓';
+    announce('Връзката към броя е копирана.');
+    clearTimeout(btn._copyTimer);
+    btn._copyTimer = setTimeout(() => {
+        delete btn.dataset.copied;
+        btn.textContent = 'Сподели връзка';
+    }, 1800);
+}
+
 function onMainClick(e) {
+    const clearBtn = e.target.closest('#archive-search-clear');
+    if (clearBtn) {
+        const input = document.getElementById('archive-search');
+        if (input) {
+            input.value = '';
+            applyArchiveFilter('', { syncUrl: true });
+            input.focus();
+        }
+        return;
+    }
+
+    const shareBtn = e.target.closest('#issue-share-btn');
+    if (shareBtn) {
+        shareCurrentIssue(shareBtn);
+        return;
+    }
+
     const card = e.target.closest('a.issue-card');
     if (card) {
         if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button !== 0) return;
@@ -596,7 +855,13 @@ function onMainClick(e) {
         const hash = `#${heading.id}`;
         if (location.hash !== hash) history.pushState(null, '', hash);
         heading.scrollIntoView({ behavior: scrollBehavior(), block: 'start' });
+        flashTargetHeading(heading);
         navigator.clipboard?.writeText(location.href).catch(() => {});
+        heading.dataset.copied = 'true';
+        clearTimeout(heading._copyTimer);
+        heading._copyTimer = setTimeout(() => {
+            delete heading.dataset.copied;
+        }, 1800);
         announce('Връзката към темата е копирана.');
         return;
     }
@@ -609,7 +874,12 @@ function onMainClick(e) {
     const el = document.getElementById(id);
     if (el) {
         e.preventDefault();
+        if (!DESKTOP_TOC_MQ?.matches) {
+            const details = link.closest('.issue-toc-details');
+            if (details) details.open = false;
+        }
         el.scrollIntoView({ behavior: scrollBehavior(), block: 'start' });
+        flashTargetHeading(el);
         if (location.hash !== href) history.pushState(null, '', href);
     }
 }
@@ -624,7 +894,7 @@ function onKeyDown(e) {
             if (target.value) {
                 e.preventDefault();
                 target.value = '';
-                applyArchiveFilter('');
+                applyArchiveFilter('', { syncUrl: true });
             } else {
                 target.blur();
             }
@@ -633,10 +903,10 @@ function onKeyDown(e) {
     }
 
     if (e.key === '/') {
+        if (isIssueOpen()) showHome();
         const search = document.getElementById('archive-search');
         if (!search) return;
         e.preventDefault();
-        if (isIssueOpen()) showHome();
         const archive = document.getElementById('archive');
         if (archive) archive.scrollIntoView({ behavior: scrollBehavior(), block: 'start' });
         search.focus({ preventScroll: true });
@@ -662,14 +932,16 @@ function onKeyDown(e) {
     }
 }
 
-// "Архив" used to just jump the page down and leave you there, which reads as
-// nothing happening. Someone who clicks it wants to find an issue — so land
-// on the register with the cursor already in the search box. Not on a touch
-// screen, where that would throw the keyboard in the reader's face.
 function onFolioClick(e) {
+    const ctxBtn = e.target.closest('#folio-context');
+    if (ctxBtn) {
+        window.scrollTo({ top: 0, behavior: scrollBehavior() });
+        return;
+    }
+
     const link = e.target.closest('.folio-link[href^="/#"]');
     if (!link || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button !== 0) return;
-    if (document.body.classList.contains('issue-open')) return; // let it navigate home
+    if (document.body.classList.contains('issue-open')) return;
 
     const id = link.getAttribute('href').slice(2);
     const target = document.getElementById(id);
@@ -688,22 +960,23 @@ function onFolioClick(e) {
 async function init() {
     for (const btn of backBtns) btn.addEventListener('click', showHome);
     mainEl.addEventListener('click', onMainClick);
+    mainEl.addEventListener('pointerover', onMainPointerOver);
+    mainEl.addEventListener('touchstart', onMainTouchStart, { passive: true });
     const folio = document.querySelector('.folio');
     if (folio) folio.addEventListener('click', onFolioClick);
     if (themeToggle) themeToggle.addEventListener('click', toggleTheme);
+    DESKTOP_TOC_MQ?.addEventListener?.('change', () => syncTocDisclosureForViewport(false));
 
-    // The head bootstrap already applied a stored theme; the meta tags still
-    // need to follow it.
     const storedTheme = document.documentElement.getAttribute('data-theme');
     if (storedTheme) syncThemeColor(storedTheme);
     syncThemeToggleState(currentTheme());
+
     homeView.addEventListener('input', (e) => {
         if (e.target && e.target.id === 'archive-search') {
             ensureSearchIndex();
-            applyArchiveFilter(e.target.value);
+            applyArchiveFilter(e.target.value, { syncUrl: true });
         }
     });
-    // Start fetching the full-text index as soon as the reader means to search.
     homeView.addEventListener('focusin', (e) => {
         if (e.target && e.target.id === 'archive-search') ensureSearchIndex();
     });
@@ -715,6 +988,7 @@ async function init() {
             updateScrollToTopVisibility();
             updateCurrentTocItem();
             updateReadingProgress();
+            updateFolioVisibility();
         },
         { passive: true },
     );
@@ -723,12 +997,6 @@ async function init() {
     }
     updateScrollToTopVisibility();
 
-    // The 404 page is served under the URL the visitor actually asked for.
-    // Leave its content alone — rendering the home view over it would
-    // swallow the error and rewrite the address bar. The one thing that
-    // must go is initial-issue-route: the head bootstrap sets it for any
-    // /issue/<year>/<num>/ path, and its CSS hides the very block the
-    // not-found message lives in, which would paint a blank page.
     if (document.querySelector('.not-found-section')) {
         document.documentElement.classList.remove('initial-issue-route');
         return;
@@ -741,13 +1009,14 @@ async function init() {
     if (isPreRendered) {
         currentIssue = { year: initial.year, issueNum: initial.issueNum };
         currentTocId = null;
+        syncTocDisclosureForViewport(!location.hash);
         updateCurrentTocItem();
         updateScrollToTopVisibility();
         updateReadingProgress();
+        updateFolioVisibility();
         if (location.hash) requestAnimationFrame(() => scrollToHashTarget('auto'));
         for (const card of document.querySelectorAll('#issue-nav a.issue-card[data-file]')) {
-            const file = card.dataset.file;
-            if (file) fetch(file.startsWith('/') ? file : `/${file}`).catch(() => {});
+            if (card.dataset.file) fetchMarkdown(card.dataset.file).catch(() => {});
         }
         return;
     }

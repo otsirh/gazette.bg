@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 import fs from 'node:fs';
 import path from 'node:path';
-import { formatDateBulgarian, stripMarkdownInline } from '../src/js/shared.js';
+import { formatDateBulgarian, readingMinutes, stripMarkdownInline } from '../src/js/shared.js';
 import { isMain } from './lib/cli.js';
 import { ISSUES_DIR, ROOT } from './lib/issues.js';
 
@@ -9,8 +9,29 @@ import { ISSUES_DIR, ROOT } from './lib/issues.js';
 // builder reads it from here and the client fetches it as /catalog.json.
 const DIST_DIR = path.join(ROOT, 'dist');
 
-// Pull the issue's topic headlines (the level-2 headings). These power the
-// front-page lead card and the per-row previews on the homepage.
+function summarizeStandfirst(paragraph, maxChars = 320) {
+    const clean = stripMarkdownInline(paragraph);
+    if (!clean || clean.length <= maxChars) return clean;
+    const within = clean.slice(0, maxChars);
+    let lastSentenceEnd = -1;
+    for (const m of within.matchAll(/[.!?](?=\s|$)/g)) {
+        // Avoid splitting after common Bulgarian abbreviations like "чл.", "ал.", "бр.", "г.", "т.", "лв."
+        const before = within.slice(0, m.index);
+        if (/(?:^|\s)(?:чл|ал|бр|г|т|лв|евро|млн|млрд|хил|стр|параграф|дв|к\.д|реш|зап|пмс|р\.д)$/i.test(before)) {
+            continue;
+        }
+        lastSentenceEnd = m.index + 1;
+    }
+    if (lastSentenceEnd >= 80) return within.slice(0, lastSentenceEnd).trim();
+    return `${within
+        .slice(0, maxChars - 1)
+        .replace(/\s+\S*$/, '')
+        .replace(/[\s.,;:–—-]+$/, '')}…`;
+}
+
+// Pull the issue's topic headlines (the level-2 headings), opening standfirst,
+// and reading-time estimate. These power the front-page lead spread and the
+// per-row previews on the homepage.
 function extractIssueMeta(filePath) {
     try {
         const md = fs.readFileSync(filePath, 'utf8');
@@ -19,9 +40,19 @@ function extractIssueMeta(filePath) {
             const m = /^##\s+(.+?)\s*$/.exec(raw.trim());
             if (m) topics.push(stripMarkdownInline(m[1]));
         }
-        return { topics };
+
+        // First prose paragraph of the lead section.
+        const firstSection = md.split(/^##\s+[^\n]+\n+/m)[1] ?? md;
+        const blocks = firstSection
+            .split(/\n{2,}/)
+            .map((b) => b.trim())
+            .filter(Boolean);
+        const firstProse = blocks.find((b) => !/^(?:#{1,6}\s|[-*+]\s|\d+\.\s|---)/.test(b)) || '';
+        const lead = summarizeStandfirst(firstProse);
+
+        return { topics, lead, minutes: readingMinutes(md) };
     } catch {
-        return { topics: [] };
+        return { topics: [], lead: '', minutes: 1 };
     }
 }
 
@@ -64,14 +95,17 @@ export function buildCatalog({ issuesDir = ISSUES_DIR, distDir = DIST_DIR } = {}
             const mdName = `${issueNum}.md`;
             const filePath = path.join(issueDirPath, mdName);
             if (!fs.existsSync(filePath)) continue;
-            const { topics } = extractIssueMeta(filePath);
+            const { topics, lead, minutes } = extractIssueMeta(filePath);
             const meta = readIssueJson(issueDirPath, issueNum);
-            catalog.years[year].push({
+            const entry = {
                 issue: issueNum,
                 date: meta.date ? formatDateBulgarian(String(meta.date).trim()) : '',
                 file: `issues/${year}/${folderName}/${mdName}`,
                 topics,
-            });
+                minutes,
+            };
+            if (lead) entry.lead = lead;
+            catalog.years[year].push(entry);
         }
     }
 

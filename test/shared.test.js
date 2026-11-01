@@ -7,12 +7,15 @@ import {
     formatDateShort,
     issueDateToIso,
     issuesNewestFirst,
+    issueTitle,
     pluralTopics,
     readingMinutes,
     renderDisclaimer,
     renderHomeContent,
     renderIssueNav,
+    searchTermVariants,
     slugify,
+    stemBg,
 } from '../src/js/shared.js';
 
 test('dates read the way the site prints them', () => {
@@ -50,7 +53,14 @@ const catalog = {
         2025: [{ issue: 104, date: '30 Декември 2025', file: 'issues/2025/104/104.md', topics: ['Старо'] }],
         2026: [
             { issue: 1, date: '6 Януари 2026', file: 'issues/2026/01/1.md', topics: ['Първа <тема>'] },
-            { issue: 2, date: '9 Януари 2026', file: 'issues/2026/02/2.md', topics: ['Водеща', 'Втора'] },
+            {
+                issue: 2,
+                date: '9 Януари 2026',
+                file: 'issues/2026/02/2.md',
+                topics: ['Водеща', 'Втора тема'],
+                lead: 'Кратко въведение към водещата тема.',
+                minutes: 4,
+            },
         ],
     },
 };
@@ -67,6 +77,8 @@ test('the home page leads with the newest issue and files the rest by year', () 
     const html = renderHomeContent(issuesNewestFirst(catalog));
     assert.match(html, /^<section class="lead-section">/);
     assert.match(html, /<h2 class="lead-title">Водеща<\/h2>/);
+    assert.match(html, /<p class="lead-standfirst">Кратко въведение към водещата тема\.<\/p>/);
+    assert.match(html, /href="\/issue\/2026\/2\/#втора-тема"[^>]*>Втора тема<\/a>/);
     assert.match(html, /<span class="section-count">2 броя<\/span>/);
     assert.match(html, /class="issue-card issue-card-row is-lead-row filter-hidden"[^>]*data-issue="2"/);
     assert.ok(html.indexOf('<span>2026</span>') < html.indexOf('<span>2025</span>'));
@@ -96,4 +108,28 @@ test('disclaimer links to the mistake report template prefilled with the issue U
     const html = renderDisclaimer({ year: '2026', issue: 37 });
     assert.match(html, /template=mistake\.yml&amp;issue=https%3A%2F%2Fgazette\.bg%2Fissue%2F2026%2F37%2F/);
     assert.match(renderDisclaimer(), /template=mistake\.yml"/);
+});
+
+test('Bulgarian stemmer collapses articles, plurals, and -ик/-иц palatalization', () => {
+    assert.equal(stemBg('глоба'), stemBg('глобите'));
+    assert.equal(stemBg('винетка'), stemBg('винетките'));
+    assert.equal(stemBg('пенсия'), stemBg('пенсиите'));
+    assert.equal(stemBg('данък'), stemBg('данъците'));
+    assert.equal(stemBg('работник'), stemBg('работниците'));
+    assert.equal(stemBg('работа'), stemBg('работата'));
+    assert.equal(stemBg('град'), stemBg('градовете'));
+    assert.equal(stemBg('помощ'), stemBg('помощта'));
+    assert.equal(stemBg('месец'), stemBg('месеците'));
+    assert.ok(searchTermVariants('данък').includes('данъц'));
+});
+
+test('issue titles lead with the primary headline and fall back to the issue number', () => {
+    assert.equal(
+        issueTitle({ issue: 99, date: '30 Октомври 2026', topics: ['Стажът отново се смята в дни'] }),
+        'Стажът отново се смята в дни — ДВ бр. 99 (30 октомври 2026)',
+    );
+    assert.equal(
+        issueTitle({ issue: 5, date: '16 Януари 2026', topics: [] }),
+        'Брой 5 · 16 януари 2026 — Обобщения на Държавен вестник',
+    );
 });

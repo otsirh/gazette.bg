@@ -1,10 +1,9 @@
 #!/usr/bin/env node
+import crypto from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
 import { marked } from 'marked';
 import {
-    buildTocHtml,
-    END_MARK,
     escapeHtml,
     formatDateLong,
     issueDateToIso,
@@ -13,8 +12,8 @@ import {
     issueTitle,
     processRenderedContent,
     readingMinutes,
-    renderDisclaimer,
     renderHomeContent,
+    renderIssueArticleHtml,
     renderIssueHeader,
     renderIssueNav,
     stripMarkdownInline,
@@ -35,10 +34,10 @@ const STATIC_ASSETS = [
     'apple-touch-icon.png',
     'favicon.ico',
     'favicon.svg',
+    'manifest.webmanifest',
     'og-image.png',
     'robots.txt',
     'fonts',
-    'src/js/app.js',
     'src/js/shared.js',
 ];
 
@@ -90,8 +89,31 @@ function buildNotFoundHtml(cleanTemplate) {
     return replaceHomeContent(html, body);
 }
 
+function shortHash(content) {
+    return crypto.createHash('sha256').update(content).digest('hex').slice(0, 8);
+}
+
+// Safe CSS minifier: protects quoted strings first, strips comments, collapses
+// whitespace, and tightens declaration punctuation without touching selector
+// spaces before pseudo-classes or arithmetic spaces inside calc().
+export function minifyCss(rawCss) {
+    const strings = [];
+    let s = String(rawCss).replace(/(["'])(?:\\.|(?!\1)[^\\\r\n])*\1/g, (m) => {
+        strings.push(m);
+        return `\0S${strings.length - 1}\0`;
+    });
+    s = s
+        .replace(/\/\*[\s\S]*?\*\//g, '')
+        .replace(/\s+/g, ' ')
+        .replace(/\s*([{};,])\s*/g, '$1')
+        .replace(/([;{}][\w-]+)\s*:\s*/g, '$1:')
+        .replace(/;}/g, '}')
+        .trim();
+    return s.replace(/\0S(\d+)\0/g, (_m, idx) => strings[Number(idx)]);
+}
+
 function inlineCriticalCss(html) {
-    const css = fs.readFileSync(CSS_PATH, 'utf8');
+    const css = minifyCss(fs.readFileSync(CSS_PATH, 'utf8'));
     return html.replace(
         /(<!--CRITICAL-CSS-START-->)[\s\S]*?(<!--CRITICAL-CSS-END-->)/,
         `$1<style>${lit(css)}</style>$2`,
@@ -101,7 +123,7 @@ function inlineCriticalCss(html) {
 function buildIssueViewInner(item, prev, next) {
     const md = fs.readFileSync(path.join(ROOT, item.file), 'utf8');
     const { html: processedHtml, tocItems } = processRenderedContent(marked.parse(md));
-    const contentHtml = renderDisclaimer(item) + buildTocHtml(tocItems) + processedHtml + END_MARK;
+    const contentHtml = renderIssueArticleHtml(item, processedHtml, tocItems);
 
     return `
                 <div class="back-bar">
@@ -109,10 +131,7 @@ function buildIssueViewInner(item, prev, next) {
                 </div>
                 <div class="issue-header" id="issue-header">${renderIssueHeader(item, readingMinutes(md))}</div>
                 <article class="content" id="content">${contentHtml}</article>
-                <nav id="issue-nav" class="issue-nav issue-nav-bottom" aria-label="Навигация между броеве">${renderIssueNav(prev, next)}</nav>
-                <div class="back-bar back-bar-bottom">
-                    <button type="button" class="back-btn" id="back-btn-bottom" aria-label="Обратно към всички броеве">← Всички броеве</button>
-                </div>`;
+                <nav id="issue-nav" class="issue-nav issue-nav-bottom" aria-label="Навигация между броеве">${renderIssueNav(prev, next)}</nav>`;
 }
 
 function buildIssuePage(template, item, prev, next) {
@@ -125,11 +144,8 @@ function buildIssuePage(template, item, prev, next) {
     // Unique, content-rich description per issue (kills duplicate snippets).
     const topics = Array.isArray(item.topics) ? item.topics : [];
     const lead = topics[0] || `Брой ${item.issue}`;
-    const metaDesc = truncate(
-        `Държавен вестник, брой ${item.issue} от ${titleDate}: ` +
-            (topics.length ? topics.join('; ') : 'обобщение на броя, генерирано с AI.'),
-        160,
-    );
+    const summaryPreview = item.lead || (topics.length ? topics.join('; ') : 'обобщение на броя, генерирано с AI.');
+    const metaDesc = truncate(`Държавен вестник, брой ${item.issue} от ${titleDate}: ${summaryPreview}`, 160);
 
     let html = template;
 
@@ -165,12 +181,33 @@ function buildIssuePage(template, item, prev, next) {
         articleLd.datePublished = isoDate;
         articleLd.dateModified = isoDate;
     }
-    let headExtras = `<script type="application/ld+json">${JSON.stringify(articleLd)}</script>`;
+    const breadcrumbLd = {
+        '@context': 'https://schema.org',
+        '@type': 'BreadcrumbList',
+        itemListElement: [
+            { '@type': 'ListItem', position: 1, name: 'Държавен вестник', item: `${SITE_ORIGIN}/` },
+            {
+                '@type': 'ListItem',
+                position: 2,
+                name: `Брой ${item.issue}${titleDate ? ` · ${titleDate}` : ''}`,
+                item: canonicalUrl,
+            },
+        ],
+    };
+    let headExtras =
+        `<script type="application/ld+json">${JSON.stringify(articleLd)}</script>\n` +
+        `    <script type="application/ld+json">${JSON.stringify(breadcrumbLd)}</script>`;
     if (isoDate) headExtras = `<meta property="article:published_time" content="${isoDate}" />\n    ${headExtras}`;
     html = html.replace('</head>', `    ${lit(headExtras)}\n</head>`);
 
     // Pre-apply the issue-open and issue-ready classes so initial paint shows the article.
     html = html.replace(/<body(\s|>)/, '<body class="issue-open issue-ready"$1');
+
+    const folioLabel = `Брой ${item.issue}${titleDate ? ` · ${titleDate}` : ''}`;
+    html = html.replace(
+        '<button type="button" class="folio-context" id="folio-context" aria-label="Обратно към началото на броя" hidden></button>',
+        `<button type="button" class="folio-context" id="folio-context" aria-label="Обратно към началото на броя">${lit(escapeHtml(folioLabel))}</button>`,
+    );
 
     // The nameplate is only hidden by CSS here, so its <h1> stays in the markup.
     // Demote it: an issue page's one heading is the article's own.
@@ -314,22 +351,35 @@ export function buildSite({ distDir = DIST_DIR } = {}) {
         if (name !== 'catalog.json') fs.rmSync(path.join(distDir, name), { recursive: true, force: true });
     }
     STATIC_ASSETS.forEach(copy);
-    fs.cpSync(path.join(ROOT, 'node_modules/marked/lib/marked.esm.js'), path.join(distDir, 'src/js/marked.js'));
+    const markedSrc = fs.readFileSync(path.join(ROOT, 'node_modules/marked/lib/marked.esm.js'), 'utf8');
+    const sharedSrc = fs.readFileSync(path.join(ROOT, 'src/js/shared.js'), 'utf8');
+    const markedHash = shortHash(markedSrc);
+    const sharedHash = shortHash(sharedSrc);
+    write('src/js/marked.js', markedSrc);
+
+    const appSrc = fs
+        .readFileSync(path.join(ROOT, 'src/js/app.js'), 'utf8')
+        .replace("from './shared.js'", `from './shared.js?v=${sharedHash}'`)
+        .replace("import('./marked.js')", `import('./marked.js?v=${markedHash}')`);
+    const appHash = shortHash(appSrc);
+    write('src/js/app.js', appSrc);
+
+    const versionedTemplate = cleanTemplate.replace(/\/src\/js\/app\.js(?:\?v=[^"]*)?/, `/src/js/app.js?v=${appHash}`);
 
     all.forEach((item, idx) => {
         const prev = all[idx + 1] || null;
         const next = all[idx - 1] || null;
-        write(path.join(issuePath(item), 'index.html'), buildIssuePage(cleanTemplate, item, prev, next));
+        write(path.join(issuePath(item), 'index.html'), buildIssuePage(versionedTemplate, item, prev, next));
         // The client fetches the raw summary when it navigates between issues.
         copy(item.file);
     });
 
     // Pre-render homepage with the full issue list so crawlers see all internal links.
-    write('index.html', replaceHomeContent(cleanTemplate, renderHomeContent(all)));
+    write('index.html', replaceHomeContent(versionedTemplate, renderHomeContent(all)));
     write('sitemap.xml', buildSitemapXml(all));
     write('feed.xml', buildRssXml(all));
     write('search-index.json', buildSearchIndex(all));
-    write('404.html', buildNotFoundHtml(cleanTemplate));
+    write('404.html', buildNotFoundHtml(versionedTemplate));
 
     console.log(
         `[build-issue-pages] Wrote the site to ${distDir}: home page, ${all.length} issue pages, sitemap, feed, search index and 404`,

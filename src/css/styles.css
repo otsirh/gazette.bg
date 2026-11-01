@@ -126,7 +126,7 @@
     --muted: #8e8779;
     --hairline: #2e2a22;
     --hairline-soft: #24211a;
-    --rule: #f2ede3;
+    --rule: #4a4438;
     --accent: #e4776b;
     --accent-hover: #f09184;
     --accent-wash: #2a1d19;
@@ -143,7 +143,7 @@
         --muted: #8e8779;
         --hairline: #2e2a22;
         --hairline-soft: #24211a;
-        --rule: #f2ede3;
+        --rule: #4a4438;
         --accent: #e4776b;
         --accent-hover: #f09184;
         --accent-wash: #2a1d19;
@@ -152,8 +152,18 @@
     }
 }
 
+::view-transition-old(root),
+::view-transition-new(root) {
+    animation-duration: 0.16s;
+    animation-timing-function: var(--ease);
+}
+
 * {
     box-sizing: border-box;
+}
+
+[hidden] {
+    display: none !important;
 }
 
 html {
@@ -170,7 +180,8 @@ body {
     line-height: 1.65;
     -webkit-font-smoothing: antialiased;
     text-rendering: optimizeLegibility;
-    font-feature-settings: "kern", "liga", "calt", "onum";
+    font-variant-numeric: lining-nums;
+    font-feature-settings: "kern", "liga", "calt", "lnum", "locl";
 }
 
 button,
@@ -235,11 +246,13 @@ a {
 /* Small caps label used everywhere the printed page would set
    a caption, folio, or standing head. */
 .lead-dateline,
+.lead-meta,
 .section-count,
 .contents-label,
 .year-title,
 .issue-kicker,
 .issue-meta,
+.issue-share-btn,
 .issue-toc-title,
 .nav-label,
 .colophon-label,
@@ -250,6 +263,7 @@ a {
     text-transform: uppercase;
     letter-spacing: 0.14em;
     font-variant-numeric: tabular-nums;
+    font-feature-settings: "tnum", "zero";
 }
 
 /* ─── View state ────────────────────────────────────── */
@@ -296,10 +310,15 @@ html.initial-issue-route #issue-view {
     gap: var(--gap-md);
 }
 
+.folio-left {
+    display: flex;
+    align-items: center;
+    gap: var(--gap-sm);
+    min-width: 0;
+}
+
 .folio-brand {
-    display: inline-flex;
-    align-items: baseline;
-    gap: 0.4rem;
+    display: inline-block;
     text-decoration: none;
     font-family: var(--font-mono);
     font-size: 0.75rem;
@@ -308,9 +327,47 @@ html.initial-issue-route #issue-view {
     text-transform: uppercase;
     color: var(--ink);
     white-space: nowrap;
+    flex-shrink: 0;
 }
 
 .folio-brand .brand-dot {
+    color: var(--accent);
+}
+
+.folio-context {
+    margin: 0;
+    padding: 0 0 0 var(--gap-sm);
+    background: none;
+    border: none;
+    border-left: 1px solid var(--hairline);
+    font-family: var(--font-mono);
+    font-size: 0.625rem;
+    font-weight: 500;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    font-variant-numeric: tabular-nums;
+    font-feature-settings: "tnum", "zero";
+    color: var(--muted);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    cursor: pointer;
+    opacity: 0;
+    transform: translateY(3px);
+    pointer-events: none;
+    transition:
+        opacity 0.2s var(--ease),
+        transform 0.2s var(--ease),
+        color 0.18s var(--ease);
+}
+
+.folio-context.is-visible {
+    opacity: 1;
+    transform: translateY(0);
+    pointer-events: auto;
+}
+
+.folio-context:hover {
     color: var(--accent);
 }
 
@@ -571,15 +628,25 @@ main .loading {
     display: block;
 }
 
-.issue-card-lead {
+.lead-spread {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: var(--gap-xl);
     padding-top: var(--gap-xs);
+}
+
+.lead-main {
+    min-width: 0;
+}
+
+.issue-card-lead {
     cursor: pointer;
 }
 
 .lead-title {
     margin: 0;
     font-family: var(--font-display);
-    font-size: clamp(1.95rem, 4.4vw, 3.4rem);
+    font-size: clamp(1.95rem, 4vw, 3.2rem);
     font-weight: 700;
     line-height: 1.08;
     letter-spacing: -0.015em;
@@ -592,24 +659,27 @@ main .loading {
     color: var(--accent);
 }
 
-.lead-grid {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr);
-    gap: var(--gap-md);
-    margin-top: var(--gap-lg);
-    padding-top: var(--gap-lg);
-    border-top: 1px solid var(--hairline);
+.lead-standfirst {
+    margin: var(--gap-md) 0 0;
+    max-width: 38rem;
+    font-family: var(--font-text);
+    font-size: 1.09375rem;
+    line-height: 1.62;
+    color: var(--ink-soft);
 }
 
-.lead-grid .lead-main {
-    order: 2;
+.lead-footer {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: var(--gap-sm) var(--gap-lg);
+    margin-top: var(--gap-lg);
 }
 
 .lead-read {
     display: inline-flex;
     align-items: center;
     gap: 0.45rem;
-    margin-top: var(--gap-lg);
     font-family: var(--font-mono);
     font-size: 0.6875rem;
     font-weight: 700;
@@ -624,13 +694,18 @@ main .loading {
     color: var(--accent-hover);
 }
 
-/* Contents of the lead issue, set as a numbered register. */
+.lead-meta {
+    color: var(--muted);
+    font-weight: 500;
+}
+
+/* Contents of the lead issue, set as a numbered register with direct section links. */
 .lead-contents {
     min-width: 0;
 }
 
 .contents-label {
-    margin: 0 0 var(--gap-sm);
+    margin: 0 0 var(--gap-xs);
     padding-bottom: var(--gap-xs);
     border-bottom: 1px solid var(--hairline);
     color: var(--muted);
@@ -646,10 +721,10 @@ main .loading {
 .contents-list li {
     counter-increment: contents;
     position: relative;
-    padding: var(--gap-xs) 0 var(--gap-xs) 2.1rem;
+    padding-left: 2rem;
     border-bottom: 1px dotted var(--hairline);
-    font-size: 1rem;
-    line-height: 1.4;
+    font-size: 0.96875rem;
+    line-height: 1.38;
     color: var(--ink-soft);
 }
 
@@ -657,12 +732,22 @@ main .loading {
     content: counter(contents, decimal-leading-zero);
     position: absolute;
     left: 0;
-    top: 0.72rem;
+    top: 0.68rem;
     font-family: var(--font-mono);
     font-size: 0.625rem;
     font-weight: 600;
     color: var(--accent);
     font-variant-numeric: tabular-nums;
+    font-feature-settings: "tnum", "zero";
+}
+
+.lead-topic-link {
+    padding: 0.5rem 0;
+    transition: color 0.16s var(--ease);
+}
+
+.lead-topic-link:hover {
+    color: var(--accent);
 }
 
 .contents-list li.more {
@@ -689,10 +774,8 @@ main .loading {
 
 .archive-search-input {
     width: 100%;
-    padding: 0.7rem 0 0.7rem 1.75rem;
+    padding: 0.7rem 2.5rem 0.7rem 1.75rem;
     border: none;
-    /* --muted, not --hairline: the underline is the field's only affordance,
-       so it must clear the 3:1 UI-boundary contrast, not read as a hairline. */
     border-bottom: 1px solid var(--muted);
     background: transparent;
     color: var(--ink);
@@ -717,6 +800,48 @@ main .loading {
 }
 
 .archive-search:focus-within::before {
+    color: var(--accent);
+}
+
+.archive-search-kbd {
+    position: absolute;
+    right: 0;
+    top: 50%;
+    transform: translateY(-50%);
+    padding: 0.12rem 0.44rem;
+    border: 1px solid var(--hairline);
+    font-family: var(--font-mono);
+    font-size: 0.6875rem;
+    font-style: normal;
+    line-height: 1.2;
+    color: var(--muted);
+    pointer-events: none;
+    transition: opacity 0.16s var(--ease);
+}
+
+.archive-search:focus-within .archive-search-kbd {
+    opacity: 0;
+}
+
+.archive-search-clear {
+    position: absolute;
+    right: -0.25rem;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 2rem;
+    height: 2rem;
+    padding: 0;
+    border: none;
+    background: transparent;
+    font-family: var(--font-mono);
+    font-size: 1.15rem;
+    line-height: 1;
+    color: var(--muted);
+    cursor: pointer;
+    transition: color 0.16s var(--ease);
+}
+
+.archive-search-clear:hover {
     color: var(--accent);
 }
 .archive-search-input::placeholder {
@@ -933,17 +1058,6 @@ main .loading {
     padding: var(--gap-lg) 0 0;
 }
 
-.back-bar-bottom {
-    display: none;
-    margin-top: var(--gap-2xl);
-    padding: var(--gap-lg) 0 0;
-    border-top: 1px solid var(--hairline);
-}
-
-body.issue-ready .back-bar-bottom {
-    display: block;
-}
-
 .back-btn {
     display: inline-flex;
     align-items: center;
@@ -1000,17 +1114,50 @@ body.issue-ready .back-bar-bottom {
     color: var(--ink);
 }
 
+.issue-meta-bar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--gap-sm) var(--gap-lg);
+    margin: var(--gap-md) 0 0;
+}
+
 .issue-meta {
     display: flex;
     flex-wrap: wrap;
     align-items: center;
     gap: 0.4rem var(--gap-sm);
-    margin: var(--gap-md) 0 0;
+    margin: 0;
     color: var(--muted);
 }
 
 .issue-meta .sep {
     color: var(--hairline);
+}
+
+.issue-share-btn {
+    padding: 0.3rem 0.65rem;
+    background: transparent;
+    border: 1px solid var(--hairline);
+    color: var(--muted);
+    cursor: pointer;
+    white-space: nowrap;
+    transition:
+        color 0.18s var(--ease),
+        border-color 0.18s var(--ease),
+        background 0.18s var(--ease);
+}
+
+.issue-share-btn:hover {
+    color: var(--ink);
+    border-color: var(--ink);
+}
+
+.issue-share-btn[data-copied="true"] {
+    color: var(--accent);
+    border-color: var(--accent);
+    background: var(--accent-wash);
 }
 
 /* ─── Article ───────────────────────────────────────── */
@@ -1056,25 +1203,60 @@ body.issue-ready .back-bar-bottom {
     border-bottom-color: var(--accent);
 }
 
-/* Table of contents — the article's own register. */
+/* Table of contents — collapsible register on mobile, sticky margin column on desktop. */
 .issue-toc {
     margin: 0 0 var(--gap-xl);
-    padding: var(--gap-md) 0;
+    padding: var(--gap-sm) 0;
     border-top: 1px solid var(--rule);
     border-bottom: 1px solid var(--rule);
 }
 
+.issue-toc-details {
+    margin: 0;
+}
+
 .issue-toc-title {
-    margin: 0 0 var(--gap-sm);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--gap-sm);
+    margin: 0;
+    padding: 0.2rem 0;
     color: var(--muted);
+    cursor: pointer;
+    list-style: none;
+    user-select: none;
+}
+
+.issue-toc-title::-webkit-details-marker {
+    display: none;
+}
+
+.issue-toc-count {
+    margin-left: auto;
+    font-weight: 500;
+    color: var(--muted);
+}
+
+.issue-toc-title::after {
+    content: "▾";
+    font-size: 0.75rem;
+    line-height: 1;
+    color: var(--accent);
+    transition: transform 0.18s var(--ease);
+}
+
+.issue-toc-details[open] > .issue-toc-title::after {
+    transform: rotate(180deg);
 }
 
 /* Scoped under .content so these beat the generic article list and link
    rules further down (same specificity would otherwise let source order win). */
 .content .issue-toc-list {
     list-style: none;
-    margin: 0;
-    padding: 0;
+    margin: var(--gap-sm) 0 0;
+    padding: var(--gap-xs) 0 0;
+    border-top: 1px dotted var(--hairline);
     max-width: none;
     counter-reset: toc;
 }
@@ -1083,7 +1265,7 @@ body.issue-ready .back-bar-bottom {
     counter-increment: toc;
     position: relative;
     margin: 0;
-    padding: 0.22rem 0 0.22rem 2rem;
+    padding: 0.24rem 0 0.24rem 2rem;
     font-size: 0.9375rem;
     line-height: 1.4;
 }
@@ -1092,12 +1274,13 @@ body.issue-ready .back-bar-bottom {
     content: counter(toc, decimal-leading-zero);
     position: absolute;
     left: 0;
-    top: 0.42rem;
+    top: 0.44rem;
     font-family: var(--font-mono);
     font-size: 0.625rem;
     font-weight: 600;
     color: var(--muted);
     font-variant-numeric: tabular-nums;
+    font-feature-settings: "tnum", "zero";
     transition: color 0.18s var(--ease);
 }
 
@@ -1122,6 +1305,14 @@ body.issue-ready .back-bar-bottom {
 .content .issue-toc-item a.is-current {
     color: var(--ink);
     font-weight: 600;
+}
+
+.issue-body {
+    min-width: 0;
+}
+
+.issue-body > :first-child {
+    margin-top: 0;
 }
 
 /* Headings share the paragraphs' measure. Set wider, a heading overhangs the
@@ -1151,15 +1342,33 @@ body.issue-ready .back-bar-bottom {
 .content h2[id],
 .content h3[id] {
     cursor: pointer;
+    transition: color 0.18s var(--ease);
 }
 
 .content h2[id]:hover::after,
 .content h3[id]:hover::after {
     content: " #";
     font-family: var(--font-mono);
-    font-size: 0.7em;
+    font-size: 0.65em;
     font-weight: 400;
+    color: var(--muted);
+}
+
+.content h2[id][data-copied="true"]::after,
+.content h3[id][data-copied="true"]::after {
+    content: "  ✓ копирано";
+    font-family: var(--font-mono);
+    font-size: 0.625rem;
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    vertical-align: middle;
     color: var(--accent);
+}
+
+.content .is-targeted {
+    padding-left: var(--gap-sm);
+    border-left: 2px solid var(--accent);
 }
 
 .content p {
@@ -1323,21 +1532,24 @@ body.issue-ready .back-bar-bottom {
     font-weight: 600;
     letter-spacing: 0.1em;
     text-transform: uppercase;
+    font-variant-numeric: tabular-nums;
+    font-feature-settings: "tnum", "zero";
     color: var(--accent);
-    margin-bottom: 0.15rem;
+    margin-bottom: 0.25rem;
 }
 
-.issue-nav-bottom .issue-card .date {
+.issue-nav-bottom .issue-card .nav-headline {
     display: block;
     font-family: var(--font-display);
-    font-size: 1.35rem;
-    font-weight: 600;
-    line-height: 1.2;
+    font-size: 1.25rem;
+    font-weight: 700;
+    line-height: 1.22;
     color: var(--ink);
+    text-wrap: balance;
     transition: color 0.18s var(--ease);
 }
 
-.issue-nav-bottom .issue-card:hover .date {
+.issue-nav-bottom .issue-card:hover .nav-headline {
     color: var(--accent);
 }
 
@@ -1503,12 +1715,25 @@ body.issue-ready .back-bar-bottom {
     color: var(--paper);
 }
 
-/* ─── Wide screens: article gets a margin column ────── */
+/* ─── Wide screens: broadsheet spread & margin TOC ──── */
+
+@media (min-width: 901px) {
+    .lead-spread:not(.is-single) {
+        grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr);
+        column-gap: var(--gap-3xl);
+        align-items: start;
+    }
+
+    .lead-spread:not(.is-single) .lead-contents {
+        padding-left: var(--gap-2xl);
+        border-left: 1px solid var(--hairline);
+    }
+}
 
 @media (min-width: 1000px) {
     .content {
         display: grid;
-        grid-template-columns: 15rem minmax(0, 1fr);
+        grid-template-columns: 15.5rem minmax(0, 1fr);
         column-gap: var(--gap-3xl);
         align-items: start;
     }
@@ -1519,22 +1744,37 @@ body.issue-ready .back-bar-bottom {
 
     .content > .issue-toc {
         grid-column: 1;
-        grid-row: 2 / span 9999;
         position: sticky;
         top: 4.25rem;
         align-self: start;
-        max-height: calc(100vh - 6rem);
+        max-height: calc(100vh - 5.5rem);
         overflow-y: auto;
+        scrollbar-width: thin;
+        scrollbar-color: var(--hairline) transparent;
         margin-bottom: 0;
         border-bottom: none;
-        padding-bottom: 0;
+        padding: var(--gap-md) var(--gap-xs) var(--gap-md) 0;
     }
 
-    .content > :not(.content-disclaimer):not(.issue-toc) {
-        grid-column: 2;
+    .issue-toc-title {
+        cursor: default;
+        pointer-events: none;
+        padding: 0;
     }
-    .content > :not(.content-disclaimer):not(.issue-toc):first-of-type {
-        margin-top: 0;
+
+    .issue-toc-title::after,
+    .issue-toc-count {
+        display: none;
+    }
+
+    .content .issue-toc-list {
+        border-top: none;
+        padding-top: 0;
+        margin-top: var(--gap-xs);
+    }
+
+    .content > .issue-body {
+        grid-column: 2;
     }
 
     /* The hairline between the columns is painted on the container, since a
@@ -1564,6 +1804,9 @@ body.issue-ready .back-bar-bottom {
 
     .folio-inner {
         padding: 0 var(--gap-md);
+    }
+    .folio-context {
+        max-width: 11rem;
     }
     .folio-link[data-optional] {
         display: none;
@@ -1626,6 +1869,13 @@ body.issue-ready .back-bar-bottom {
    hit area of the small standalone controls toward the ~44px tap minimum
    without changing the mark itself. */
 @media (pointer: coarse) {
+    .archive-search-kbd {
+        display: none;
+    }
+    .archive-search-clear {
+        width: 2.75rem;
+        height: 2.75rem;
+    }
     .theme-toggle {
         width: 2.5rem;
         height: 2.5rem;
@@ -1651,6 +1901,7 @@ body.issue-ready .back-bar-bottom {
 @media print {
     .folio,
     .back-bar,
+    .issue-share-btn,
     .issue-nav,
     .scroll-to-top,
     .site-footer,

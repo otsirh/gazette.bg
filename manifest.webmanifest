@@ -1,0 +1,25 @@
+{
+    "name": "Държавен вестник — обобщения на броеве",
+    "short_name": "Държавен вестник",
+    "description": "Кратки обобщения на всеки брой на Държавен вестник на разбираем език.",
+    "lang": "bg",
+    "dir": "ltr",
+    "start_url": "/",
+    "scope": "/",
+    "display": "standalone",
+    "background_color": "#fbf8f2",
+    "theme_color": "#fbf8f2",
+    "icons": [
+        {
+            "src": "/favicon.svg",
+            "sizes": "any",
+            "type": "image/svg+xml",
+            "purpose": "any"
+        },
+        {
+            "src": "/apple-touch-icon.png",
+            "sizes": "180x180",
+            "type": "image/png"
+        }
+    ]
+}

@@ -9,6 +9,7 @@
     <link rel="icon" href="/favicon.ico" sizes="any" />
     <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <link rel="manifest" href="/manifest.webmanifest" />
     <title>Държавен вестник — кратки обобщения на всеки брой с AI</title>
     <meta property="og:type" content="website" />
     <meta property="og:title" content="Държавен вестник — кратки обобщения на всеки брой с AI" />
@@ -47,7 +48,10 @@
     <div id="a11y-status" class="visually-hidden" role="status" aria-live="polite"></div>
     <header class="folio" aria-label="Лента с навигация">
         <div class="folio-inner">
-            <a href="/" class="folio-brand" aria-label="gazette.bg — начална страница">gazette<span class="brand-dot">.</span>bg</a>
+            <div class="folio-left">
+                <a href="/" class="folio-brand" aria-label="gazette.bg — начална страница">gazette<span class="brand-dot">.</span>bg</a>
+                <button type="button" class="folio-context" id="folio-context" aria-label="Обратно към началото на броя" hidden></button>
+            </div>
             <nav class="folio-nav" aria-label="Основна навигация">
                 <a class="folio-link" href="/#archive">Архив</a>
                 <a class="folio-link" href="/#about" data-optional>За проекта</a>
@@ -118,9 +122,6 @@
                 <div class="issue-header" id="issue-header"></div>
                 <article class="content" id="content"></article>
                 <nav id="issue-nav" class="issue-nav issue-nav-bottom" aria-label="Навигация между броеве"></nav>
-                <div class="back-bar back-bar-bottom">
-                    <button type="button" class="back-btn" id="back-btn-bottom" aria-label="Обратно към всички броеве">← Всички броеве</button>
-                </div>
             </div>
             <div class="loading" id="loading" hidden>Зареждане…</div>
         </main>

@@ -142,6 +142,57 @@ export function slugify(text) {
     );
 }
 
+// Lightweight, deterministic Bulgarian inflection stemmer for search.
+// Strips definite articles and plural/gender endings while preserving a >=3-char
+// Cyrillic root, and normalizes -иц/-ъц <-> -ик/-ък palatalization ("данъци" <-> "данък").
+export function stemBg(word) {
+    const w = String(word).toLowerCase().trim();
+    if (w.length < 4 || !/^[\u0400-\u04ff]+$/.test(w)) return w;
+
+    let s = w;
+    const artMatch = /^(.*?)(овете|евете|ищата|ият|ата|ята|ото|ето|ите|ът|ят)$/.exec(s);
+    if (artMatch && artMatch[1].length >= 3) {
+        s = artMatch[1];
+    } else if (/^(.*(?:ост|ест|ъст|щ))та$/.test(s) && s.length - 2 >= 3) {
+        s = s.slice(0, -2);
+    }
+
+    const endMatch = /^(.*?)(ове|еве|ища|ия|ии|[аяоеий])$/.exec(s);
+    if (endMatch && endMatch[1].length >= 3) {
+        s = endMatch[1];
+    }
+
+    if (/(?:и|ъ)ц$/.test(s)) {
+        s = `${s.slice(0, -1)}к`;
+    }
+    return s;
+}
+
+export function searchTermVariants(term) {
+    const raw = String(term).toLowerCase().trim();
+    if (!raw) return [];
+    const stem = stemBg(raw);
+    const out = new Set([raw, stem]);
+    if (/(?:и|ъ)к$/.test(stem)) {
+        out.add(`${stem.slice(0, -1)}ц`);
+    }
+    return [...out];
+}
+
+function uniqueSlugs(headings) {
+    const used = new Set();
+    return headings.map((h) => {
+        let id = slugify(h);
+        if (used.has(id)) {
+            let n = 2;
+            while (used.has(`${id}-${n}`)) n++;
+            id = `${id}-${n}`;
+        }
+        used.add(id);
+        return id;
+    });
+}
+
 // Promote any h1 to h2, assign unique heading IDs, and collect TOC items.
 // Shared by the static build and client-side navigation so anchor IDs are
 // always identical.
@@ -201,35 +252,56 @@ function topicsOf(item) {
     return Array.isArray(item.topics) ? item.topics : [];
 }
 
-function cardAttrs(item) {
-    return `href="${escapeHtml(issuePath(item))}" data-file="${escapeHtml(item.file)}" data-issue="${escapeHtml(String(item.issue))}" data-date="${escapeHtml(item.date)}" data-year="${escapeHtml(String(item.year))}"`;
+function cardAttrs(item, hash = '') {
+    const href = `${issuePath(item)}${hash ? `#${hash}` : ''}`;
+    return `href="${escapeHtml(href)}" data-file="${escapeHtml(item.file)}" data-issue="${escapeHtml(String(item.issue))}" data-date="${escapeHtml(item.date)}" data-year="${escapeHtml(String(item.year))}"`;
 }
 
-// The front page. Headline is the issue's first topic; the remaining topics
-// run below as the contents list.
+// The front page: a two-column editorial spread on wide screens. The left
+// column carries the lead story and its opening standfirst; the right column
+// lists the remaining topics as direct section deep-links.
 function renderLeadCard(item) {
     const topics = topicsOf(item);
+    const slugs = uniqueSlugs(topics);
     const headline = topics[0] || `Брой ${item.issue}`;
     const rest = topics.slice(1);
+    const standfirst = item.lead ? `<p class="lead-standfirst">${escapeHtml(item.lead)}</p>` : '';
+
+    const metaParts = [];
+    if (topics.length) metaParts.push(pluralTopics(topics.length));
+    if (item.minutes) metaParts.push(`≈ ${item.minutes} мин четене`);
+    const metaHtml = metaParts.length ? `<span class="lead-meta">${escapeHtml(metaParts.join(' · '))}</span>` : '';
 
     let contents = '';
     if (rest.length) {
         const shown = rest.slice(0, LEAD_TOPIC_LIMIT);
         const hidden = rest.length - shown.length;
-        let items = shown.map((t) => `<li>${escapeHtml(t)}</li>`).join('');
-        if (hidden > 0) items += `<li class="more">още ${pluralTopics(hidden)}</li>`;
+        let items = shown
+            .map(
+                (t, idx) =>
+                    `<li><a class="issue-card lead-topic-link" ${cardAttrs(item, slugs[idx + 1])}>${escapeHtml(t)}</a></li>`,
+            )
+            .join('');
+        if (hidden > 0) {
+            items += `<li class="more"><a class="issue-card lead-topic-link" ${cardAttrs(item)}>още ${pluralTopics(hidden)} →</a></li>`;
+        }
         contents = `<div class="lead-contents"><p class="contents-label">Още в броя</p><ol class="contents-list">${items}</ol></div>`;
     }
 
+    const spreadCls = contents ? 'lead-spread' : 'lead-spread is-single';
+
     return `<section class="lead-section">
 <p class="lead-dateline"><span>Последен брой</span><span class="rule"></span><span>Брой ${escapeHtml(String(item.issue))} · ${escapeHtml(formatDateLong(item.date))}</span></p>
+<div class="${spreadCls}">
+<div class="lead-main">
 <a class="issue-card issue-card-lead" ${cardAttrs(item)}>
 <h2 class="lead-title">${escapeHtml(headline)}</h2>
-<div class="lead-grid">
-<div class="lead-main"><span class="lead-read">Прочети обобщението →</span></div>
+${standfirst}
+<span class="lead-footer"><span class="lead-read">Прочети обобщението →</span>${metaHtml}</span>
+</a>
+</div>
 ${contents}
 </div>
-</a>
 </section>`;
 }
 
@@ -241,21 +313,27 @@ function searchHaystack(item) {
 }
 
 function renderRowCard(item, extraClass = '') {
-    const title = topicsOf(item)[0] || `Брой ${item.issue}`;
+    const topics = topicsOf(item);
+    const title = topics[0] || `Брой ${item.issue}`;
     const cls = extraClass ? `issue-card issue-card-row ${extraClass}` : 'issue-card issue-card-row';
+    const meta = [formatDateShort(item.date), topics.length > 1 ? pluralTopics(topics.length) : '']
+        .filter(Boolean)
+        .join(' · ');
     return (
         `<a class="${cls}" ${cardAttrs(item)} data-search="${escapeHtml(searchHaystack(item))}">` +
         `<span class="num">${escapeHtml(String(item.issue))}</span>` +
-        `<span class="row-body"><span class="row-title">${escapeHtml(title)}</span><span class="date">${escapeHtml(formatDateShort(item.date))}</span></span>` +
+        `<span class="row-body"><span class="row-title">${escapeHtml(title)}</span><span class="date">${escapeHtml(meta)}</span></span>` +
         `</a>`
     );
 }
 
 function renderNavCard(item) {
+    const headline = topicsOf(item)[0] || formatDateLong(item.date);
+    const sub = [`Брой ${item.issue}`, item.date ? formatDateShort(item.date) : ''].filter(Boolean).join(' · ');
     return (
         `<a class="issue-card" ${cardAttrs(item)}>` +
-        `<span class="num">Брой ${escapeHtml(String(item.issue))}</span>` +
-        `<span class="date">${escapeHtml(formatDateShort(item.date))}</span>` +
+        `<span class="num">${escapeHtml(sub)}</span>` +
+        `<span class="nav-headline">${escapeHtml(headline)}</span>` +
         `</a>`
     );
 }
@@ -277,7 +355,11 @@ function renderArchive(items, leadItem) {
     let html = '<section class="archive-section" id="archive">';
     html += `<div class="section-head"><h2 class="section-title">Архив</h2><span class="section-count">${total} ${total === 1 ? 'брой' : 'броя'}</span></div>`;
     html +=
-        '<div class="archive-search"><input type="search" id="archive-search" class="archive-search-input" placeholder="Търсене в текста на броевете…" aria-label="Търсене в текста на броевете" autocomplete="off" spellcheck="false" /></div>';
+        '<div class="archive-search">' +
+        '<input type="search" id="archive-search" class="archive-search-input" placeholder="Търсене по тема, закон, град или ключова дума…" aria-label="Търсене в текста на броевете" autocomplete="off" spellcheck="false" />' +
+        '<kbd class="archive-search-kbd" id="archive-search-kbd" aria-hidden="true" title="Натиснете / за търсене">/</kbd>' +
+        '<button type="button" class="archive-search-clear" id="archive-search-clear" aria-label="Изчисти търсенето" hidden>×</button>' +
+        '</div>';
     for (const year of years) {
         const entries = byYear[year];
         const groupCls = entries.every((e) => e.isLead) ? 'year-group is-lead-group filter-hidden' : 'year-group';
@@ -314,7 +396,16 @@ export const CONTENT_DISCLAIMER = renderDisclaimer();
 export const END_MARK = '<p class="end-mark" aria-hidden="true">◼</p>';
 
 export function issueTitle(item) {
-    return `Брой ${item.issue} · ${formatDateLong(item.date)} — Обобщения на Държавен вестник`;
+    const topics = topicsOf(item);
+    const dateStr = formatDateLong(item.date);
+    if (topics[0]) {
+        const suffix = ` — ДВ бр. ${item.issue}${dateStr ? ` (${dateStr})` : ''}`;
+        const maxLead = Math.max(40, 105 - suffix.length);
+        const lead =
+            topics[0].length > maxLead ? `${topics[0].slice(0, maxLead - 1).replace(/[\s.,;:–—-]+$/, '')}…` : topics[0];
+        return `${lead}${suffix}`;
+    }
+    return `Брой ${item.issue}${dateStr ? ` · ${dateStr}` : ''} — Обобщения на Държавен вестник`;
 }
 
 // minutes is 0 while the summary is still loading; the estimate joins the
@@ -329,7 +420,7 @@ export function renderIssueHeader(item, minutes) {
     return (
         `<p class="issue-kicker"><span>Брой ${escapeHtml(String(item.issue))}</span><span class="rule"></span><span>Държавен вестник</span></p>` +
         `<h1 class="title"><span class="visually-hidden">Държавен вестник, брой ${escapeHtml(String(item.issue))} — </span>${escapeHtml(formatDateLong(item.date))}</h1>` +
-        `<p class="issue-meta" id="issue-meta">${metaHtml}</p>`
+        `<div class="issue-meta-bar"><p class="issue-meta" id="issue-meta">${metaHtml}</p><button type="button" class="issue-share-btn" id="issue-share-btn" aria-label="Сподели или копирай връзка към този брой">Сподели връзка</button></div>`
     );
 }
 
@@ -337,12 +428,19 @@ export function buildTocHtml(tocItems) {
     const mainItems = tocItems.filter((item) => item.level <= 2);
     if (!mainItems.length) return '';
     let html =
-        '<nav class="issue-toc" aria-label="Съдържание на броя"><p class="issue-toc-title">Съдържание</p><ul class="issue-toc-list">';
+        '<nav class="issue-toc" aria-label="Съдържание на броя">' +
+        '<details class="issue-toc-details" open>' +
+        `<summary class="issue-toc-title"><span>Съдържание</span><span class="issue-toc-count">${escapeHtml(pluralTopics(mainItems.length))}</span></summary>` +
+        '<ul class="issue-toc-list">';
     for (const item of mainItems) {
         html += `<li class="issue-toc-item"><a href="#${escapeHtml(item.id)}">${escapeHtml(item.text)}</a></li>`;
     }
-    html += '</ul></nav>';
+    html += '</ul></details></nav>';
     return html;
+}
+
+export function renderIssueArticleHtml(item, processedHtml, tocItems) {
+    return `${renderDisclaimer(item)}${buildTocHtml(tocItems)}<div class="issue-body">${processedHtml}${END_MARK}</div>`;
 }
 
 export function renderIssueNav(prev, next) {

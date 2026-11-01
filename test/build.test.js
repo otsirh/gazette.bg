@@ -4,7 +4,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { before, test } from 'node:test';
 import { buildCatalog } from '../scripts/build-gazette-catalog.js';
-import { buildSite, lit, processRenderedContent } from '../scripts/build-issue-pages.js';
+import { buildSite, lit, minifyCss, processRenderedContent } from '../scripts/build-issue-pages.js';
 import { ISSUES_DIR } from '../scripts/lib/issues.js';
 
 // Builds the real site from the real issues into a scratch folder, then checks
@@ -50,8 +50,9 @@ test('the home page links every issue', () => {
     for (const { year, issue } of summaries)
         assert.ok(home.includes(`href="/issue/${year}/${issue}/"`), `${year}/${issue}`);
     assert.match(home, /<style>/, 'the stylesheet is inlined');
-    assert.match(home, /<script type="module" src="\/src\/js\/app\.js/);
+    assert.match(home, /<script type="module" src="\/src\/js\/app\.js\?v=[0-9a-f]{8}"/);
     assert.doesNotMatch(home, /cdn\.jsdelivr\.net/, 'no external CDN scripts');
+    assert.ok(fs.existsSync(path.join(dist, 'manifest.webmanifest')), 'PWA manifest is published');
     assert.ok(fs.existsSync(path.join(dist, 'src/js/shared.js')), 'the module app.js imports is published');
     assert.ok(fs.existsSync(path.join(dist, 'src/js/marked.js')), 'marked is self-hosted for client navigation');
 });
@@ -84,4 +85,15 @@ test('headings get unique ids and h1 becomes h2', () => {
         tocItems.map((t) => t.level),
         [2, 2, 3],
     );
+});
+
+test('CSS minifier strips comments and whitespace while preserving strings, calc(), and selector spaces', () => {
+    const out = minifyCss(`
+        /* comment */
+        .box :focus-visible {
+            max-height: calc(100vh - 5.5rem);
+            content: "  ✓ копирано ";
+        }
+    `);
+    assert.equal(out, '.box :focus-visible{max-height:calc(100vh - 5.5rem);content:"  ✓ копирано "}');
 });
