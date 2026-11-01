@@ -302,8 +302,15 @@ export function renderHomeContent(all) {
 
 /* ─── Issue page ─── */
 
-export const CONTENT_DISCLAIMER =
-    '<p class="content-disclaimer">Текстът по-долу е неофициално обобщение, генерирано с AI, и може да съдържа грешки. За официален текст и правни цели използвайте <a href="https://dv.parliament.bg" target="_blank" rel="noopener">dv.parliament.bg</a>.</p>';
+const REPORT_URL_BASE = 'https://github.com/otsirh/gazette.bg/issues/new?template=mistake.yml';
+
+export function renderDisclaimer(item) {
+    const issueUrl = item?.year && item?.issue ? `https://gazette.bg${issuePath(item)}` : '';
+    const reportHref = issueUrl ? `${REPORT_URL_BASE}&issue=${encodeURIComponent(issueUrl)}` : REPORT_URL_BASE;
+    return `<p class="content-disclaimer">Текстът по-долу е неофициално обобщение, генерирано с AI, и може да съдържа грешки. За официален текст и правни цели използвайте <a href="https://dv.parliament.bg" target="_blank" rel="noopener">dv.parliament.bg</a>. Забелязахте неточност? <a href="${escapeHtml(reportHref)}" target="_blank" rel="noopener">Съобщете за нея</a>.</p>`;
+}
+
+export const CONTENT_DISCLAIMER = renderDisclaimer();
 export const END_MARK = '<p class="end-mark" aria-hidden="true">◼</p>';
 
 export function issueTitle(item) {

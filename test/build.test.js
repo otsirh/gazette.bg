@@ -58,9 +58,13 @@ test('the home page links every issue', () => {
 
 test('sitemap, feed and search index cover the issues', () => {
     assert.equal((read('sitemap.xml').match(/<url>/g) || []).length, summaries.length + 1);
-    const items = read('feed.xml').match(/<item>/g) || [];
+    const feed = read('feed.xml');
+    const items = feed.match(/<item>/g) || [];
     assert.equal(items.length, Math.min(50, summaries.length));
-    assert.equal(Object.keys(JSON.parse(read('search-index.json'))).length, summaries.length);
+    assert.match(feed, /<content:encoded><!\[CDATA\[<h2>/);
+    const searchIndex = JSON.parse(read('search-index.json'));
+    assert.equal(Object.keys(searchIndex).length, summaries.length);
+    assert.match(Object.values(searchIndex)[0], /\t/, 'search index separates section headings with tabs');
 });
 
 test('the 404 page stays out of search results', () => {

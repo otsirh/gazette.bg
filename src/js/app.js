@@ -1,15 +1,16 @@
 import {
     buildTocHtml,
-    CONTENT_DISCLAIMER,
     END_MARK,
     escapeHtml,
     issuesNewestFirst,
     issueTitle,
     processRenderedContent,
     readingMinutes,
+    renderDisclaimer,
     renderHomeContent,
     renderIssueHeader,
     renderIssueNav,
+    slugify,
 } from './shared.js';
 
 const catalogUrl = '/catalog.json';
@@ -28,6 +29,27 @@ const progressEl = document.getElementById('reading-progress');
 const themeToggle = document.getElementById('theme-toggle');
 
 let catalog = null;
+let catalogPromise = null;
+
+function ensureCatalog() {
+    if (catalog) return Promise.resolve(catalog);
+    if (!catalogPromise) {
+        catalogPromise = fetch(catalogUrl)
+            .then((r) => {
+                if (!r.ok) throw new Error(r.statusText);
+                return r.json();
+            })
+            .then((data) => {
+                catalog = data;
+                return data;
+            })
+            .catch(() => {
+                catalogPromise = null;
+                return null;
+            });
+    }
+    return catalogPromise;
+}
 
 // Must match the server-rendered home <title> in index.html, so returning
 // to the home view via the SPA doesn't rewrite it to a different string.
@@ -111,11 +133,12 @@ function getIssueFromPath() {
     return m ? { year: m[1], issueNum: m[2] } : null;
 }
 
-function setIssuePath(year, issueNum) {
+function setIssuePath(year, issueNum, hash = '') {
     // Trailing slash matches the URL the host actually serves (Cloudflare
     // Pages 308-redirects the non-slash form), so canonical == current URL.
     const path = `/issue/${year}/${issueNum}/`;
-    if (location.pathname !== path) history.pushState(null, '', path);
+    const full = `${path}${hash}`;
+    if (`${location.pathname}${location.hash}` !== full) history.pushState(null, '', full);
     syncCanonicalUrl(path);
 }
 
@@ -172,24 +195,89 @@ function ensureSearchIndex() {
         });
 }
 
-// A ~140-char window around the first hit, with the match highlighted. Built
-// from escaped parts so the <mark> is the only markup.
-function buildSnippet(original, qLower) {
-    const lower = original.toLowerCase();
-    const i = lower.indexOf(qLower);
-    if (i < 0) return '';
-    const start = Math.max(0, i - 45);
-    const end = Math.min(original.length, i + qLower.length + 95);
-    const pre = (start > 0 ? '…' : '') + original.slice(start, i);
-    const mid = original.slice(i, i + qLower.length);
-    const post = original.slice(i + qLower.length, end) + (end < original.length ? '…' : '');
-    return `${escapeHtml(pre)}<mark>${escapeHtml(mid)}</mark>${escapeHtml(post)}`;
+// A ~140-char window around the first hit, with every matched term highlighted.
+// Built from escaped parts so <mark> is the only markup.
+function escapeRegExp(s) {
+    return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
-function injectSnippet(row, qLower) {
-    const original = searchIndex?.[`${row.dataset.year || ''}/${row.dataset.issue || ''}`];
+
+function buildSnippet(original, terms) {
+    if (!original || !terms.length) return '';
+    const text = original.replace(/\t/g, ' — ');
+    const lower = text.toLowerCase();
+    let firstIdx = -1;
+    for (const t of terms) {
+        const idx = lower.indexOf(t);
+        if (idx >= 0 && (firstIdx < 0 || idx < firstIdx)) firstIdx = idx;
+    }
+    if (firstIdx < 0) return '';
+    const start = Math.max(0, firstIdx - 45);
+    const end = Math.min(text.length, firstIdx + terms[0].length + 95);
+    const slice = text.slice(start, end);
+    const prefix = start > 0 ? '…' : '';
+    const suffix = end < text.length ? '…' : '';
+
+    const pattern = new RegExp(
+        `(${terms
+            .slice()
+            .sort((a, b) => b.length - a.length)
+            .map(escapeRegExp)
+            .join('|')})`,
+        'gi',
+    );
+    const parts = slice.split(pattern);
+    const highlighted = parts
+        .map((part, i) => (i % 2 === 1 ? `<mark>${escapeHtml(part)}</mark>` : escapeHtml(part)))
+        .join('');
+    return `${escapeHtml(prefix)}${highlighted}${escapeHtml(suffix)}`;
+}
+
+// Each line in searchIndex[key] is one level-2 section ("heading\tbody").
+// Find the section that matches the query terms best, return its anchor ID and
+// raw text so the search result row can link straight to that #section.
+function findBestMatchingSection(rawIssueText, terms) {
+    if (!rawIssueText || !terms.length) return null;
+    const lines = rawIssueText.split('\n');
+    const used = new Set();
+    let best = null;
+    let bestCount = 0;
+
+    for (const line of lines) {
+        const tabIdx = line.indexOf('\t');
+        const heading = tabIdx >= 0 ? line.slice(0, tabIdx) : '';
+        const body = tabIdx >= 0 ? line.slice(tabIdx + 1) : line;
+        let id = '';
+        if (heading) {
+            id = slugify(heading);
+            if (used.has(id)) {
+                let n = 2;
+                while (used.has(`${id}-${n}`)) n++;
+                id = `${id}-${n}`;
+            }
+            used.add(id);
+        }
+        const lower = line.toLowerCase();
+        let count = 0;
+        for (const t of terms) {
+            if (lower.includes(t)) count++;
+        }
+        if (count > bestCount) {
+            bestCount = count;
+            best = { id, text: heading && body ? `${heading} — ${body}` : body || heading };
+            if (count === terms.length) break;
+        }
+    }
+    return best;
+}
+
+function injectSnippet(row, terms) {
+    const raw = searchIndex?.[`${row.dataset.year || ''}/${row.dataset.issue || ''}`];
     const body = row.querySelector('.row-body');
-    if (!original || !body) return;
-    const html = buildSnippet(original, qLower);
+    if (!raw || !body) return;
+    const section = findBestMatchingSection(raw, terms);
+    const baseHref = `/issue/${row.dataset.year}/${row.dataset.issue}/`;
+    row.setAttribute('href', section?.id ? `${baseHref}#${section.id}` : baseHref);
+    const html = buildSnippet(section ? section.text : raw, terms);
     if (!html) return;
     const el = document.createElement('span');
     el.className = 'row-snippet';
@@ -200,18 +288,24 @@ function injectSnippet(row, qLower) {
 // Live filter over the archive register — and only over it. The lead story
 // and the colophon stay put: a control that sits inside the archive is
 // expected to narrow the archive, not to rearrange the page around it.
-// The criterion is the text query, matched on metadata and on full text.
+// The criterion is the text query (split into words), matched on metadata
+// and on full text.
 function applyArchiveFilter(rawQuery) {
     if (!homeContent) return;
     const input = document.getElementById('archive-search');
     const displayQ = (rawQuery != null ? rawQuery : input ? input.value : '').trim();
-    const q = displayQ.toLowerCase();
+    const terms = displayQ.toLowerCase().split(/\s+/).filter(Boolean);
     const archiveSection = homeContent.querySelector('.archive-section');
     const existingNote = homeContent.querySelector('.filter-empty');
     if (existingNote) existingNote.remove();
     for (const el of homeContent.querySelectorAll('.row-snippet')) el.remove();
 
-    if (!q) {
+    if (!terms.length) {
+        for (const row of homeContent.querySelectorAll('.issue-card-row')) {
+            if (row.dataset.year && row.dataset.issue) {
+                row.setAttribute('href', `/issue/${row.dataset.year}/${row.dataset.issue}/`);
+            }
+        }
         for (const el of homeContent.querySelectorAll('.filter-hidden')) {
             if (!el.classList.contains('is-lead-row') && !el.classList.contains('is-lead-group')) {
                 el.classList.remove('filter-hidden');
@@ -229,19 +323,20 @@ function applyArchiveFilter(rawQuery) {
         let groupVisible = false;
         group.querySelectorAll('.issue-card-row').forEach((row) => {
             // Metadata (instant) OR the full summary text (once the index has
-            // loaded). A body-only match also gets a highlighted snippet.
-            const metaMatch = `${row.dataset.search || ''} ${row.textContent.toLowerCase()}`.includes(q);
+            // loaded). Every word in the query must appear.
+            const metaHaystack = `${row.dataset.search || ''} ${row.textContent.toLowerCase()}`;
+            const metaMatch = terms.every((t) => metaHaystack.includes(t));
             let bodyMatch = false;
             if (searchIndexLower) {
                 const body = searchIndexLower[`${row.dataset.year || ''}/${row.dataset.issue || ''}`];
-                bodyMatch = !!body?.includes(q);
+                bodyMatch = !!body && terms.every((t) => body.includes(t));
             }
             const match = metaMatch || bodyMatch;
             row.classList.toggle('filter-hidden', !match);
             if (match) {
                 groupVisible = true;
                 anyVisible = true;
-                if (bodyMatch) injectSnippet(row, q);
+                if (bodyMatch || searchIndex) injectSnippet(row, terms);
             }
         });
         group.classList.toggle('filter-hidden', !groupVisible);
@@ -294,6 +389,15 @@ function showHome() {
     currentTocId = null;
     if (location.pathname !== '/') history.pushState(null, '', '/');
     syncCanonicalUrl('/');
+    if (homeContent && !homeContent.children.length) {
+        ensureCatalog().then((cat) => {
+            if (cat) renderHome();
+            else {
+                homeContent.innerHTML =
+                    '<p class="empty">Каталогът временно не е наличен. Моля, опитайте да презаредите страницата или да се върнете по-късно.</p>';
+            }
+        });
+    }
     if (lastFocusedCard && typeof lastFocusedCard.focus === 'function') {
         lastFocusedCard.focus();
         lastFocusedCard = null;
@@ -393,11 +497,11 @@ function scrollToHashTarget(behavior) {
     return true;
 }
 
-async function openIssue(item) {
+async function openIssue(item, hash = '') {
     const targetYear = String(item.year);
     const targetIssue = String(item.issue);
     currentIssue = { year: targetYear, issueNum: targetIssue };
-    setIssuePath(item.year, item.issue);
+    setIssuePath(item.year, item.issue, hash);
     showIssue();
     mainLoading.hidden = false;
     mainContent.innerHTML = '';
@@ -409,13 +513,14 @@ async function openIssue(item) {
 
     try {
         const fileUrl = item.file.startsWith('/') ? item.file : `/${item.file}`;
-        const [{ marked }, r] = await Promise.all([import('./marked.js'), fetch(fileUrl)]);
+        const [{ marked }, r] = await Promise.all([import('./marked.js'), fetch(fileUrl), ensureCatalog()]);
         if (!r.ok) throw new Error(r.statusText);
         const md = await r.text();
         if (!currentIssue || currentIssue.year !== targetYear || currentIssue.issueNum !== targetIssue) return;
+        const resolved = findIssueByYearAndNumber(targetYear, targetIssue) || item;
         const { html: processedHtml, tocItems } = processRenderedContent(marked.parse(md));
-        mainContent.innerHTML = CONTENT_DISCLAIMER + buildTocHtml(tocItems) + processedHtml + END_MARK;
-        issueHeaderEl.innerHTML = renderIssueHeader(item, readingMinutes(md));
+        mainContent.innerHTML = renderDisclaimer(resolved) + buildTocHtml(tocItems) + processedHtml + END_MARK;
+        issueHeaderEl.innerHTML = renderIssueHeader(resolved, readingMinutes(md));
         announce(`Заредено: Държавен вестник, брой ${item.issue}.`);
         currentTocId = null;
         updateCurrentTocItem();
@@ -439,7 +544,7 @@ async function openIssue(item) {
     if (next?.file) fetch(next.file.startsWith('/') ? next.file : `/${next.file}`).catch(() => {});
 }
 
-function applyRoute() {
+async function applyRoute() {
     const fromPath = getIssueFromPath();
     if (
         fromPath &&
@@ -451,8 +556,9 @@ function applyRoute() {
         return;
     }
     if (fromPath) {
+        await ensureCatalog();
         const item = findIssueByYearAndNumber(fromPath.year, fromPath.issueNum);
-        if (item) openIssue(item);
+        if (item) openIssue(item, location.hash);
         else showHome();
     } else {
         showHome();
@@ -469,6 +575,9 @@ function onMainClick(e) {
         const issueNum = card.dataset.issue;
         const year = card.dataset.year;
         if (!file || !issueNum || !year) return;
+        const href = card.getAttribute('href') || '';
+        const hashIdx = href.indexOf('#');
+        const hash = hashIdx >= 0 ? href.slice(hashIdx) : '';
         const item = findIssueByYearAndNumber(year, issueNum) || {
             file,
             issue: issueNum,
@@ -478,7 +587,17 @@ function onMainClick(e) {
         };
         e.preventDefault();
         lastFocusedCard = card;
-        openIssue(item);
+        openIssue(item, hash);
+        return;
+    }
+
+    const heading = e.target.closest('.content h2[id], .content h3[id]');
+    if (heading && !window.getSelection?.().toString()) {
+        const hash = `#${heading.id}`;
+        if (location.hash !== hash) history.pushState(null, '', hash);
+        heading.scrollIntoView({ behavior: scrollBehavior(), block: 'start' });
+        navigator.clipboard?.writeText(location.href).catch(() => {});
+        announce('Връзката към темата е копирана.');
         return;
     }
 
@@ -492,6 +611,54 @@ function onMainClick(e) {
         e.preventDefault();
         el.scrollIntoView({ behavior: scrollBehavior(), block: 'start' });
         if (location.hash !== href) history.pushState(null, '', href);
+    }
+}
+
+function onKeyDown(e) {
+    if (e.metaKey || e.ctrlKey || e.altKey) return;
+    const target = e.target;
+    const isInput = target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable);
+
+    if (isInput) {
+        if (e.key === 'Escape' && target.id === 'archive-search') {
+            if (target.value) {
+                e.preventDefault();
+                target.value = '';
+                applyArchiveFilter('');
+            } else {
+                target.blur();
+            }
+        }
+        return;
+    }
+
+    if (e.key === '/') {
+        const search = document.getElementById('archive-search');
+        if (!search) return;
+        e.preventDefault();
+        if (isIssueOpen()) showHome();
+        const archive = document.getElementById('archive');
+        if (archive) archive.scrollIntoView({ behavior: scrollBehavior(), block: 'start' });
+        search.focus({ preventScroll: true });
+        return;
+    }
+
+    if (!isIssueOpen()) return;
+
+    if (e.key === 'Escape') {
+        e.preventDefault();
+        showHome();
+        return;
+    }
+
+    if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
+        const selector =
+            e.key === 'ArrowLeft' ? '.issue-nav .is-prev a.issue-card' : '.issue-nav .is-next a.issue-card';
+        const navCard = document.querySelector(selector);
+        if (navCard) {
+            e.preventDefault();
+            navCard.click();
+        }
     }
 }
 
@@ -541,6 +708,7 @@ async function init() {
         if (e.target && e.target.id === 'archive-search') ensureSearchIndex();
     });
     window.addEventListener('popstate', applyRoute);
+    window.addEventListener('keydown', onKeyDown);
     window.addEventListener(
         'scroll',
         () => {
@@ -577,37 +745,32 @@ async function init() {
         updateScrollToTopVisibility();
         updateReadingProgress();
         if (location.hash) requestAnimationFrame(() => scrollToHashTarget('auto'));
-    } else if (isHomePreRendered) {
-        applyPendingArchiveQuery();
-    }
-
-    try {
-        const r = await fetch(catalogUrl);
-        if (!r.ok) throw new Error(r.statusText);
-        catalog = await r.json();
-    } catch {
-        if (!isPreRendered && !isHomePreRendered) {
-            homeContent.innerHTML =
-                '<p class="empty">Каталогът временно не е наличен. Моля, опитайте да презаредите страницата или да се върнете по-късно.</p>';
+        for (const card of document.querySelectorAll('#issue-nav a.issue-card[data-file]')) {
+            const file = card.dataset.file;
+            if (file) fetch(file.startsWith('/') ? file : `/${file}`).catch(() => {});
         }
         return;
     }
 
-    if (!isHomePreRendered) {
-        renderHome();
+    if (isHomePreRendered) {
         applyPendingArchiveQuery();
-    }
-
-    if (isPreRendered) {
-        const { prev, next } = getAdjacentIssues();
-        if (prev?.file) fetch(prev.file.startsWith('/') ? prev.file : `/${prev.file}`).catch(() => {});
-        if (next?.file) fetch(next.file.startsWith('/') ? next.file : `/${next.file}`).catch(() => {});
+        if (location.pathname !== '/') showHome();
         return;
     }
 
+    const cat = await ensureCatalog();
+    if (!cat) {
+        homeContent.innerHTML =
+            '<p class="empty">Каталогът временно не е наличен. Моля, опитайте да презаредите страницата или да се върнете по-късно.</p>';
+        return;
+    }
+
+    renderHome();
+    applyPendingArchiveQuery();
+
     if (initial) {
         const item = findIssueByYearAndNumber(initial.year, initial.issueNum);
-        if (item) openIssue(item);
+        if (item) openIssue(item, location.hash);
         else showHome();
     } else if (location.pathname !== '/') {
         showHome();

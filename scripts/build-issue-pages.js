@@ -4,7 +4,6 @@ import path from 'node:path';
 import { marked } from 'marked';
 import {
     buildTocHtml,
-    CONTENT_DISCLAIMER,
     END_MARK,
     escapeHtml,
     formatDateLong,
@@ -14,9 +13,11 @@ import {
     issueTitle,
     processRenderedContent,
     readingMinutes,
+    renderDisclaimer,
     renderHomeContent,
     renderIssueHeader,
     renderIssueNav,
+    stripMarkdownInline,
 } from '../src/js/shared.js';
 import { isMain } from './lib/cli.js';
 import { ROOT } from './lib/issues.js';
@@ -100,7 +101,7 @@ function inlineCriticalCss(html) {
 function buildIssueViewInner(item, prev, next) {
     const md = fs.readFileSync(path.join(ROOT, item.file), 'utf8');
     const { html: processedHtml, tocItems } = processRenderedContent(marked.parse(md));
-    const contentHtml = CONTENT_DISCLAIMER + buildTocHtml(tocItems) + processedHtml + END_MARK;
+    const contentHtml = renderDisclaimer(item) + buildTocHtml(tocItems) + processedHtml + END_MARK;
 
     return `
                 <div class="back-bar">
@@ -233,17 +234,27 @@ function buildRssXml(all) {
                     (topics.length ? topics.join('; ') : 'обобщение на броя, генерирано с AI.'),
                 500,
             );
-            return `  <item>\n    <title>${escapeHtml(title)}</title>\n    <link>${link}</link>\n    <guid isPermaLink="true">${link}</guid>\n    <pubDate>${issueDateToRfc822(item, todayIso)}</pubDate>\n    <description>${escapeHtml(desc)}</description>\n  </item>`;
+            let contentTag = '';
+            try {
+                const md = fs.readFileSync(path.join(ROOT, item.file), 'utf8');
+                const html = marked.parse(md).trim().replace(/\]\]>/g, ']]]]><![CDATA[>');
+                contentTag = `\n    <content:encoded><![CDATA[${html}]]></content:encoded>`;
+            } catch {
+                // Keep the item with its short description if the file cannot be read.
+            }
+            return `  <item>\n    <title>${escapeHtml(title)}</title>\n    <link>${link}</link>\n    <guid isPermaLink="true">${link}</guid>\n    <pubDate>${issueDateToRfc822(item, todayIso)}</pubDate>\n    <description>${escapeHtml(desc)}</description>${contentTag}\n  </item>`;
         })
         .join('\n');
-    return `<?xml version="1.0" encoding="UTF-8"?>\n<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">\n<channel>\n  <title>${escapeHtml(FEED_TITLE)}</title>\n  <link>${SITE_ORIGIN}/</link>\n  <atom:link href="${SITE_ORIGIN}/feed.xml" rel="self" type="application/rss+xml" />\n  <description>${escapeHtml(FEED_DESC)}</description>\n  <language>bg</language>\n  <lastBuildDate>${lastBuild}</lastBuildDate>\n${items}\n</channel>\n</rss>\n`;
+    return `<?xml version="1.0" encoding="UTF-8"?>\n<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom" xmlns:content="http://purl.org/rss/1.0/modules/content/">\n<channel>\n  <title>${escapeHtml(FEED_TITLE)}</title>\n  <link>${SITE_ORIGIN}/</link>\n  <atom:link href="${SITE_ORIGIN}/feed.xml" rel="self" type="application/rss+xml" />\n  <description>${escapeHtml(FEED_DESC)}</description>\n  <language>bg</language>\n  <lastBuildDate>${lastBuild}</lastBuildDate>\n${items}\n</channel>\n</rss>\n`;
 }
 
 // ─── Full-text search index ───
 // The searchable plain text of every summary, keyed by "year/issue". Fetched
 // lazily by the client on first search, so it never weighs on a normal visit.
-function toPlainText(md) {
-    return String(md)
+// Each level-2 section is stored on its own line as "heading\tbody" so the
+// client can link a search result directly to the matching #section anchor.
+function stripBlockMarkdown(s) {
+    return String(s)
         .replace(/```[\s\S]*?```/g, ' ')
         .replace(/`([^`]*)`/g, '$1')
         .replace(/!\[[^\]]*\]\([^)]*\)/g, ' ')
@@ -252,6 +263,20 @@ function toPlainText(md) {
         .replace(/[*_>]/g, '')
         .replace(/\s+/g, ' ')
         .trim();
+}
+
+function toPlainText(md) {
+    return String(md)
+        .split(/(?=^##\s+)/m)
+        .map((section) => {
+            const m = /^##\s+(.+?)\s*(?:\n|$)([\s\S]*)$/.exec(section);
+            if (!m) return stripBlockMarkdown(section);
+            const heading = stripMarkdownInline(m[1]);
+            const body = stripBlockMarkdown(m[2]);
+            return body ? `${heading}\t${body}` : heading;
+        })
+        .filter(Boolean)
+        .join('\n');
 }
 
 function buildSearchIndex(all) {

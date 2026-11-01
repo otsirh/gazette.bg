@@ -1148,6 +1148,20 @@ body.issue-ready .back-bar-bottom {
     color: var(--ink);
 }
 
+.content h2[id],
+.content h3[id] {
+    cursor: pointer;
+}
+
+.content h2[id]:hover::after,
+.content h3[id]:hover::after {
+    content: " #";
+    font-family: var(--font-mono);
+    font-size: 0.7em;
+    font-weight: 400;
+    color: var(--accent);
+}
+
 .content p {
     margin: 0 0 var(--gap-md);
     max-width: var(--measure);
