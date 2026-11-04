@@ -84,6 +84,40 @@
         U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
 }
 
+/* Stand-ins while the faces load, scaled to their width (measured against
+   Georgia) so the page does not reflow when they arrive. Where Georgia is
+   missing, the next font in the stack stands in as before. */
+@font-face {
+    font-family: "Playfair Fallback";
+    font-weight: 400;
+    src: local("Georgia");
+    size-adjust: 91.3%;
+}
+@font-face {
+    font-family: "Playfair Fallback";
+    font-weight: 700;
+    src: local("Georgia Bold"), local("Georgia-Bold");
+    size-adjust: 91.3%;
+}
+@font-face {
+    font-family: "Source Serif Fallback";
+    font-weight: 400;
+    src: local("Georgia");
+    size-adjust: 106.5%;
+}
+@font-face {
+    font-family: "Source Serif Fallback";
+    font-weight: 700;
+    src: local("Georgia Bold"), local("Georgia-Bold");
+    size-adjust: 106.5%;
+}
+@font-face {
+    font-family: "Source Serif Fallback";
+    font-style: italic;
+    src: local("Georgia Italic"), local("Georgia-Italic");
+    size-adjust: 97.5%;
+}
+
 @font-face {
     font-family: "JetBrains Mono";
     font-style: normal;
@@ -117,8 +151,8 @@
     --accent-hover: #8e241b;
     --accent-wash: #f7ebe6;
 
-    --font-display: "Playfair Display", "Iowan Old Style", Georgia, serif;
-    --font-text: "Source Serif 4", "Iowan Old Style", Cambria, Georgia, serif;
+    --font-display: "Playfair Display", "Playfair Fallback", "Iowan Old Style", Georgia, serif;
+    --font-text: "Source Serif 4", "Source Serif Fallback", "Iowan Old Style", Cambria, Georgia, serif;
     --font-mono: "JetBrains Mono", ui-monospace, "Cascadia Code", Menlo, monospace;
 
     --gap-2xs: 0.375rem;

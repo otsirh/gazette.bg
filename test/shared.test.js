@@ -198,11 +198,11 @@ test('story addresses are Latin, short and unique within an issue', () => {
     );
     assert.deepEqual(
         stories[0].topics.map((t) => t.slug),
-        ['zdrave'],
+        ['health'],
     );
     assert.deepEqual(
         parseTopicLine('Работа и заплати; пенсии и помощи').map((t) => t.slug),
-        ['rabota', 'pensii'],
+        ['jobs', 'pensions'],
     );
 });
 
@@ -212,12 +212,12 @@ test('a published section ends with its topics and a link to its own page', () =
     assert.doesNotMatch(out, /^Теми:|^Източник:/m);
     assert.match(
         out,
-        /<p class="section-topics"><a class="topic-chip" href="\/tema\/zdrave\/">Здраве<\/a><a class="story-link" href="\/issue\/2026\/100\/tema\/">/,
+        /<p class="section-topics"><a class="topic-chip" href="\/topics\/health\/">Здраве<\/a><a class="story-link" href="\/issue\/2026\/100\/tema\/">/,
     );
     assert.match(out, /href="\/issue\/2026\/100\/druga\/"/);
     assert.match(
         renderPublishedMarkdown(md, { item: { year: 2026, issue: 100 }, origin: 'https://gazette.bg' }),
-        /href="https:\/\/gazette\.bg\/tema\/zdrave\/"/,
+        /href="https:\/\/gazette\.bg\/topics\/health\/"/,
     );
 });
 

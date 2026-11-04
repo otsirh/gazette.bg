@@ -304,61 +304,78 @@ export function renderArchive(items) {
 
 // The fixed list a reader can follow. Every story carries one or two of these
 // on a "Теми: …" line at the end of its section; the label is what the line
-// says, the slug is the topic page's address.
+// says, the slug is the topic page's address (/topics/<slug>/). formerSlug is
+// the address used before 4 November 2026, which redirects here.
 export const TOPICS = [
     {
-        slug: 'dani-i-taksi',
+        slug: 'taxes',
+        formerSlug: 'dani-i-taksi',
         label: 'Данъци и такси',
         scope: 'данъци, акцизи, местни и държавни такси, глоби, винетки, тарифи на държавни услуги',
     },
     {
-        slug: 'rabota',
+        slug: 'jobs',
+        formerSlug: 'rabota',
         label: 'Работа и заплати',
         scope: 'минимална заплата, трудови права, заплати в бюджетната сфера, заетост, трудов стаж',
     },
     {
-        slug: 'pensii',
+        slug: 'pensions',
+        formerSlug: 'pensii',
         label: 'Пенсии и помощи',
         scope: 'пенсии, осигуровки, социални и семейни помощи, хора с увреждания',
     },
-    { slug: 'zdrave', label: 'Здраве', scope: 'НЗОК, лекарства, болници, пациенти, ваксини, медицински стандарти' },
     {
-        slug: 'obrazovanie',
+        slug: 'health',
+        formerSlug: 'zdrave',
+        label: 'Здраве',
+        scope: 'НЗОК, лекарства, болници, пациенти, ваксини, медицински стандарти',
+    },
+    {
+        slug: 'education',
+        formerSlug: 'obrazovanie',
         label: 'Образование',
         scope: 'училища, детски градини, университети, стипендии, наука, конкурси за преподаватели',
     },
     {
         slug: 'transport',
+        formerSlug: 'transport',
         label: 'Транспорт и шофьори',
         scope: 'пътища, шофьори, коли, автомобилни застраховки, влакове, летища, пристанища',
     },
     {
-        slug: 'imoti',
+        slug: 'property',
+        formerSlug: 'imoti',
         label: 'Имоти и строителство',
         scope: 'кадастър, устройствени планове, отчуждаване, разрешения за строеж, търгове за имоти',
     },
     {
-        slug: 'biznes',
+        slug: 'business',
+        formerSlug: 'biznes',
         label: 'Бизнес и финанси',
         scope: 'фирми, лицензи, банки, застраховане, бюджет и обществени финанси, търговия, туризъм',
     },
     {
-        slug: 'priroda',
+        slug: 'nature',
+        formerSlug: 'priroda',
         label: 'Земеделие и природа',
         scope: 'земеделие, гори, води, защитени територии, отпадъци, климат',
     },
     {
-        slug: 'energiya',
+        slug: 'energy',
+        formerSlug: 'energiya',
         label: 'Енергия и комунални услуги',
         scope: 'ток, газ, парно, вода и канализация, цени на енергията',
     },
     {
-        slug: 'pravo',
+        slug: 'justice',
+        formerSlug: 'pravo',
         label: 'Съд и права',
         scope: 'съдилища, Конституционен съд, адвокати, граждански права, полиция, оръжия',
     },
     {
-        slug: 'darzhava',
+        slug: 'government',
+        formerSlug: 'darzhava',
         label: 'Държава и избори',
         scope: 'избори, Народно събрание, министерства, международни договори, държавна администрация',
     },
@@ -379,7 +396,7 @@ export function formatIsoDate(iso) {
 }
 
 export function topicPath(topic) {
-    return `/tema/${topic.slug}/`;
+    return `/topics/${topic.slug}/`;
 }
 
 // "Работа и заплати, Пенсии и помощи" → the two topics; unknown labels drop out.
@@ -449,7 +466,7 @@ export function latinSlug(text, max = 64) {
         .replace(/[̀-ͯ]/g, '')
         .replace(/[^a-z0-9]+/g, '-')
         .replace(/^-+|-+$/g, '');
-    if (latin.length <= max) return latin || 'tema';
+    if (latin.length <= max) return latin || 'story';
     return latin.slice(0, max).replace(/-[^-]*$/, '') || latin.slice(0, max);
 }
 

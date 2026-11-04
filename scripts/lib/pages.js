@@ -246,7 +246,7 @@ export function buildTopicPage(template, topic, entries) {
             },
             breadcrumb([
                 ['Държавен вестник', `${SITE_ORIGIN}/`],
-                ['Теми', `${SITE_ORIGIN}/tema/`],
+                ['Теми', `${SITE_ORIGIN}/topics/`],
                 [topic.label, url],
             ]),
         ],
@@ -256,7 +256,7 @@ export function buildTopicPage(template, topic, entries) {
         ? `<ol class="story-list">${entries.map((e) => storyRow(e, { showTopic: topic.slug })).join('')}</ol>`
         : '<p class="empty">Все още няма новини по тази тема.</p>';
     const inner = `
-                <div class="back-bar"><a class="back-btn" href="/tema/">← Всички теми</a></div>
+                <div class="back-bar"><a class="back-btn" href="/topics/">← Всички теми</a></div>
                 <div class="issue-header topic-header" id="issue-header">
 <p class="issue-kicker"><span>Тема</span><span class="rule"></span><span>Държавен вестник</span></p>
 <h1 class="title story-title">${escapeHtml(topic.label)}</h1>
@@ -268,7 +268,7 @@ export function buildTopicPage(template, topic, entries) {
 }
 
 export function buildTopicsIndex(template, stories) {
-    const url = `${SITE_ORIGIN}/tema/`;
+    const url = `${SITE_ORIGIN}/topics/`;
     const title = 'Теми — новини от Държавен вестник по области';
     const description =
         'Новините от Държавен вестник, подредени по теми: данъци, работа, пенсии, здраве, образование, имоти и още. Всяка тема има и RSS емисия.';
@@ -352,7 +352,7 @@ function upcomingRow(entry) {
 }
 
 export function buildUpcomingPage(template, stories, today) {
-    const url = `${SITE_ORIGIN}/predstoyashti/`;
+    const url = `${SITE_ORIGIN}/upcoming/`;
     const { upcoming, recent } = upcomingStories(stories, today);
     const title = 'Предстоящи промени — какво влиза в сила според Държавен вестник';
     const description =
@@ -414,7 +414,7 @@ function renderUpcomingTeaser(stories, today) {
     const { upcoming } = upcomingStories(stories, today);
     if (!upcoming.length) return '';
     return `<section class="upcoming-section" aria-labelledby="upcoming-title">
-<div class="section-head"><h2 class="section-title" id="upcoming-title">Скоро влизат в сила</h2><a class="section-count" href="/predstoyashti/">Всички предстоящи →</a></div>
+<div class="section-head"><h2 class="section-title" id="upcoming-title">Скоро влизат в сила</h2><a class="section-count" href="/upcoming/">Всички предстоящи →</a></div>
 <ol class="story-list" data-show="6">${upcoming.slice(0, 24).map(upcomingRow).join('')}</ol>
 </section>`;
 }
@@ -480,7 +480,7 @@ ${leadHtml}
 <ol class="story-list story-list-week">${rest.map((e) => storyRow(e)).join('')}</ol>
 </section>`;
     const topics = `<section class="topics-section" aria-labelledby="topics-title">
-<div class="section-head"><h2 class="section-title" id="topics-title">Теми</h2><a class="section-count" href="/tema/">Всички теми →</a></div>
+<div class="section-head"><h2 class="section-title" id="topics-title">Теми</h2><a class="section-count" href="/topics/">Всички теми →</a></div>
 ${renderTopicGrid(stories)}
 </section>`;
     return week + renderUpcomingTeaser(stories, today) + topics + renderArchive(all);

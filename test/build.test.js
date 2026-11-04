@@ -137,16 +137,16 @@ test('every story has its own page, linked from its issue', () => {
 
 test('every topic has a page and a feed, and the front page shows this week', () => {
     for (const topic of TOPICS) {
-        assert.match(read(`tema/${topic.slug}/index.html`), /data-page="topic"/);
-        const feed = read(`tema/${topic.slug}/feed.xml`);
+        assert.match(read(`topics/${topic.slug}/index.html`), /data-page="topic"/);
+        const feed = read(`topics/${topic.slug}/feed.xml`);
         assert.match(feed, /<rss version="2.0"/);
         if (feed.includes('<item>')) assert.match(feed, /Неофициално обобщение, генерирано с AI/);
     }
-    assert.match(read('tema/index.html'), /class="topic-grid"/);
+    assert.match(read('topics/index.html'), /class="topic-grid"/);
     const home = read('index.html');
     assert.match(home, /<section class="week-section"/);
     assert.match(home, /<a class="story-lead" href="\/issue\/\d+\/\d+\/[a-z0-9-]+\/"/);
-    assert.match(home, /href="\/tema\/rabota\/"/);
+    assert.match(home, /href="\/topics\/jobs\/"/);
 });
 
 test('a share picture is a 1200×630 PNG with the story on it', async () => {
@@ -180,7 +180,7 @@ test('upcoming changes, offline reading and lean assets are published', async ()
         [3],
     );
 
-    assert.match(read('predstoyashti/index.html'), /data-page="upcoming"/);
+    assert.match(read('upcoming/index.html'), /data-page="upcoming"/);
     assert.match(read('offline/index.html'), /<meta name="robots" content="noindex" \/>/);
     const sw = read('sw.js');
     assert.doesNotMatch(sw, /__VERSION__/);
@@ -203,8 +203,14 @@ test('a story page steps its headings down from its h1', () => {
 
 test('moved story addresses redirect, and nothing else does', () => {
     const redirects = read('_redirects');
-    assert.match(redirects, /^# Story addresses that moved/);
-    for (const line of redirects.split('\n').filter((l) => l && !l.startsWith('#'))) {
+    assert.match(redirects, /^# Addresses that moved/);
+    assert.match(
+        redirects,
+        /^\/tema\/rabota\/feed\.xml \/topics\/jobs\/feed\.xml 301$/m,
+        'old topic feeds keep working',
+    );
+    assert.match(redirects, /^\/predstoyashti\/ \/upcoming\/ 301$/m);
+    for (const line of redirects.split('\n').filter((l) => l.startsWith('/issue/'))) {
         assert.match(line, /^\/issue\/\d{4}\/\d+\/[a-z0-9-]+\/ \/issue\/\d{4}\/\d+\/(?:[a-z0-9-]+\/)? 301$/);
     }
 });

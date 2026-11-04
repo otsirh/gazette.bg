@@ -124,7 +124,16 @@ async function loadMinifier() {
 // ("formerStories": { "old-slug": "new-slug", or "" for the issue itself }),
 // and Cloudflare Pages answers the old address with a permanent redirect.
 function buildRedirects(all) {
-    const lines = ['# Story addresses that moved when a summary was rewritten (see buildRedirects).'];
+    const lines = ['# Addresses that moved (see buildRedirects).'];
+    // The section pages had Bulgarian addresses until 4 November 2026.
+    lines.push('/predstoyashti/ /upcoming/ 301', '/tema/ /topics/ 301');
+    for (const t of TOPICS) {
+        if (!t.formerSlug) continue;
+        lines.push(
+            `/tema/${t.formerSlug}/ ${topicPath(t)} 301`,
+            `/tema/${t.formerSlug}/feed.xml ${topicPath(t)}feed.xml 301`,
+        );
+    }
     for (const item of all) {
         const former = readIssueMeta(item).formerStories || {};
         for (const [oldSlug, newSlug] of Object.entries(former)) {
@@ -339,7 +348,7 @@ function buildSitemapXml(all, stories = []) {
             `  <url>\n    <loc>${SITE_ORIGIN}${storyPath(item, story)}</loc>\n    <lastmod>${iso || today}</lastmod>\n    <changefreq>yearly</changefreq>\n    <priority>0.6</priority>\n  </url>`,
         );
     }
-    for (const loc of ['/tema/', '/predstoyashti/', ...TOPICS.map(topicPath)]) {
+    for (const loc of ['/topics/', '/upcoming/', ...TOPICS.map(topicPath)]) {
         urls.push(
             `  <url>\n    <loc>${SITE_ORIGIN}${loc}</loc>\n    <lastmod>${latestIso}</lastmod>\n    <changefreq>weekly</changefreq>\n    <priority>0.5</priority>\n  </url>`,
         );
@@ -563,8 +572,8 @@ export async function buildSite({ distDir = DIST_DIR, shareImages = true } = {})
             buildStoryPage(versionedTemplate, { item, story, siblings, meta: readIssueMeta(item), image }),
         );
     }
-    write('tema/index.html', buildTopicsIndex(versionedTemplate, stories));
-    write('predstoyashti/index.html', buildUpcomingPage(versionedTemplate, stories, today()));
+    write('topics/index.html', buildTopicsIndex(versionedTemplate, stories));
+    write('upcoming/index.html', buildUpcomingPage(versionedTemplate, stories, today()));
     for (const topic of TOPICS) {
         const entries = topicStories(stories, topic);
         write(path.join(topicPath(topic), 'index.html'), buildTopicPage(versionedTemplate, topic, entries));
