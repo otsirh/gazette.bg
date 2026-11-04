@@ -15,3 +15,8 @@
 
 /src/js/*
   Cache-Control: public, max-age=86400, stale-while-revalidate=604800
+
+# Share pictures are rebuilt with the site; a headline that changes keeps its
+# file name, so they are cached for a day rather than for good.
+/og/*
+  Cache-Control: public, max-age=86400

@@ -159,3 +159,21 @@ test('sections without a source line are reported', () => {
 test('usage is priced at Opus 5.5 list prices', () => {
     assert.equal(usageCostUsd({ input: 1_000_000, output: 100_000, cacheWrite: 0, cacheRead: 0 }), 6);
 });
+
+test('topics go on the last line of each section, replacing old ones', async () => {
+    const { applyTopics, hasTopics } = await import('../scripts/tag-topics.js');
+    const md = '## А\n\nТекст.\n\nИзточник: акт 1\n\n## Б\n\nТекст.\n\nТеми: Здраве\n';
+    const out = applyTopics(
+        md,
+        new Map([
+            [1, ['Работа и заплати', 'Здраве', 'Образование']],
+            [2, ['Образование']],
+        ]),
+    );
+    assert.equal(
+        out,
+        '## А\n\nТекст.\n\nИзточник: акт 1\n\nТеми: Работа и заплати, Здраве\n\n## Б\n\nТекст.\n\nТеми: Образование\n',
+    );
+    assert.ok(hasTopics(out));
+    assert.ok(!hasTopics(md));
+});

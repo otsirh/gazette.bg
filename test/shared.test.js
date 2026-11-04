@@ -8,16 +8,20 @@ import {
     issueDateToIso,
     issuesNewestFirst,
     issueTitle,
+    latinSlug,
     parseSourceList,
+    parseTopicLine,
     pluralTopics,
     readingMinutes,
     renderDisclaimer,
     renderHomeContent,
     renderIssueNav,
+    renderPublishedMarkdown,
     renderSourceLines,
     searchTermVariants,
     shortActLabel,
     slugify,
+    splitStories,
     stemBg,
     stripSourceLines,
 } from '../src/js/shared.js';
@@ -192,4 +196,38 @@ test('the disclaimer links the official PDF when the issue has one', () => {
         /idFileAtt=1.*официалния брой \(PDF\)/,
     );
     assert.match(renderDisclaimer({ year: 2026, issue: 1 }), /href="https:\/\/dv\.parliament\.bg"/);
+});
+
+test('story addresses are Latin, short and unique within an issue', () => {
+    assert.equal(latinSlug('Минималната заплата става 660 евро'), 'minimalnata-zaplata-stava-660-evro');
+    assert.equal(latinSlug('Щатът на „България“ — промени'), 'shtatat-na-balgaria-promeni');
+    assert.ok(latinSlug('Дълго заглавие '.repeat(10)).length <= 64);
+    const stories = splitStories('## Тема\n\nА.\n\nТеми: Здраве, Непозната, Здраве\n\n## Тема\n\nБ.\n');
+    assert.deepEqual(
+        stories.map((s) => s.slug),
+        ['tema', 'tema-2'],
+    );
+    assert.deepEqual(
+        stories[0].topics.map((t) => t.slug),
+        ['zdrave'],
+    );
+    assert.deepEqual(
+        parseTopicLine('Работа и заплати; пенсии и помощи').map((t) => t.slug),
+        ['rabota', 'pensii'],
+    );
+});
+
+test('a published section ends with its topics and a link to its own page', () => {
+    const md = '## Тема\n\nТекст.\n\nИзточник: стр. 4\n\nТеми: Здраве\n\n## Друга\n\nОще.\n';
+    const out = renderPublishedMarkdown(md, { meta: {}, item: { year: 2026, issue: 100 } });
+    assert.doesNotMatch(out, /^Теми:|^Източник:/m);
+    assert.match(
+        out,
+        /<p class="section-topics"><a class="topic-chip" href="\/tema\/zdrave\/">Здраве<\/a><a class="story-link" href="\/issue\/2026\/100\/tema\/">/,
+    );
+    assert.match(out, /href="\/issue\/2026\/100\/druga\/"/);
+    assert.match(
+        renderPublishedMarkdown(md, { item: { year: 2026, issue: 100 }, origin: 'https://gazette.bg' }),
+        /href="https:\/\/gazette\.bg\/tema\/zdrave\/"/,
+    );
 });

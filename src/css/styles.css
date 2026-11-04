@@ -285,7 +285,8 @@ html.initial-issue-route .masthead {
 html.initial-issue-route #home-view {
     display: none;
 }
-html.initial-issue-route #issue-view {
+html.initial-issue-route #issue-view,
+body[data-page] #issue-view {
     display: block;
 }
 
@@ -601,6 +602,23 @@ main .loading {
     white-space: nowrap;
 }
 
+/* A long count (a span of dates) wraps under the title on a phone. */
+.section-head {
+    flex-wrap: wrap;
+}
+
+.week-section .section-count {
+    white-space: normal;
+}
+
+a.section-count {
+    text-decoration: none;
+}
+
+a.section-count:hover {
+    color: var(--accent);
+}
+
 /* ─── Front page: the lead story ────────────────────── */
 
 .lead-section {
@@ -759,6 +777,268 @@ main .loading {
 .contents-list li.more::before {
     content: "+";
     color: var(--muted);
+}
+
+/* ─── Front page: this week, as stories ─────────────── */
+
+.week-section,
+.topics-section {
+    margin-bottom: var(--gap-3xl);
+}
+
+.story-card-topics {
+    display: block;
+    margin-bottom: 0.35rem;
+    font-family: var(--font-mono);
+    font-size: 0.625rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: var(--accent);
+}
+
+.story-card-meta {
+    display: block;
+    margin-top: 0.5rem;
+    font-family: var(--font-mono);
+    font-size: 0.625rem;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--muted);
+}
+
+.story-lead {
+    display: block;
+    padding-bottom: var(--gap-xl);
+    margin-bottom: var(--gap-xs);
+    border-bottom: 1px solid var(--hairline);
+    text-decoration: none;
+    color: inherit;
+}
+
+.story-lead:hover .lead-title {
+    color: var(--accent);
+}
+
+.story-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+}
+
+.story-list li {
+    border-bottom: 1px solid var(--hairline-soft);
+    min-width: 0;
+}
+
+.story-card {
+    display: block;
+    padding: var(--gap-md) 0;
+    text-decoration: none;
+    color: inherit;
+}
+
+.story-card-title {
+    display: block;
+    font-family: var(--font-display);
+    font-size: 1.1875rem;
+    font-weight: 700;
+    line-height: 1.22;
+    letter-spacing: -0.005em;
+    color: var(--ink);
+    text-wrap: balance;
+    transition: color 0.16s var(--ease);
+}
+
+.story-card:hover .story-card-title {
+    color: var(--accent);
+}
+
+.story-card-lead {
+    display: block;
+    margin-top: 0.35rem;
+    font-size: 0.96875rem;
+    line-height: 1.5;
+    color: var(--ink-soft);
+}
+
+/* On a phone the week reads as headlines; the lead lines come back with room. */
+@media (max-width: 640px) {
+    .story-list-week .story-card-lead {
+        display: none;
+    }
+}
+
+@media (min-width: 760px) {
+    .story-list {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        column-gap: var(--gap-2xl);
+    }
+}
+
+/* Topics: a register of the twelve, each with its count and newest headline. */
+.topic-grid {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(min(100%, 15rem), 1fr));
+    border-top: 1px solid var(--hairline);
+}
+
+.topic-grid li {
+    border-bottom: 1px solid var(--hairline);
+    min-width: 0;
+}
+
+.topic-cell {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 0.15rem var(--gap-sm);
+    padding: var(--gap-sm) var(--gap-md) var(--gap-sm) 0;
+    text-decoration: none;
+    color: inherit;
+}
+
+.topic-cell-label {
+    font-family: var(--font-display);
+    font-size: 1.0625rem;
+    font-weight: 700;
+    line-height: 1.25;
+    color: var(--ink);
+    transition: color 0.16s var(--ease);
+}
+
+.topic-cell:hover .topic-cell-label {
+    color: var(--accent);
+}
+
+.topic-cell-count {
+    font-family: var(--font-mono);
+    font-size: 0.6875rem;
+    font-weight: 600;
+    color: var(--accent);
+    font-variant-numeric: tabular-nums;
+    align-self: baseline;
+}
+
+.topic-cell-latest {
+    grid-column: 1 / -1;
+    font-size: 0.875rem;
+    line-height: 1.4;
+    color: var(--muted);
+}
+
+/* Under each section: its topics and the link to the story's own page. */
+.content .section-topics {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 0.25rem var(--gap-sm);
+    margin-top: calc(-1 * var(--gap-2xs));
+    font-family: var(--font-mono);
+    font-size: 0.6875rem;
+    line-height: 1.6;
+}
+
+.topic-chip {
+    font-family: var(--font-mono);
+    font-size: 0.625rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--accent);
+    text-decoration: none;
+}
+
+.content a.topic-chip {
+    background: none;
+    border-bottom: 1px solid transparent;
+}
+
+.content a.topic-chip:hover {
+    border-bottom-color: currentColor;
+}
+
+.content .section-topics .story-link {
+    margin-left: auto;
+    color: var(--muted);
+    text-decoration: none;
+    background: none;
+    border-bottom: 1px solid var(--hairline);
+}
+
+.content .section-topics .story-link:hover {
+    color: var(--accent);
+    border-bottom-color: var(--accent);
+}
+
+/* ─── Story and topic pages ─────────────────────────── */
+
+a.back-btn {
+    text-decoration: none;
+}
+
+.story-topics {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.25rem var(--gap-md);
+    margin: 0 0 var(--gap-sm);
+}
+
+.issue-header .story-title {
+    font-size: clamp(1.875rem, 5.2vw, 3rem);
+    line-height: 1.1;
+    letter-spacing: -0.015em;
+    text-wrap: balance;
+    max-width: 22ch;
+}
+
+.topic-scope {
+    margin: var(--gap-md) 0 0;
+    max-width: 40rem;
+    font-size: 1.0625rem;
+    line-height: 1.55;
+    color: var(--ink-soft);
+}
+
+.more-stories {
+    max-width: var(--measure);
+    margin: var(--gap-2xl) 0 0;
+}
+
+.more-stories .contents-list a {
+    display: block;
+    padding: 0.5rem 0;
+    color: inherit;
+    text-decoration: none;
+    transition: color 0.16s var(--ease);
+}
+
+.more-stories .contents-list a:hover {
+    color: var(--accent);
+}
+
+.more-stories-all {
+    margin: var(--gap-md) 0 0;
+    font-family: var(--font-mono);
+    font-size: 0.6875rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+}
+
+.more-stories-all a {
+    color: var(--accent);
+    text-decoration: none;
+    border-bottom: 1px solid currentColor;
+}
+
+a.issue-share-btn {
+    text-decoration: none;
 }
 
 /* ─── Archive: the contents register ────────────────── */
@@ -1797,6 +2077,11 @@ main .loading {
 
     .content > .issue-body {
         grid-column: 2;
+    }
+
+    /* A story or topic page has no contents column. */
+    body[data-page] .content {
+        display: block;
     }
 
     /* The hairline between the columns is painted on the container, since a

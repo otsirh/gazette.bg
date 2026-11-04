@@ -342,7 +342,7 @@ function renderNavCard(item) {
 // The newest issue is already shown above as the lead story, so its row in the
 // archive stays hidden while browsing and only appears when the reader filters
 // the register by search query.
-function renderArchive(items, leadItem) {
+export function renderArchive(items, leadItem) {
     if (!items.length) return '';
     const byYear = {};
     if (leadItem) byYear[leadItem.year] = [{ item: leadItem, isLead: true }];
@@ -381,6 +381,179 @@ export function renderHomeContent(all) {
         return '<p class="empty">В момента няма налични броеве. Опитайте отново по-късно.</p>';
     }
     return renderLeadCard(all[0]) + renderArchive(all.slice(1), all[0]);
+}
+
+/* ─── Topics ─── */
+
+// The fixed list a reader can follow. Every story carries one or two of these
+// on a "Теми: …" line at the end of its section; the label is what the line
+// says, the slug is the topic page's address.
+export const TOPICS = [
+    {
+        slug: 'dani-i-taksi',
+        label: 'Данъци и такси',
+        scope: 'данъци, акцизи, местни и държавни такси, глоби, винетки, тарифи на държавни услуги',
+    },
+    {
+        slug: 'rabota',
+        label: 'Работа и заплати',
+        scope: 'минимална заплата, трудови права, заплати в бюджетната сфера, заетост, трудов стаж',
+    },
+    {
+        slug: 'pensii',
+        label: 'Пенсии и помощи',
+        scope: 'пенсии, осигуровки, социални и семейни помощи, хора с увреждания',
+    },
+    { slug: 'zdrave', label: 'Здраве', scope: 'НЗОК, лекарства, болници, пациенти, ваксини, медицински стандарти' },
+    {
+        slug: 'obrazovanie',
+        label: 'Образование',
+        scope: 'училища, детски градини, университети, стипендии, наука, конкурси за преподаватели',
+    },
+    {
+        slug: 'transport',
+        label: 'Транспорт и шофьори',
+        scope: 'пътища, шофьори, коли, автомобилни застраховки, влакове, летища, пристанища',
+    },
+    {
+        slug: 'imoti',
+        label: 'Имоти и строителство',
+        scope: 'кадастър, устройствени планове, отчуждаване, разрешения за строеж, търгове за имоти',
+    },
+    {
+        slug: 'biznes',
+        label: 'Бизнес и финанси',
+        scope: 'фирми, лицензи, банки, застраховане, бюджет и обществени финанси, търговия, туризъм',
+    },
+    {
+        slug: 'priroda',
+        label: 'Земеделие и природа',
+        scope: 'земеделие, гори, води, защитени територии, отпадъци, климат',
+    },
+    {
+        slug: 'energiya',
+        label: 'Енергия и комунални услуги',
+        scope: 'ток, газ, парно, вода и канализация, цени на енергията',
+    },
+    {
+        slug: 'pravo',
+        label: 'Съд и права',
+        scope: 'съдилища, Конституционен съд, адвокати, граждански права, полиция, оръжия',
+    },
+    {
+        slug: 'darzhava',
+        label: 'Държава и избори',
+        scope: 'избори, Народно събрание, министерства, международни договори, държавна администрация',
+    },
+];
+
+const TOPIC_BY_LABEL = new Map(TOPICS.map((t) => [t.label.toLowerCase(), t]));
+const TOPIC_LINE_RE = /^Теми:[ \t]*(.+?)[ \t]*$/gm;
+
+export function topicPath(topic) {
+    return `/tema/${topic.slug}/`;
+}
+
+// "Работа и заплати, Пенсии и помощи" → the two topics; unknown labels drop out.
+export function parseTopicLine(text) {
+    const seen = new Set();
+    const out = [];
+    for (const part of String(text).split(/[,;]/)) {
+        const t = TOPIC_BY_LABEL.get(part.trim().toLowerCase());
+        if (t && !seen.has(t.slug)) {
+            seen.add(t.slug);
+            out.push(t);
+        }
+    }
+    return out;
+}
+
+export function stripTopicLines(markdown) {
+    return String(markdown).replace(TOPIC_LINE_RE, '');
+}
+
+/* ─── Stories ─── */
+
+// Bulgarian streamlined transliteration (the official system), for addresses
+// that read the same in every app a link is pasted into.
+const TRANSLIT = {
+    а: 'a',
+    б: 'b',
+    в: 'v',
+    г: 'g',
+    д: 'd',
+    е: 'e',
+    ж: 'zh',
+    з: 'z',
+    и: 'i',
+    й: 'y',
+    к: 'k',
+    л: 'l',
+    м: 'm',
+    н: 'n',
+    о: 'o',
+    п: 'p',
+    р: 'r',
+    с: 's',
+    т: 't',
+    у: 'u',
+    ф: 'f',
+    х: 'h',
+    ц: 'ts',
+    ч: 'ch',
+    ш: 'sh',
+    щ: 'sht',
+    ъ: 'a',
+    ь: 'y',
+    ю: 'yu',
+    я: 'ya',
+    ѝ: 'i',
+};
+
+export function latinSlug(text, max = 64) {
+    const latin = stripMarkdownInline(text)
+        .toLowerCase()
+        .replace(/ия(?![а-яѝ])/g, 'ia')
+        .replace(/[а-яѝ]/g, (ch) => TRANSLIT[ch] ?? '')
+        .normalize('NFKD')
+        .replace(/[̀-ͯ]/g, '')
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/^-+|-+$/g, '');
+    if (latin.length <= max) return latin || 'tema';
+    return latin.slice(0, max).replace(/-[^-]*$/, '') || latin.slice(0, max);
+}
+
+// An issue's summary as its stories: one per ## section, in the order the
+// summary gives them (most important first), each with an address unique
+// within the issue.
+export function splitStories(markdown) {
+    const used = new Set();
+    const stories = [];
+    for (const part of String(markdown).split(/(?=^##\s)/m)) {
+        const m = /^##\s+(.+?)\s*\n([\s\S]*)$/.exec(part);
+        if (!m) continue;
+        let slug = latinSlug(m[1]);
+        if (used.has(slug)) {
+            let n = 2;
+            while (used.has(`${slug}-${n}`)) n++;
+            slug = `${slug}-${n}`;
+        }
+        used.add(slug);
+        const body = m[2].trim();
+        const topicLine = [...body.matchAll(TOPIC_LINE_RE)].pop();
+        stories.push({
+            heading: stripMarkdownInline(m[1]),
+            headingMd: m[1],
+            slug,
+            body,
+            topics: topicLine ? parseTopicLine(topicLine[1]) : [],
+        });
+    }
+    return stories;
+}
+
+export function storyPath(item, story) {
+    return `${issuePath(item)}${story.slug}/`;
 }
 
 /* ─── Sources ─── */
@@ -471,6 +644,42 @@ export function renderSourceLines(markdown, meta) {
 
 export function stripSourceLines(markdown) {
     return String(markdown).replace(SOURCE_LINE_RE, '');
+}
+
+export function renderTopicChips(topics, origin = '') {
+    return topics
+        .map((t) => `<a class="topic-chip" href="${origin}${topicPath(t)}">${escapeHtml(t.label)}</a>`)
+        .join('');
+}
+
+const STORY_HEADING_RE = /^##\s+(.+?)\s*\n/;
+
+// The summary as the site serves it. Each section ends with the links to its
+// official text, then its topics and a link to the story's own page, in place
+// of the "Източник: …" and "Теми: …" lines. The build does this once; the
+// browser fetches the markdown already turned. Links are absolute when
+// `origin` is given, for feed readers.
+export function renderPublishedMarkdown(markdown, { meta = {}, item = null, origin = '' } = {}) {
+    const stories = splitStories(markdown);
+    let i = 0;
+    const out = String(markdown)
+        .split(/(?=^##\s)/m)
+        .map((part) => {
+            if (!STORY_HEADING_RE.test(part)) return part;
+            const story = stories[i++];
+            const trailing = part.match(/\n*$/)[0] || '\n';
+            const body = stripTopicLines(part.replace(/\n*$/, ''))
+                .replace(/\n{3,}/g, '\n\n')
+                .trimEnd();
+            const chips = renderTopicChips(story.topics, origin);
+            const page = item
+                ? `<a class="story-link" href="${origin}${storyPath(item, story)}">Страница на новината →</a>`
+                : '';
+            const footer = chips || page ? `\n\n<p class="section-topics">${chips}${page}</p>` : '';
+            return `${body}${footer}${trailing}`;
+        })
+        .join('');
+    return renderSourceLines(out, meta);
 }
 
 /* ─── Issue page ─── */

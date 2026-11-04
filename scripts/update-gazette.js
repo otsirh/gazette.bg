@@ -35,6 +35,9 @@ function run(name, script, args = []) {
 // building and committing; the gap check only reports.
 const STEPS = [
     ['Download and summarize new issues', 'download-latest-gazette.js', { keepGoing: true }],
+    // Topics for any summary without them — a new issue, or one whose tagging
+    // failed last time. Reads only the summaries; about 3 cents an issue.
+    ['Tag topics', 'tag-topics.js', { keepGoing: true }],
     ['Build gazette catalog', 'build-gazette-catalog.js'],
     ['Build issue pages', 'build-issue-pages.js'],
     ['Check for missing issues', 'check-issue-gaps.js', { keepGoing: true }],

@@ -12,16 +12,29 @@ import {
     issueTitle,
     processRenderedContent,
     readingMinutes,
-    renderHomeContent,
     renderIssueArticleHtml,
     renderIssueHeader,
     renderIssueNav,
-    renderSourceLines,
+    renderPublishedMarkdown,
+    splitStories,
+    storyPath,
     stripMarkdownInline,
     stripSourceLines,
+    stripTopicLines,
+    TOPICS,
+    topicPath,
 } from '../src/js/shared.js';
 import { isMain } from './lib/cli.js';
 import { ROOT } from './lib/issues.js';
+import {
+    buildStoryPage,
+    buildTopicFeed,
+    buildTopicPage,
+    buildTopicsIndex,
+    collectStories,
+    renderHome,
+    topicStories,
+} from './lib/pages.js';
 
 const TEMPLATE_PATH = path.join(ROOT, 'src', 'index.html');
 const CSS_PATH = path.join(ROOT, 'src', 'css', 'styles.css');
@@ -132,11 +145,15 @@ function readIssueMeta(item) {
     }
 }
 
-// The summary as the site serves it: each section's "Източник: …" line is
-// already the links to the official text, so the browser renders exactly what
-// the build did.
-function readPublishedMarkdown(item) {
-    return renderSourceLines(fs.readFileSync(path.join(ROOT, item.file), 'utf8'), readIssueMeta(item));
+function readRawMarkdown(item) {
+    return fs.readFileSync(path.join(ROOT, item.file), 'utf8');
+}
+
+// The summary as the site serves it: each section's "Източник: …" and
+// "Теми: …" lines are already links — to the official text, the topic pages
+// and the story's own page — so the browser renders exactly what the build did.
+function readPublishedMarkdown(item, origin = '') {
+    return renderPublishedMarkdown(readRawMarkdown(item), { meta: readIssueMeta(item), item, origin });
 }
 
 // Said wherever the AI text is read away from the page that says it already:
@@ -251,7 +268,7 @@ function buildIssuePage(template, item, prev, next) {
     return html;
 }
 
-function buildSitemapXml(all) {
+function buildSitemapXml(all, stories = []) {
     const today = new Date().toISOString().slice(0, 10);
     const latestIso = all.length ? issueDateToIso(all[0].date) || today : today;
     const urls = [];
@@ -262,6 +279,16 @@ function buildSitemapXml(all) {
         const iso = issueDateToIso(item.date) || today;
         urls.push(
             `  <url>\n    <loc>${SITE_ORIGIN}${issuePath(item)}</loc>\n    <lastmod>${iso}</lastmod>\n    <changefreq>yearly</changefreq>\n    <priority>0.7</priority>\n  </url>`,
+        );
+    }
+    for (const { item, story, iso } of stories) {
+        urls.push(
+            `  <url>\n    <loc>${SITE_ORIGIN}${storyPath(item, story)}</loc>\n    <lastmod>${iso || today}</lastmod>\n    <changefreq>yearly</changefreq>\n    <priority>0.6</priority>\n  </url>`,
+        );
+    }
+    for (const loc of ['/tema/', ...TOPICS.map(topicPath)]) {
+        urls.push(
+            `  <url>\n    <loc>${SITE_ORIGIN}${loc}</loc>\n    <lastmod>${latestIso}</lastmod>\n    <changefreq>weekly</changefreq>\n    <priority>0.5</priority>\n  </url>`,
         );
     }
     return `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${urls.join('\n')}\n</urlset>\n`;
@@ -301,7 +328,7 @@ function buildRssXml(all) {
             let contentTag = '';
             try {
                 const notice = `<p><em>${escapeHtml(AI_NOTICE)}</em></p>`;
-                const html = `${notice}\n${marked.parse(readPublishedMarkdown(item)).trim()}`.replace(
+                const html = `${notice}\n${marked.parse(readPublishedMarkdown(item, SITE_ORIGIN)).trim()}`.replace(
                     /\]\]>/g,
                     ']]]]><![CDATA[>',
                 );
@@ -350,7 +377,7 @@ function buildSearchIndex(all) {
     const index = {};
     for (const item of all) {
         try {
-            const md = stripSourceLines(fs.readFileSync(path.join(ROOT, item.file), 'utf8'));
+            const md = stripTopicLines(stripSourceLines(readRawMarkdown(item)));
             index[`${item.year}/${item.issue}`] = toPlainText(md);
         } catch {
             // A summary that can't be read is left out of search, not fatal.
@@ -362,7 +389,48 @@ function buildSearchIndex(all) {
 // Writes the whole site into distDir, starting from an empty folder so nothing
 // outlives the build that made it. The one survivor is catalog.json, which the
 // catalog step just wrote there.
-export function buildSite({ distDir = DIST_DIR } = {}) {
+// Share pictures are made for the stories of this many days before the newest
+// issue: links are shared while the news is fresh, and the build stays quick.
+const SHARE_IMAGE_DAYS = 90;
+
+// Renders the share picture of each recent story into og/ and returns where
+// each one is, by story address. A picture that fails is left out, and so is
+// every one if the renderer cannot start; those stories keep the site's own.
+async function buildShareImages(stories, write) {
+    const images = new Map();
+    const newest = Date.parse(stories[0]?.iso || '');
+    if (!Number.isFinite(newest)) return images;
+    let render;
+    try {
+        ({ renderShareImage: render } = await import('./lib/share-images.js'));
+    } catch (e) {
+        console.warn(`[build-issue-pages] WARN: share pictures skipped: ${e.message}`);
+        return images;
+    }
+    let failed = 0;
+    for (const { item, story, iso } of stories) {
+        const t = Date.parse(iso || '');
+        if (!Number.isFinite(t) || newest - t > SHARE_IMAGE_DAYS * 86400000) continue;
+        const rel = path.join('og', String(item.year), String(item.issue), `${story.slug}.png`);
+        try {
+            const png = await render({
+                headline: story.heading,
+                kicker: `ДВ · Брой ${item.issue} · ${formatDateLong(item.date)}`,
+                topic: story.topics[0]?.label || '',
+            });
+            write(rel, png);
+            images.set(storyPath(item, story), `${SITE_ORIGIN}/${rel.split(path.sep).join('/')}`);
+        } catch (e) {
+            failed++;
+            if (failed === 1) console.warn(`[build-issue-pages] WARN: a share picture failed: ${e.message}`);
+        }
+    }
+    if (failed)
+        console.warn(`[build-issue-pages] WARN: ${failed} share picture(s) failed; those stories use the default.`);
+    return images;
+}
+
+export async function buildSite({ distDir = DIST_DIR, shareImages = true } = {}) {
     const catalog = JSON.parse(fs.readFileSync(path.join(distDir, 'catalog.json'), 'utf8'));
     // Inline the stylesheet so it doesn't block initial render.
     const cleanTemplate = inlineCriticalCss(fs.readFileSync(TEMPLATE_PATH, 'utf8'));
@@ -370,7 +438,7 @@ export function buildSite({ distDir = DIST_DIR } = {}) {
     const write = (relPath, content) => {
         const dest = path.join(distDir, relPath);
         fs.mkdirSync(path.dirname(dest), { recursive: true });
-        fs.writeFileSync(dest, content, 'utf8');
+        fs.writeFileSync(dest, content, typeof content === 'string' ? 'utf8' : undefined);
     };
     const copy = (relPath) => {
         const dest = path.join(distDir, relPath);
@@ -405,15 +473,39 @@ export function buildSite({ distDir = DIST_DIR } = {}) {
         write(item.file, readPublishedMarkdown(item));
     });
 
-    // Pre-render homepage with the full issue list so crawlers see all internal links.
-    write('index.html', replaceHomeContent(versionedTemplate, renderHomeContent(all)));
-    write('sitemap.xml', buildSitemapXml(all));
+    // Every story gets a page of its own; topics gather them.
+    const stories = collectStories(all, (item) => splitStories(readRawMarkdown(item)));
+    const byIssue = new Map();
+    for (const s of stories) {
+        const key = `${s.item.year}/${s.item.issue}`;
+        if (!byIssue.has(key)) byIssue.set(key, []);
+        byIssue.get(key).push(s.story);
+    }
+    const images = shareImages ? await buildShareImages(stories, write) : new Map();
+    for (const { item, story } of stories) {
+        const siblings = byIssue.get(`${item.year}/${item.issue}`);
+        const image = images.get(storyPath(item, story));
+        write(
+            path.join(storyPath(item, story), 'index.html'),
+            buildStoryPage(versionedTemplate, { item, story, siblings, meta: readIssueMeta(item), image }),
+        );
+    }
+    write('tema/index.html', buildTopicsIndex(versionedTemplate, stories));
+    for (const topic of TOPICS) {
+        const entries = topicStories(stories, topic);
+        write(path.join(topicPath(topic), 'index.html'), buildTopicPage(versionedTemplate, topic, entries));
+        write(path.join(topicPath(topic), 'feed.xml'), buildTopicFeed(topic, entries, readIssueMeta));
+    }
+
+    // The front page: this week's stories, the topics, and every issue in the archive.
+    write('index.html', replaceHomeContent(versionedTemplate, renderHome(all, stories)));
+    write('sitemap.xml', buildSitemapXml(all, stories));
     write('feed.xml', buildRssXml(all));
     write('search-index.json', buildSearchIndex(all));
     write('404.html', buildNotFoundHtml(versionedTemplate));
 
     console.log(
-        `[build-issue-pages] Wrote the site to ${distDir}: home page, ${all.length} issue pages, sitemap, feed, search index and 404`,
+        `[build-issue-pages] Wrote the site to ${distDir}: home page, ${all.length} issue pages, ${stories.length} story pages (${images.size} with share pictures), ${TOPICS.length} topics, sitemap, feeds, search index and 404`,
     );
     return all.length;
 }
@@ -421,10 +513,8 @@ export function buildSite({ distDir = DIST_DIR } = {}) {
 export { lit, processRenderedContent };
 
 if (isMain(import.meta.url)) {
-    try {
-        buildSite();
-    } catch (e) {
+    buildSite().catch((e) => {
         console.error('[build-issue-pages]', e.message || e);
         process.exit(1);
-    }
+    });
 }

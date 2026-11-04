@@ -189,7 +189,13 @@ let currentIssue = null;
 let lastFocusedCard = null;
 let currentTocId = null;
 
+// The front page is built ahead of time with this week's stories. Where it is
+// not on the page (an issue opened first), going home loads it.
 function renderHome() {
+    if (!homeContent?.children.length) {
+        location.assign('/');
+        return;
+    }
     if (!catalog?.years) return;
     const all = issuesNewestFirst(catalog);
     if (!all.length) {
@@ -521,13 +527,8 @@ function showHome() {
         if (location.pathname !== '/') history.pushState(null, '', '/');
         syncCanonicalUrl('/');
         if (homeContent && !homeContent.children.length) {
-            ensureCatalog().then((cat) => {
-                if (cat) renderHome();
-                else {
-                    homeContent.innerHTML =
-                        '<p class="empty">Каталогът временно не е наличен. Моля, опитайте да презаредите страницата или да се върнете по-късно.</p>';
-                }
-            });
+            location.assign('/');
+            return;
         }
         if (lastFocusedCard && typeof lastFocusedCard.focus === 'function') {
             lastFocusedCard.focus();
@@ -957,8 +958,12 @@ function onFolioClick(e) {
     }
 }
 
+// Story and topic pages are plain pages: links between them load the next
+// page, so only the shared chrome (theme, share, scroll) runs on them.
+const STATIC_PAGE = document.body.dataset.page || '';
+
 async function init() {
-    for (const btn of backBtns) btn.addEventListener('click', showHome);
+    if (!STATIC_PAGE) for (const btn of backBtns) btn.addEventListener('click', showHome);
     mainEl.addEventListener('click', onMainClick);
     mainEl.addEventListener('pointerover', onMainPointerOver);
     mainEl.addEventListener('touchstart', onMainTouchStart, { passive: true });
@@ -980,7 +985,7 @@ async function init() {
     homeView.addEventListener('focusin', (e) => {
         if (e.target && e.target.id === 'archive-search') ensureSearchIndex();
     });
-    window.addEventListener('popstate', applyRoute);
+    if (!STATIC_PAGE) window.addEventListener('popstate', applyRoute);
     window.addEventListener('keydown', onKeyDown);
     window.addEventListener(
         'scroll',
@@ -997,7 +1002,9 @@ async function init() {
     }
     updateScrollToTopVisibility();
 
-    if (document.querySelector('.not-found-section')) {
+    if (STATIC_PAGE || document.querySelector('.not-found-section')) {
+        updateReadingProgress();
+        updateFolioVisibility();
         document.documentElement.classList.remove('initial-issue-route');
         return;
     }

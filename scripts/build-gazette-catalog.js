@@ -47,7 +47,7 @@ function extractIssueMeta(filePath) {
             .split(/\n{2,}/)
             .map((b) => b.trim())
             .filter(Boolean);
-        const firstProse = blocks.find((b) => !/^(?:#{1,6}\s|[-*+]\s|\d+\.\s|---|Източник:)/.test(b)) || '';
+        const firstProse = blocks.find((b) => !/^(?:#{1,6}\s|[-*+]\s|\d+\.\s|---|Източник:|Теми:|<)/.test(b)) || '';
         const lead = summarizeStandfirst(firstProse);
 
         return { topics, lead, minutes: readingMinutes(md) };
