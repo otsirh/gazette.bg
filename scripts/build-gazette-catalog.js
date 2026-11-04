@@ -47,7 +47,7 @@ function extractIssueMeta(filePath) {
             .split(/\n{2,}/)
             .map((b) => b.trim())
             .filter(Boolean);
-        const firstProse = blocks.find((b) => !/^(?:#{1,6}\s|[-*+]\s|\d+\.\s|---)/.test(b)) || '';
+        const firstProse = blocks.find((b) => !/^(?:#{1,6}\s|[-*+]\s|\d+\.\s|---|Източник:)/.test(b)) || '';
         const lead = summarizeStandfirst(firstProse);
 
         return { topics, lead, minutes: readingMinutes(md) };
@@ -56,8 +56,9 @@ function extractIssueMeta(filePath) {
     }
 }
 
-// The issue's JSON carries one thing: the publication date, as scraped from
-// dv.parliament.bg when the PDF was downloaded.
+// The issue's JSON, as scraped from dv.parliament.bg when the PDF was
+// downloaded: the publication date and, for newer issues, the official PDF and
+// where each act starts.
 function readIssueJson(issueDirPath, issueNum) {
     const metaPath = path.join(issueDirPath, `${issueNum}.json`);
     try {
@@ -105,6 +106,9 @@ export function buildCatalog({ issuesDir = ISSUES_DIR, distDir = DIST_DIR } = {}
                 minutes,
             };
             if (lead) entry.lead = lead;
+            // The official PDF, for the link above every summary. Where each
+            // act starts stays in the JSON: only the build needs it.
+            if (meta.pdfUrl) entry.pdfUrl = meta.pdfUrl;
             catalog.years[year].push(entry);
         }
     }

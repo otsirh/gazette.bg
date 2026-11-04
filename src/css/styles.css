@@ -1203,6 +1203,28 @@ main .loading {
     border-bottom-color: var(--accent);
 }
 
+/* Where a section's facts stand in the official issue. */
+.content .section-source {
+    margin-top: calc(-1 * var(--gap-2xs));
+    font-family: var(--font-mono);
+    font-size: 0.6875rem;
+    line-height: 1.7;
+    letter-spacing: 0.01em;
+    color: var(--muted);
+}
+
+.content .section-source a {
+    color: var(--ink-soft);
+    text-decoration: none;
+    border-bottom: 1px solid var(--hairline);
+    background: none;
+}
+
+.content .section-source a:hover {
+    color: var(--accent);
+    border-bottom-color: var(--accent);
+}
+
 /* Table of contents — collapsible register on mobile, sticky margin column on desktop. */
 .issue-toc {
     margin: 0 0 var(--gap-xl);

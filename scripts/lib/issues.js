@@ -7,6 +7,8 @@ import { fileURLToPath } from 'node:url';
 
 export const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
 export const ISSUES_DIR = path.join(ROOT, 'issues');
+// How many times each unfinished issue has failed to summarize.
+export const ATTEMPTS_PATH = path.join(ISSUES_DIR, '.summary-attempts.json');
 // The PDF waits here while it is summarized; *.tmp.pdf is gitignored.
 export const TEMP_PDF_NAME = '.tmp.pdf';
 
@@ -20,6 +22,11 @@ export function summaryPath(year, issue, issuesDir = ISSUES_DIR) {
 
 export function metadataPath(year, issue, issuesDir = ISSUES_DIR) {
     return path.join(issueDir(year, issue, issuesDir), `${Number(issue)}.json`);
+}
+
+// The fact check's record: what it corrected, and what the issue cost.
+export function checkReportPath(year, issue, issuesDir = ISSUES_DIR) {
+    return path.join(issueDir(year, issue, issuesDir), `${Number(issue)}.check.json`);
 }
 
 export function tempPdfPath(year, issue, issuesDir = ISSUES_DIR) {

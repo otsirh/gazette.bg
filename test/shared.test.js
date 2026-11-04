@@ -8,14 +8,18 @@ import {
     issueDateToIso,
     issuesNewestFirst,
     issueTitle,
+    parseSourceList,
     pluralTopics,
     readingMinutes,
     renderDisclaimer,
     renderHomeContent,
     renderIssueNav,
+    renderSourceLines,
     searchTermVariants,
+    shortActLabel,
     slugify,
     stemBg,
+    stripSourceLines,
 } from '../src/js/shared.js';
 
 test('dates read the way the site prints them', () => {
@@ -132,4 +136,60 @@ test('issue titles lead with the primary headline and fall back to the issue num
         issueTitle({ issue: 5, date: '16 Януари 2026', topics: [] }),
         'Брой 5 · 16 януари 2026 — Обобщения на Държавен вестник',
     );
+});
+
+const META = {
+    pdfUrl: 'https://dv.parliament.bg/DVWeb/fileUploadShowing.jsp?idFileAtt=1',
+    materials: [
+        { page: 3, id: 30, issuer: 'Конституционен съд', title: 'Решение № 18 от 27 октомври 2026 г. по к.д. № 11' },
+        {
+            page: 7,
+            id: 70,
+            issuer: 'Народно събрание',
+            title: 'Закон за изменение и допълнение на Закона за управление на отпадъците',
+        },
+    ],
+};
+const ACT = 'https://dv.parliament.bg/DVWeb/showMaterialDV.jsp?idMat=';
+
+test('a source line reads acts, pages and ranges, and drops the rest', () => {
+    assert.deepEqual(parseSourceList('акт 2, акт 5, стр. 37–38, 40; стр. 9, бла, 8–2'), [
+        { act: 2 },
+        { act: 5 },
+        { from: 37, to: 38 },
+        { from: 40, to: 40 },
+        { from: 9, to: 9 },
+    ]);
+    assert.deepEqual(parseSourceList('12, акт 1'), [{ act: 1 }], 'a bare number is a page only after "стр."');
+});
+
+test('an act is labelled by its type and number, or a shortened title', () => {
+    assert.equal(shortActLabel('Постановление № 224 от 29 октомври 2026 г. за одобряване'), 'Постановление № 224');
+    assert.equal(
+        shortActLabel('Закон за изменение и допълнение на Закона за управление на отпадъците и други'),
+        'Закон за изменение и допълнение на Закона за управление на…',
+    );
+});
+
+test('the source line of a section becomes links to the official text', () => {
+    const md = '## Тема\n\nТекст.\nИзточник: акт 1, акт 2, акт 1, акт 9, стр. 25–26\n\n## Друга';
+    const out = renderSourceLines(md, META);
+    assert.equal(
+        out,
+        '## Тема\n\nТекст.\n\n<p class="section-source"><span class="section-source-label">Официален текст:</span> ' +
+            `<a href="${ACT}30" target="_blank" rel="noopener" title="Конституционен съд — Решение № 18 от 27 октомври 2026 г. по к.д. № 11">Решение № 18</a> · ` +
+            `<a href="${ACT}70" target="_blank" rel="noopener" title="Народно събрание — Закон за изменение и допълнение на Закона за управление на отпадъците">Закон за изменение и допълнение на Закона за управление на…</a> · ` +
+            `<a href="${META.pdfUrl}" target="_blank" rel="noopener">стр. 25–26 (PDF)</a></p>\n\n## Друга`,
+    );
+    assert.match(renderSourceLines('Източник: стр. 4', {}), /<p class="section-source">.*стр\. 4<\/p>/);
+    assert.equal(renderSourceLines('Текст.\n\nИзточник: акт 3', {}), 'Текст.\n\n', 'an unknown act renders nothing');
+    assert.equal(stripSourceLines('Текст.\n\nИзточник: акт 1'), 'Текст.\n\n');
+});
+
+test('the disclaimer links the official PDF when the issue has one', () => {
+    assert.match(
+        renderDisclaimer({ year: 2026, issue: 100, pdfUrl: META.pdfUrl }),
+        /idFileAtt=1.*официалния брой \(PDF\)/,
+    );
+    assert.match(renderDisclaimer({ year: 2026, issue: 1 }), /href="https:\/\/dv\.parliament\.bg"/);
 });

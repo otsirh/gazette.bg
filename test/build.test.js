@@ -62,7 +62,11 @@ test('sitemap, feed and search index cover the issues', () => {
     const feed = read('feed.xml');
     const items = feed.match(/<item>/g) || [];
     assert.equal(items.length, Math.min(50, summaries.length));
-    assert.match(feed, /<content:encoded><!\[CDATA\[<h2>/);
+    assert.match(
+        feed,
+        /<content:encoded><!\[CDATA\[<p><em>Неофициално обобщение, генерирано с AI\..*?<\/em><\/p>\n<h2>/,
+    );
+    assert.match(feed, /<description>Обобщение с AI на Държавен вестник/);
     const searchIndex = JSON.parse(read('search-index.json'));
     assert.equal(Object.keys(searchIndex).length, summaries.length);
     assert.match(Object.values(searchIndex)[0], /\t/, 'search index separates section headings with tabs');

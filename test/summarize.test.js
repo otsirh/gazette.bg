@@ -5,7 +5,7 @@ import path from 'node:path';
 import { beforeEach, test } from 'node:test';
 import Anthropic from '@anthropic-ai/sdk';
 import { PDFDocument } from 'pdf-lib';
-import { summarizePdf } from '../scripts/summarize-gazette.js';
+import { applyEdits, sectionsWithoutSource, summarizePdf, usageCostUsd } from '../scripts/summarize-gazette.js';
 
 // The summarizer against a stand-in for the Claude API: the requests it sends
 // and what it makes of the streamed replies. Guards the call path across SDK
@@ -21,7 +21,7 @@ function sse(text, stopReason = 'end_turn') {
                     id: 'msg_test',
                     type: 'message',
                     role: 'assistant',
-                    model: 'claude-sonnet-5-5',
+                    model: 'claude-opus-5-5',
                     content: [],
                     stop_reason: null,
                     stop_sequence: null,
@@ -62,17 +62,29 @@ fs.writeFileSync(pdfPath, await doc.save());
 
 beforeEach((t) => t.mock.method(console, 'log', () => {}));
 
-test('an issue is read in parts, then written up in one edit pass', async () => {
-    const { client, requests } = fakeClaude([['- инвентар'], ['## Тема\n\nТекст с "кавички".']]);
-    const markdown = await summarizePdf(pdfPath, '2026', '97', { client, delayMs: 0 });
+const NO_EDITS = '{"edits":[]}';
 
-    assert.equal(markdown, '## Тема\n\nТекст с „кавички“.\n');
-    assert.equal(requests.length, 2);
-    const [chunk, refine] = requests;
+test('an issue is read in parts, written up, then checked against the PDF', async () => {
+    const check = JSON.stringify({
+        edits: [{ find: 'от **1 март**', replace: 'от **1 април**', reason: 'В броя е 1 април.', page: 2 }],
+    });
+    const { client, requests } = fakeClaude([
+        ['[стр. 2] инвентар'],
+        ['## Тема\n\nВажи от **1 март** с "кавички".\n\nИзточник: акт 1'],
+        [check],
+    ]);
+    const materials = [{ page: 2, id: 9, issuer: 'Министерски съвет', title: 'Постановление № 1' }];
+    const { markdown, report } = await summarizePdf(pdfPath, '2026', '97', { client, materials, delayMs: 0 });
+
+    assert.equal(markdown, '## Тема\n\nВажи от **1 април** с „кавички“.\n\nИзточник: акт 1\n');
+    assert.equal(report.corrections.length, 1);
+    assert.deepEqual(report.sectionsWithoutSource, []);
+    assert.equal(requests.length, 3);
+    const [chunk, refine, checkReq] = requests;
     for (const { url, headers, body } of requests) {
         assert.match(url, /\/v1\/messages/);
         assert.match(headers.get('anthropic-beta'), /server-side-fallback-2026-07-01/);
-        assert.equal(body.model, 'claude-sonnet-5-5');
+        assert.equal(body.model, 'claude-opus-5-5');
         assert.equal(body.stream, true);
         assert.deepEqual(body.thinking, { type: 'adaptive' });
         assert.equal(body.fallbacks, 'default');
@@ -83,7 +95,33 @@ test('an issue is read in parts, then written up in one edit pass', async () => 
     assert.equal(chunk.body.messages[0].content[0].type, 'document');
     assert.equal(chunk.body.messages[0].content[0].source.media_type, 'application/pdf');
     assert.equal(refine.body.output_config.effort, 'high');
-    assert.match(refine.body.messages[0].content[0].text, /- инвентар/);
+    assert.match(refine.body.messages[0].content[0].text, /\[стр\. 2\] инвентар/);
+    assert.match(refine.body.messages[0].content[0].text, /акт 1 · стр\. 2 · Министерски съвет — Постановление № 1/);
+    assert.equal(checkReq.body.output_config.effort, 'high');
+    assert.equal(checkReq.body.output_config.format.type, 'json_schema');
+    assert.equal(checkReq.body.messages[0].content[0].type, 'document', 'the check sees the PDF');
+    assert.match(checkReq.body.messages[0].content[1].text, /Важи от \*\*1 март\*\*/);
+    assert.match(checkReq.body.messages[0].content[1].text, /акт 1 · стр\. 2/, 'the check sees the acts list');
+});
+
+test('a correction that does not match is tried once more without the PDF', async () => {
+    const miss = JSON.stringify({
+        edits: [{ find: 'от 5 март', replace: 'от 1 април', reason: 'Е 1 април.', page: 2 }],
+    });
+    const hit = JSON.stringify({
+        edits: [{ find: 'от 1 март', replace: 'от 1 април', reason: 'Е 1 април.', page: 2 }],
+    });
+    const { client, requests } = fakeClaude([
+        ['- инвентар'],
+        ['## Тема\n\nВажи от 1 март.\n\nИзточник: акт 1'],
+        [miss],
+        [hit],
+    ]);
+    const { markdown, report } = await summarizePdf(pdfPath, '2026', '97', { client, delayMs: 0 });
+    assert.match(markdown, /Важи от 1 април\./);
+    assert.equal(report.notApplied.length, 0);
+    assert.equal(requests.length, 4);
+    assert.equal(requests[3].body.messages[0].content[0].type, 'text', 'the retry sends no PDF');
 });
 
 test('a refusal fails the issue instead of publishing it', async () => {
@@ -97,6 +135,27 @@ test('a truncated summary fails the issue', async () => {
 });
 
 test('a summary with garbled words fails the issue', async () => {
-    const { client } = fakeClaude([['- инвентар'], ['## Тема\n\nobhвата']]);
+    const { client } = fakeClaude([['- инвентар'], ['## Тема\n\nobhвата'], [NO_EDITS]]);
     await assert.rejects(summarizePdf(pdfPath, '2026', '97', { client, delayMs: 0 }), /mixes Cyrillic and Latin/);
+});
+
+test('corrections apply once, tolerate dropped emphasis, and skip what is ambiguous', () => {
+    const md = 'Таксата е **12,50 евро** от **1 март**.\n\nДа. Да.\n\n  - вложен ред';
+    const { markdown, applied, skipped } = applyEdits(md, [
+        { find: 'Таксата е 12,50 евро', replace: 'Таксата е **13,50 евро**', reason: '', page: 1 },
+        { find: 'Да.', replace: 'Не.', reason: '', page: 1 },
+        { find: ' от **1 март**', replace: '', reason: '', page: 1 },
+    ]);
+    assert.equal(markdown, 'Таксата е **13,50 евро**.\n\nДа. Да.\n\n  - вложен ред');
+    assert.equal(applied.length, 2);
+    assert.equal(skipped.length, 1);
+    assert.match(skipped[0].why, /exactly once/);
+});
+
+test('sections without a source line are reported', () => {
+    assert.deepEqual(sectionsWithoutSource('## А\n\nТекст.\n\nИзточник: акт 1\n\n## Б\n\nТекст.'), ['Б']);
+});
+
+test('usage is priced at Opus 5.5 list prices', () => {
+    assert.equal(usageCostUsd({ input: 1_000_000, output: 100_000, cacheWrite: 0, cacheRead: 0 }), 6);
 });

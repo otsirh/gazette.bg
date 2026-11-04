@@ -16,7 +16,9 @@ import {
     renderIssueArticleHtml,
     renderIssueHeader,
     renderIssueNav,
+    renderSourceLines,
     stripMarkdownInline,
+    stripSourceLines,
 } from '../src/js/shared.js';
 import { isMain } from './lib/cli.js';
 import { ROOT } from './lib/issues.js';
@@ -120,8 +122,30 @@ function inlineCriticalCss(html) {
     );
 }
 
+// The issue's JSON beside its summary: the official PDF and where each act
+// starts, for the links under every section.
+function readIssueMeta(item) {
+    try {
+        return JSON.parse(fs.readFileSync(path.join(ROOT, item.file.replace(/\.md$/, '.json')), 'utf8'));
+    } catch {
+        return {};
+    }
+}
+
+// The summary as the site serves it: each section's "Източник: …" line is
+// already the links to the official text, so the browser renders exactly what
+// the build did.
+function readPublishedMarkdown(item) {
+    return renderSourceLines(fs.readFileSync(path.join(ROOT, item.file), 'utf8'), readIssueMeta(item));
+}
+
+// Said wherever the AI text is read away from the page that says it already:
+// feed readers and link previews (EU AI Act, art. 50).
+const AI_NOTICE =
+    'Неофициално обобщение, генерирано с AI. Може да съдържа грешки; официалният текст е на dv.parliament.bg.';
+
 function buildIssueViewInner(item, prev, next) {
-    const md = fs.readFileSync(path.join(ROOT, item.file), 'utf8');
+    const md = readPublishedMarkdown(item);
     const { html: processedHtml, tocItems } = processRenderedContent(marked.parse(md));
     const contentHtml = renderIssueArticleHtml(item, processedHtml, tocItems);
 
@@ -145,7 +169,10 @@ function buildIssuePage(template, item, prev, next) {
     const topics = Array.isArray(item.topics) ? item.topics : [];
     const lead = topics[0] || `Брой ${item.issue}`;
     const summaryPreview = item.lead || (topics.length ? topics.join('; ') : 'обобщение на броя, генерирано с AI.');
-    const metaDesc = truncate(`Държавен вестник, брой ${item.issue} от ${titleDate}: ${summaryPreview}`, 160);
+    const metaDesc = truncate(
+        `Обобщение с AI на Държавен вестник, брой ${item.issue} от ${titleDate}: ${summaryPreview}`,
+        160,
+    );
 
     let html = template;
 
@@ -267,14 +294,17 @@ function buildRssXml(all) {
             const title = topics[0] || `Брой ${item.issue}`;
             const link = SITE_ORIGIN + issuePath(item);
             const desc = truncate(
-                `Държавен вестник, брой ${item.issue} от ${formatDateLong(item.date)}: ` +
+                `Обобщение с AI на Държавен вестник, брой ${item.issue} от ${formatDateLong(item.date)}: ` +
                     (topics.length ? topics.join('; ') : 'обобщение на броя, генерирано с AI.'),
                 500,
             );
             let contentTag = '';
             try {
-                const md = fs.readFileSync(path.join(ROOT, item.file), 'utf8');
-                const html = marked.parse(md).trim().replace(/\]\]>/g, ']]]]><![CDATA[>');
+                const notice = `<p><em>${escapeHtml(AI_NOTICE)}</em></p>`;
+                const html = `${notice}\n${marked.parse(readPublishedMarkdown(item)).trim()}`.replace(
+                    /\]\]>/g,
+                    ']]]]><![CDATA[>',
+                );
                 contentTag = `\n    <content:encoded><![CDATA[${html}]]></content:encoded>`;
             } catch {
                 // Keep the item with its short description if the file cannot be read.
@@ -320,7 +350,8 @@ function buildSearchIndex(all) {
     const index = {};
     for (const item of all) {
         try {
-            index[`${item.year}/${item.issue}`] = toPlainText(fs.readFileSync(path.join(ROOT, item.file), 'utf8'));
+            const md = stripSourceLines(fs.readFileSync(path.join(ROOT, item.file), 'utf8'));
+            index[`${item.year}/${item.issue}`] = toPlainText(md);
         } catch {
             // A summary that can't be read is left out of search, not fatal.
         }
@@ -370,8 +401,8 @@ export function buildSite({ distDir = DIST_DIR } = {}) {
         const prev = all[idx + 1] || null;
         const next = all[idx - 1] || null;
         write(path.join(issuePath(item), 'index.html'), buildIssuePage(versionedTemplate, item, prev, next));
-        // The client fetches the raw summary when it navigates between issues.
-        copy(item.file);
+        // The client fetches the summary when it navigates between issues.
+        write(item.file, readPublishedMarkdown(item));
     });
 
     // Pre-render homepage with the full issue list so crawlers see all internal links.

@@ -217,7 +217,8 @@ export function processRenderedContent(html) {
 }
 
 export function readingMinutes(markdown) {
-    const words = stripMarkdownInline(String(markdown)).split(/\s+/).filter(Boolean).length;
+    const text = String(markdown).replace(/<[^>]+>/g, ' ');
+    const words = stripMarkdownInline(text).split(/\s+/).filter(Boolean).length;
     return Math.max(1, Math.round(words / WORDS_PER_MINUTE));
 }
 
@@ -382,6 +383,96 @@ export function renderHomeContent(all) {
     return renderLeadCard(all[0]) + renderArchive(all.slice(1), all[0]);
 }
 
+/* ─── Sources ─── */
+
+const DV_MATERIAL_URL = 'https://dv.parliament.bg/DVWeb/showMaterialDV.jsp?idMat=';
+const SOURCE_LINE_RE = /^Източник:[ \t]*(.+?)[ \t]*$/gm;
+
+// "акт 2, акт 5, стр. 37–38" → [{ act: 2 }, { act: 5 }, { from: 37, to: 38 }].
+// A bare number after "стр." is a page too ("стр. 37, 39"); anything else is
+// dropped rather than guessed at.
+export function parseSourceList(text) {
+    const refs = [];
+    let inPages = false;
+    for (const raw of String(text).split(/[,;]/)) {
+        const part = raw.trim();
+        const act = part.match(/^акт\s*(\d{1,3})$/i);
+        if (act) {
+            refs.push({ act: Number(act[1]) });
+            inPages = false;
+            continue;
+        }
+        const pages = part.match(/^(?:(стр\.?)\s*)?(\d{1,4})(?:\s*[-–—]\s*(\d{1,4}))?$/i);
+        if (!pages || !(pages[1] || inPages)) continue;
+        inPages = true;
+        const from = Number(pages[2]);
+        const to = pages[3] ? Number(pages[3]) : from;
+        if (from >= 1 && to >= from) refs.push({ from, to });
+    }
+    return refs;
+}
+
+// "Постановление № 224 от 29 октомври 2026 г. за ..." → "Постановление № 224".
+// A title without a number (a law) is cut to a readable length instead.
+export function shortActLabel(title) {
+    const t = String(title || '').trim();
+    const numbered = t.match(/^(.{1,60}?№\s*[^\s,]+)/);
+    if (numbered) return numbered[1];
+    if (t.length <= 60) return t;
+    return `${t.slice(0, 59).replace(/\s+\S*$/, '')}…`;
+}
+
+const pageLabel = ({ from, to }) => (from === to ? String(from) : `${from}–${to}`);
+
+// Each act of the official section has a page of its own on dv.parliament.bg;
+// anything outside those acts is shown on its page of the issue's PDF.
+export function renderSourceHtml(text, meta) {
+    const materials = Array.isArray(meta?.materials) ? meta.materials : [];
+    const refs = parseSourceList(text);
+    const links = [];
+    const seen = new Set();
+    const pages = [];
+    for (const ref of refs) {
+        if (ref.act) {
+            const m = materials[ref.act - 1];
+            if (!m || seen.has(m.id)) continue;
+            seen.add(m.id);
+            const full = [m.issuer, m.title].filter(Boolean).join(' — ');
+            links.push(
+                `<a href="${DV_MATERIAL_URL}${encodeURIComponent(m.id)}" target="_blank" rel="noopener" title="${escapeHtml(full)}">${escapeHtml(shortActLabel(m.title))}</a>`,
+            );
+        } else {
+            pages.push(ref);
+        }
+    }
+    if (pages.length) {
+        const label = `стр. ${pages.map(pageLabel).join(', ')}`;
+        links.push(
+            meta?.pdfUrl
+                ? `<a href="${escapeHtml(meta.pdfUrl)}" target="_blank" rel="noopener">${escapeHtml(label)} (PDF)</a>`
+                : escapeHtml(label),
+        );
+    }
+    if (!links.length) return '';
+    return `<p class="section-source"><span class="section-source-label">Официален текст:</span> ${links.join(' · ')}</p>`;
+}
+
+// Turns each section's closing "Източник: акт 2, стр. 37" line into links to
+// the official text. Runs on the markdown before it is parsed, in the build;
+// the browser fetches the markdown already turned.
+export function renderSourceLines(markdown, meta) {
+    return String(markdown)
+        .replace(SOURCE_LINE_RE, (_m, list) => {
+            const html = renderSourceHtml(list, meta);
+            return html ? `\n\n${html}\n\n` : '';
+        })
+        .replace(/\n{3,}/g, '\n\n');
+}
+
+export function stripSourceLines(markdown) {
+    return String(markdown).replace(SOURCE_LINE_RE, '');
+}
+
 /* ─── Issue page ─── */
 
 const REPORT_URL_BASE = 'https://github.com/otsirh/gazette.bg/issues/new?template=mistake.yml';
@@ -389,7 +480,10 @@ const REPORT_URL_BASE = 'https://github.com/otsirh/gazette.bg/issues/new?templat
 export function renderDisclaimer(item) {
     const issueUrl = item?.year && item?.issue ? `https://gazette.bg${issuePath(item)}` : '';
     const reportHref = issueUrl ? `${REPORT_URL_BASE}&issue=${encodeURIComponent(issueUrl)}` : REPORT_URL_BASE;
-    return `<p class="content-disclaimer">Текстът по-долу е неофициално обобщение, генерирано с AI, и може да съдържа грешки. За официален текст и правни цели използвайте <a href="https://dv.parliament.bg" target="_blank" rel="noopener">dv.parliament.bg</a>. Забелязахте неточност? <a href="${escapeHtml(reportHref)}" target="_blank" rel="noopener">Съобщете за нея</a>.</p>`;
+    const official = item?.pdfUrl
+        ? `<a href="${escapeHtml(item.pdfUrl)}" target="_blank" rel="noopener">официалния брой (PDF)</a> на dv.parliament.bg`
+        : '<a href="https://dv.parliament.bg" target="_blank" rel="noopener">dv.parliament.bg</a>';
+    return `<p class="content-disclaimer">Текстът по-долу е неофициално обобщение, генерирано с AI, и може да съдържа грешки. За официален текст и правни цели използвайте ${official}. Забелязахте неточност? <a href="${escapeHtml(reportHref)}" target="_blank" rel="noopener">Съобщете за нея</a>.</p>`;
 }
 
 export const CONTENT_DISCLAIMER = renderDisclaimer();

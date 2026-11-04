@@ -20,7 +20,7 @@ try {
         ],
         'api-check',
         'low',
-        [{ type: 'text', text: 'Answer in one short line.' }],
+        { system: [{ type: 'text', text: 'Answer in one short line.' }] },
     );
     console.log(`[check-api] OK: Claude read the test page as "${text.trim()}"`);
 } catch (e) {

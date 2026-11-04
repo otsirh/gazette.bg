@@ -36,7 +36,7 @@ jobs:
   update:
     needs: playwright-version
     runs-on: ubuntu-latest
-    timeout-minutes: 60
+    timeout-minutes: 90
     container:
       image: mcr.microsoft.com/playwright:v${{ needs.playwright-version.outputs.version }}-noble
     permissions:
