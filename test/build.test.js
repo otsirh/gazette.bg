@@ -123,7 +123,7 @@ test('every story has its own page', () => {
         assert.match(page, /<meta name="description" content="Обобщение с AI/);
         assert.doesNotMatch(page, /^Теми:|^Източник:/m, 'annotation lines are rendered, not shown');
     }
-    const { year, issue, story } = stories.at(-1);
+    const { year, issue } = stories.at(-1);
     assert.doesNotMatch(
         read(`issues/${year}/${String(issue).padStart(2, '0')}/${issue}.md`),
         /class="(section-topics|topic-chip|story-link)"/,
