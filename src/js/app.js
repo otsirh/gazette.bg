@@ -3,9 +3,9 @@ import {
     formatDateLong,
     issuesNewestFirst,
     issueTitle,
-    latinSlug,
     processRenderedContent,
     readingMinutes,
+    renderHomeContent,
     renderIssueArticleHtml,
     renderIssueHeader,
     renderIssueNav,
@@ -189,6 +189,26 @@ let currentIssue = null;
 let lastFocusedCard = null;
 let currentTocId = null;
 
+function renderHome() {
+    if (!catalog?.years) return;
+    const all = issuesNewestFirst(catalog);
+    if (!all.length) {
+        homeContent.innerHTML = renderHomeContent(all);
+        return;
+    }
+
+    const previous = document.getElementById('archive-search');
+    const pendingQuery = previous ? previous.value : '';
+
+    homeContent.innerHTML = renderHomeContent(all);
+
+    if (pendingQuery) {
+        const searchInput = document.getElementById('archive-search');
+        if (searchInput) searchInput.value = pendingQuery;
+        applyArchiveFilter();
+    }
+}
+
 /* ─── Full-Text Morphological Search ────────────── */
 
 let searchIndex = null;
@@ -292,7 +312,6 @@ function findBestMatchingSection(rawIssueText, groups) {
     if (!rawIssueText || !groups.length) return null;
     const lines = rawIssueText.split('\n');
     const used = new Set();
-    const usedStory = new Set();
     let best = null;
     let bestCount = 0;
 
@@ -301,7 +320,6 @@ function findBestMatchingSection(rawIssueText, groups) {
         const heading = tabIdx >= 0 ? line.slice(0, tabIdx) : '';
         const body = tabIdx >= 0 ? line.slice(tabIdx + 1) : line;
         let id = '';
-        let story = '';
         if (heading) {
             id = slugify(heading);
             if (used.has(id)) {
@@ -310,14 +328,6 @@ function findBestMatchingSection(rawIssueText, groups) {
                 id = `${id}-${n}`;
             }
             used.add(id);
-            // The story's own address, made the way the build makes it.
-            story = latinSlug(heading);
-            if (usedStory.has(story)) {
-                let n = 2;
-                while (usedStory.has(`${story}-${n}`)) n++;
-                story = `${story}-${n}`;
-            }
-            usedStory.add(story);
         }
         const lower = line.toLowerCase();
         let count = 0;
@@ -326,7 +336,7 @@ function findBestMatchingSection(rawIssueText, groups) {
         }
         if (count > bestCount) {
             bestCount = count;
-            best = { id, story, text: heading && body ? `${heading} — ${body}` : body || heading };
+            best = { id, text: heading && body ? `${heading} — ${body}` : body || heading };
             if (count === groups.length) break;
         }
     }
@@ -339,14 +349,7 @@ function injectSnippet(row, groups) {
     if (!raw || !body) return;
     const section = findBestMatchingSection(raw, groups);
     const baseHref = `/issue/${row.dataset.year}/${row.dataset.issue}/`;
-    // A hit inside a story opens that story's own page.
-    if (section?.story) {
-        row.setAttribute('href', `${baseHref}${section.story}/`);
-        row.dataset.story = 'true';
-    } else {
-        row.setAttribute('href', baseHref);
-        delete row.dataset.story;
-    }
+    row.setAttribute('href', section?.id ? `${baseHref}#${section.id}` : baseHref);
     const html = buildSnippet(section ? section.text : raw, groups);
     if (!html) return;
     const el = document.createElement('span');
@@ -402,10 +405,16 @@ function applyArchiveFilter(rawQuery, { syncUrl = false } = {}) {
         for (const row of homeContent.querySelectorAll('.issue-card-row')) {
             if (row.dataset.year && row.dataset.issue) {
                 row.setAttribute('href', `/issue/${row.dataset.year}/${row.dataset.issue}/`);
-                delete row.dataset.story;
             }
         }
-        for (const el of homeContent.querySelectorAll('.filter-hidden')) el.classList.remove('filter-hidden');
+        for (const el of homeContent.querySelectorAll('.filter-hidden')) {
+            if (!el.classList.contains('is-lead-row') && !el.classList.contains('is-lead-group')) {
+                el.classList.remove('filter-hidden');
+            }
+        }
+        for (const el of homeContent.querySelectorAll('.is-lead-row, .is-lead-group')) {
+            el.classList.add('filter-hidden');
+        }
         if (countEl?.dataset.defaultText) countEl.textContent = countEl.dataset.defaultText;
         announce('');
         return;
@@ -515,8 +524,13 @@ function showHome() {
         if (location.pathname !== '/') history.pushState(null, '', '/');
         syncCanonicalUrl('/');
         if (homeContent && !homeContent.children.length) {
-            location.assign('/');
-            return;
+            ensureCatalog().then((cat) => {
+                if (cat) renderHome();
+                else {
+                    homeContent.innerHTML =
+                        '<p class="empty">Каталогът временно не е наличен. Моля, опитайте да презаредите страницата или да се върнете по-късно.</p>';
+                }
+            });
         }
         if (lastFocusedCard && typeof lastFocusedCard.focus === 'function') {
             lastFocusedCard.focus();
@@ -816,8 +830,6 @@ function onMainClick(e) {
     const card = e.target.closest('a.issue-card');
     if (card) {
         if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button !== 0) return;
-        // A search hit on a story goes to the story's page, a plain page.
-        if (card.dataset.story) return;
         const file = card.dataset.file;
         const issueNum = card.dataset.issue;
         const year = card.dataset.year;
@@ -890,7 +902,7 @@ function onKeyDown(e) {
         return;
     }
 
-    // Story, topic and upcoming pages are plain pages: "/" opens the search
+    // Story pages are plain pages: "/" opens the search
     // on the front page, and the issue shortcuts do not apply.
     if (STATIC_PAGE) {
         if (e.key === '/') {
@@ -959,27 +971,9 @@ function onFolioClick(e) {
     }
 }
 
-// Story and topic pages are plain pages: links between them load the next
+// Story pages are plain pages: links from them load the next
 // page, so only the shared chrome (theme, share, scroll) runs on them.
 const STATIC_PAGE = document.body.dataset.page || '';
-
-// Lists of upcoming changes are built ahead of time; hide what has taken
-// effect since (data-until) or left the last month (data-since), by today's
-// date in the reader's own time zone, and any month left empty.
-function pruneDatedLists() {
-    const today = new Date().toLocaleDateString('sv-SE');
-    for (const li of document.querySelectorAll('li[data-until]')) li.hidden = li.dataset.until < today;
-    for (const li of document.querySelectorAll('li[data-since]')) li.hidden = li.dataset.since < today;
-    // A short list (the front page's) keeps a reserve and shows the first few
-    // still to come.
-    for (const list of document.querySelectorAll('ol[data-show]')) {
-        let shown = 0;
-        for (const li of list.children) if (!li.hidden && ++shown > Number(list.dataset.show)) li.hidden = true;
-    }
-    for (const group of document.querySelectorAll('.month-group, .upcoming-section')) {
-        group.hidden = !group.querySelector('li:not([hidden])');
-    }
-}
 
 // Keeps the pages a reader opens available offline (src/sw.js).
 function registerOfflineReading() {
@@ -988,7 +982,6 @@ function registerOfflineReading() {
 }
 
 async function init() {
-    pruneDatedLists();
     registerOfflineReading();
     if (!STATIC_PAGE) for (const btn of backBtns) btn.addEventListener('click', showHome);
     mainEl.addEventListener('click', onMainClick);
@@ -1061,16 +1054,23 @@ async function init() {
         return;
     }
 
-    // Every page is built ahead of time; one that arrives without its content
-    // is an issue opened by an odd address, or nothing to show here.
-    if (initial && (await ensureCatalog())) {
-        const item = findIssueByYearAndNumber(initial.year, initial.issueNum);
-        if (item) {
-            openIssue(item, location.hash);
-            return;
-        }
+    const cat = await ensureCatalog();
+    if (!cat) {
+        homeContent.innerHTML =
+            '<p class="empty">Каталогът временно не е наличен. Моля, опитайте да презаредите страницата или да се върнете по-късно.</p>';
+        return;
     }
-    if (location.pathname !== '/') location.assign('/');
+
+    renderHome();
+    applyPendingArchiveQuery();
+
+    if (initial) {
+        const item = findIssueByYearAndNumber(initial.year, initial.issueNum);
+        if (item) openIssue(item, location.hash);
+        else showHome();
+    } else if (location.pathname !== '/') {
+        showHome();
+    }
 }
 
 if (document.readyState === 'loading') {

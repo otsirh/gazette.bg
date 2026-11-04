@@ -12,6 +12,7 @@ import {
     issueTitle,
     processRenderedContent,
     readingMinutes,
+    renderHomeContent,
     renderIssueArticleHtml,
     renderIssueHeader,
     renderIssueNav,
@@ -21,24 +22,10 @@ import {
     stripMarkdownInline,
     stripSourceLines,
     stripTopicLines,
-    TOPICS,
-    topicPath,
 } from '../src/js/shared.js';
 import { isMain } from './lib/cli.js';
 import { ROOT } from './lib/issues.js';
-import {
-    buildStoryPage,
-    buildTopicFeed,
-    buildTopicPage,
-    buildTopicsIndex,
-    buildUpcomingPage,
-    collectStories,
-    jsonForScript,
-    renderHome,
-    setBody,
-    setHead,
-    topicStories,
-} from './lib/pages.js';
+import { buildStoryPage, collectStories, jsonForScript, setBody, setHead } from './lib/pages.js';
 
 const TEMPLATE_PATH = path.join(ROOT, 'src', 'index.html');
 const CSS_PATH = path.join(ROOT, 'src', 'css', 'styles.css');
@@ -125,15 +112,12 @@ async function loadMinifier() {
 // and Cloudflare Pages answers the old address with a permanent redirect.
 function buildRedirects(all) {
     const lines = ['# Addresses that moved (see buildRedirects).'];
-    // The section pages had Bulgarian addresses until 4 November 2026.
-    lines.push('/predstoyashti/ /upcoming/ 301', '/tema/ /topics/ 301');
-    for (const t of TOPICS) {
-        if (!t.formerSlug) continue;
-        lines.push(
-            `/tema/${t.formerSlug}/ ${topicPath(t)} 301`,
-            `/tema/${t.formerSlug}/feed.xml ${topicPath(t)}feed.xml 301`,
-        );
-    }
+    // Topic and upcoming-change pages were online on 4 November 2026 only; their
+    // addresses lead to the front page, and their feeds to the site's feed.
+    // The first rule that matches wins: feeds first, then the pages.
+    for (const section of ['tema', 'topics']) lines.push(`/${section}/:topic/feed.xml /feed.xml 301`);
+    for (const section of ['tema', 'topics']) lines.push(`/${section}/ / 301`, `/${section}/* / 301`);
+    lines.push('/predstoyashti/ / 301', '/upcoming/ / 301');
     for (const item of all) {
         const former = readIssueMeta(item).formerStories || {};
         for (const [oldSlug, newSlug] of Object.entries(former)) {
@@ -211,11 +195,11 @@ function readRawMarkdown(item) {
     return fs.readFileSync(path.join(ROOT, item.file), 'utf8');
 }
 
-// The summary as the site serves it: each section's "Източник: …" and
-// "Теми: …" lines are already links — to the official text, the topic pages
-// and the story's own page — so the browser renders exactly what the build did.
-function readPublishedMarkdown(item, origin = '') {
-    return renderPublishedMarkdown(readRawMarkdown(item), { meta: readIssueMeta(item), item, origin });
+// The summary as the site serves it: each section's "Източник: …" line is
+// already the links to the official text, so the browser renders exactly what
+// the build did.
+function readPublishedMarkdown(item) {
+    return renderPublishedMarkdown(readRawMarkdown(item), { meta: readIssueMeta(item) });
 }
 
 // Said wherever the AI text is read away from the page that says it already:
@@ -348,11 +332,6 @@ function buildSitemapXml(all, stories = []) {
             `  <url>\n    <loc>${SITE_ORIGIN}${storyPath(item, story)}</loc>\n    <lastmod>${iso || today}</lastmod>\n    <changefreq>yearly</changefreq>\n    <priority>0.6</priority>\n  </url>`,
         );
     }
-    for (const loc of ['/topics/', '/upcoming/', ...TOPICS.map(topicPath)]) {
-        urls.push(
-            `  <url>\n    <loc>${SITE_ORIGIN}${loc}</loc>\n    <lastmod>${latestIso}</lastmod>\n    <changefreq>weekly</changefreq>\n    <priority>0.5</priority>\n  </url>`,
-        );
-    }
     return `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${urls.join('\n')}\n</urlset>\n`;
 }
 
@@ -390,7 +369,7 @@ function buildRssXml(all) {
             let contentTag = '';
             try {
                 const notice = `<p><em>${escapeHtml(AI_NOTICE)}</em></p>`;
-                const html = `${notice}\n${marked.parse(readPublishedMarkdown(item, SITE_ORIGIN)).trim()}`.replace(
+                const html = `${notice}\n${marked.parse(readPublishedMarkdown(item)).trim()}`.replace(
                     /\]\]>/g,
                     ']]]]><![CDATA[>',
                 );
@@ -470,7 +449,7 @@ async function buildShareImages(stories, write) {
             const png = await render({
                 headline: story.heading,
                 kicker: `ДВ · Брой ${item.issue} · ${formatDateLong(item.date)}`,
-                topic: story.topics[0]?.label || '',
+                topic: '',
             });
             write(rel, png);
             images.set(storyPath(item, story), `${SITE_ORIGIN}/${rel.split(path.sep).join('/')}`);
@@ -483,9 +462,6 @@ async function buildShareImages(stories, write) {
         console.warn(`[build-issue-pages] WARN: ${failed} share picture(s) failed; those stories use the default.`);
     return images;
 }
-
-// The build's date in Bulgaria, which is what "upcoming" is measured from.
-const today = () => new Date().toLocaleDateString('sv-SE', { timeZone: 'Europe/Sofia' });
 
 export async function buildSite({ distDir = DIST_DIR, shareImages = true } = {}) {
     const catalog = JSON.parse(fs.readFileSync(path.join(distDir, 'catalog.json'), 'utf8'));
@@ -572,16 +548,8 @@ export async function buildSite({ distDir = DIST_DIR, shareImages = true } = {})
             buildStoryPage(versionedTemplate, { item, story, siblings, meta: readIssueMeta(item), image }),
         );
     }
-    write('topics/index.html', buildTopicsIndex(versionedTemplate, stories));
-    write('upcoming/index.html', buildUpcomingPage(versionedTemplate, stories, today()));
-    for (const topic of TOPICS) {
-        const entries = topicStories(stories, topic);
-        write(path.join(topicPath(topic), 'index.html'), buildTopicPage(versionedTemplate, topic, entries));
-        write(path.join(topicPath(topic), 'feed.xml'), buildTopicFeed(topic, entries, readIssueMeta));
-    }
-
-    // The front page: this week's stories, the topics, and every issue in the archive.
-    write('index.html', replaceHomeContent(versionedTemplate, renderHome(all, stories, today())));
+    // Pre-render homepage with the full issue list so crawlers see all internal links.
+    write('index.html', replaceHomeContent(versionedTemplate, renderHomeContent(all)));
     write('sitemap.xml', buildSitemapXml(all, stories));
     write('_redirects', buildRedirects(all));
     write('feed.xml', buildRssXml(all));
@@ -594,7 +562,7 @@ export async function buildSite({ distDir = DIST_DIR, shareImages = true } = {})
     write('sw.js', fs.readFileSync(path.join(ROOT, 'src', 'sw.js'), 'utf8').replace('__VERSION__', swVersion));
 
     console.log(
-        `[build-issue-pages] Wrote the site to ${distDir}: home page, ${all.length} issue pages, ${stories.length} story pages (${images.size} with share pictures), ${TOPICS.length} topics, sitemap, feeds, search index and 404`,
+        `[build-issue-pages] Wrote the site to ${distDir}: home page, ${all.length} issue pages, ${stories.length} story pages (${images.size} with share pictures), sitemap, feed, search index and 404`,
     );
     return all.length;
 }

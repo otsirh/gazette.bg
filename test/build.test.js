@@ -6,7 +6,7 @@ import { before, test } from 'node:test';
 import { buildCatalog } from '../scripts/build-gazette-catalog.js';
 import { buildSite, lit, minifyCss, processRenderedContent } from '../scripts/build-issue-pages.js';
 import { ISSUES_DIR } from '../scripts/lib/issues.js';
-import { splitStories, TOPICS } from '../src/js/shared.js';
+import { splitStories } from '../src/js/shared.js';
 
 // Builds the real site from the real issues into a scratch folder, then checks
 // the parts a reader, a crawler or a feed app depends on.
@@ -66,11 +66,7 @@ test('the home page links every issue', () => {
 
 test('sitemap, feed and search index cover the issues', () => {
     const urls = (read('sitemap.xml').match(/<url>/g) || []).length;
-    assert.equal(
-        urls,
-        summaries.length + 1 + stories.length + 14,
-        'home, issues, stories, the topics and upcoming pages, and 12 topics',
-    );
+    assert.equal(urls, summaries.length + 1 + stories.length, 'home, issues and stories');
     const feed = read('feed.xml');
     const items = feed.match(/<item>/g) || [];
     assert.equal(items.length, Math.min(50, summaries.length));
@@ -114,7 +110,7 @@ test('CSS minifier strips comments and whitespace while preserving strings, calc
     assert.equal(out, '.box :focus-visible{max-height:calc(100vh - 5.5rem);content:"  ✓ копирано "}');
 });
 
-test('every story has its own page, linked from its issue', () => {
+test('every story has its own page', () => {
     assert.ok(stories.length > summaries.length, 'issues have several stories each');
     for (const { year, issue, story } of stories) {
         const page = read(`issue/${year}/${issue}/${story.slug}/index.html`);
@@ -128,25 +124,19 @@ test('every story has its own page, linked from its issue', () => {
         assert.doesNotMatch(page, /^Теми:|^Източник:/m, 'annotation lines are rendered, not shown');
     }
     const { year, issue, story } = stories.at(-1);
-    assert.ok(
-        read(`issues/${year}/${String(issue).padStart(2, '0')}/${issue}.md`).includes(
-            `href="/issue/${year}/${issue}/${story.slug}/"`,
-        ),
+    assert.doesNotMatch(
+        read(`issues/${year}/${String(issue).padStart(2, '0')}/${issue}.md`),
+        /class="(section-topics|topic-chip|story-link)"/,
+        'issue pages carry no topics or story links',
     );
 });
 
-test('every topic has a page and a feed, and the front page shows this week', () => {
-    for (const topic of TOPICS) {
-        assert.match(read(`topics/${topic.slug}/index.html`), /data-page="topic"/);
-        const feed = read(`topics/${topic.slug}/feed.xml`);
-        assert.match(feed, /<rss version="2.0"/);
-        if (feed.includes('<item>')) assert.match(feed, /Неофициално обобщение, генерирано с AI/);
-    }
-    assert.match(read('topics/index.html'), /class="topic-grid"/);
+test('the front page leads with the newest issue; topic and upcoming pages are gone', () => {
     const home = read('index.html');
-    assert.match(home, /<section class="week-section"/);
-    assert.match(home, /<a class="story-lead" href="\/issue\/\d+\/\d+\/[a-z0-9-]+\/"/);
-    assert.match(home, /href="\/topics\/jobs\/"/);
+    assert.match(home, /<section class="lead-section">/);
+    assert.doesNotMatch(home, /week-section|topic-grid|upcoming-section/);
+    assert.ok(!fs.existsSync(path.join(dist, 'topics')) && !fs.existsSync(path.join(dist, 'upcoming')));
+    assert.doesNotMatch(home, /href="\/(topics|upcoming)\//);
 });
 
 test('a share picture is a 1200×630 PNG with the story on it', async () => {
@@ -161,36 +151,15 @@ test('a share picture is a 1200×630 PNG with the story on it', async () => {
     assert.equal(png.readUInt32BE(20), 630);
 });
 
-test('upcoming changes, offline reading and lean assets are published', async () => {
-    const { upcomingStories } = await import('../scripts/lib/pages.js');
-    const mk = (effective, n) => ({
-        story: { effective, topics: [], slug: `s${n}`, heading: `${n}`, body: '' },
-        item: { year: 2026, issue: n },
-    });
-    const { upcoming, recent } = upcomingStories(
-        [mk('2027-01-01', 1), mk('2026-11-10', 2), mk('2026-10-20', 3), mk('2025-01-01', 4), mk('', 5)],
-        '2026-11-04',
-    );
-    assert.deepEqual(
-        upcoming.map((e) => e.item.issue),
-        [2, 1],
-    );
-    assert.deepEqual(
-        recent.map((e) => e.item.issue),
-        [3],
-    );
-
-    assert.match(read('upcoming/index.html'), /data-page="upcoming"/);
+test('offline reading and lean assets are published', () => {
     assert.match(read('offline/index.html'), /<meta name="robots" content="noindex" \/>/);
     const sw = read('sw.js');
     assert.doesNotMatch(sw, /__VERSION__/);
     assert.match(sw, /const VERSION = '[0-9a-f]{8}'/);
-
     const marked = read('src/js/marked.js');
     assert.match(marked, /^\/\*\*[\s\S]*?MIT License/, 'marked keeps its licence notice');
     assert.ok(read('src/js/app.js').split('\n').length < 20, 'scripts are minified');
     assert.ok(!fs.existsSync(path.join(dist, 'fonts', 'og')), 'share-picture fonts stay out of the site');
-    assert.doesNotMatch(read('index.html'), /data-search=/);
 });
 
 test('a story page steps its headings down from its h1', () => {
@@ -204,12 +173,12 @@ test('a story page steps its headings down from its h1', () => {
 test('moved story addresses redirect, and nothing else does', () => {
     const redirects = read('_redirects');
     assert.match(redirects, /^# Addresses that moved/);
-    assert.match(
-        redirects,
-        /^\/tema\/rabota\/feed\.xml \/topics\/jobs\/feed\.xml 301$/m,
-        'old topic feeds keep working',
+    assert.match(redirects, /^\/topics\/:topic\/feed\.xml \/feed\.xml 301$/m, 'old topic feeds lead to the site feed');
+    assert.ok(
+        redirects.indexOf('/topics/:topic/feed.xml') < redirects.indexOf('/topics/* /'),
+        'feeds match before pages',
     );
-    assert.match(redirects, /^\/predstoyashti\/ \/upcoming\/ 301$/m);
+    assert.match(redirects, /^\/upcoming\/ \/ 301$/m);
     for (const line of redirects.split('\n').filter((l) => l.startsWith('/issue/'))) {
         assert.match(line, /^\/issue\/\d{4}\/\d+\/[a-z0-9-]+\/ \/issue\/\d{4}\/\d+\/(?:[a-z0-9-]+\/)? 301$/);
     }

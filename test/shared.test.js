@@ -5,17 +5,15 @@ import {
     formatDateBulgarian,
     formatDateLong,
     formatDateShort,
-    formatIsoDate,
     issueDateToIso,
     issuesNewestFirst,
     issueTitle,
     latinSlug,
     parseSourceList,
-    parseTopicLine,
     pluralTopics,
     readingMinutes,
-    renderArchive,
     renderDisclaimer,
+    renderHomeContent,
     renderIssueNav,
     renderPublishedMarkdown,
     renderSourceLines,
@@ -82,15 +80,27 @@ test('issues are listed newest first across years', () => {
     assert.deepEqual(issuesNewestFirst(null), []);
 });
 
-test('the archive files every issue by year, newest first, with the search', () => {
-    const html = renderArchive(issuesNewestFirst(catalog));
-    assert.match(html, /^<section class="archive-section" id="archive">/);
-    assert.match(html, /<span class="section-count">3 броя<\/span>/);
-    assert.match(html, /id="archive-search"/);
-    assert.match(html, /class="issue-card issue-card-row"[^>]*data-issue="2"/);
+test('the home page leads with the newest issue and files the rest by year', () => {
+    const html = renderHomeContent(issuesNewestFirst(catalog));
+    assert.match(html, /^<section class="lead-section">/);
+    assert.match(html, /<h2 class="lead-title">Водеща<\/h2>/);
+    assert.match(html, /<p class="lead-standfirst">Кратко въведение към водещата тема\.<\/p>/);
+    assert.match(html, /href="\/issue\/2026\/2\/#втора-тема"[^>]*>Втора тема<\/a>/);
+    assert.match(html, /<span class="section-count">2 броя<\/span>/);
+    assert.match(html, /class="issue-card issue-card-row is-lead-row filter-hidden"[^>]*data-issue="2"/);
     assert.ok(html.indexOf('<span>2026</span>') < html.indexOf('<span>2025</span>'));
     assert.match(html, /Първа &lt;тема&gt;/, 'topics are escaped');
-    assert.equal(renderArchive([]), '');
+    assert.match(renderHomeContent([]), /няма налични броеве/);
+
+    const firstOfNewYear = renderHomeContent(
+        issuesNewestFirst({
+            years: {
+                2026: [{ issue: 104, date: '30 Декември 2026', file: 'issues/2026/104/104.md', topics: ['Старо'] }],
+                2027: [{ issue: 1, date: '5 Януари 2027', file: 'issues/2027/01/1.md', topics: ['Ново'] }],
+            },
+        }),
+    );
+    assert.match(firstOfNewYear, /class="year-group is-lead-group filter-hidden"><h3 class="year-title"><span>2027/);
 });
 
 test('issue navigation links the neighbours that exist', () => {
@@ -191,43 +201,19 @@ test('story addresses are Latin, short and unique within an issue', () => {
     assert.equal(latinSlug('Минималната заплата става 660 евро'), 'minimalnata-zaplata-stava-660-evro');
     assert.equal(latinSlug('Щатът на „България“ — промени'), 'shtatat-na-balgaria-promeni');
     assert.ok(latinSlug('Дълго заглавие '.repeat(10)).length <= 64);
-    const stories = splitStories('## Тема\n\nА.\n\nТеми: Здраве, Непозната, Здраве\n\n## Тема\n\nБ.\n');
+    const stories = splitStories('## Тема\n\nА.\n\nТеми: Здраве\n\n## Тема\n\nБ.\n');
     assert.deepEqual(
         stories.map((s) => s.slug),
         ['tema', 'tema-2'],
     );
-    assert.deepEqual(
-        stories[0].topics.map((t) => t.slug),
-        ['health'],
-    );
-    assert.deepEqual(
-        parseTopicLine('Работа и заплати; пенсии и помощи').map((t) => t.slug),
-        ['jobs', 'pensions'],
-    );
 });
 
-test('a published section ends with its topics and a link to its own page', () => {
-    const md = '## Тема\n\nТекст.\n\nИзточник: стр. 4\n\nТеми: Здраве\n\n## Друга\n\nОще.\n';
-    const out = renderPublishedMarkdown(md, { meta: {}, item: { year: 2026, issue: 100 } });
-    assert.doesNotMatch(out, /^Теми:|^Източник:/m);
-    assert.match(
-        out,
-        /<p class="section-topics"><a class="topic-chip" href="\/topics\/health\/">Здраве<\/a><a class="story-link" href="\/issue\/2026\/100\/tema\/">/,
-    );
-    assert.match(out, /href="\/issue\/2026\/100\/druga\/"/);
-    assert.match(
-        renderPublishedMarkdown(md, { item: { year: 2026, issue: 100 }, origin: 'https://gazette.bg' }),
-        /href="https:\/\/gazette\.bg\/topics\/health\/"/,
-    );
-});
-
-test('a story carries the date it takes effect, shown under its section', () => {
-    assert.equal(formatIsoDate('2027-01-01'), '1 януари 2027');
-    assert.equal(formatIsoDate('2027-13-01'), '');
-    const md = '## Тема\n\nТекст.\n\nТеми: Здраве\n\nВ сила: 2027-01-01\n';
-    assert.equal(splitStories(md)[0].effective, '2027-01-01');
-    const out = renderPublishedMarkdown(md, { item: { year: 2026, issue: 1 } });
-    assert.match(out, /<span class="section-effective">В сила от 1 януари 2027<\/span>/);
-    assert.doesNotMatch(out, /^В сила:/m);
-    assert.equal(splitStories('## А\n\nВ сила: 2027-02-30\n')[0].effective, '', 'an impossible date is dropped');
+test('a published summary shows its sources and never its annotation lines', () => {
+    const md =
+        '## Тема\n\nТекст <b>x</b>.\n\nИзточник: стр. 4\n\nТеми: Здраве\n\nВ сила: 2027-01-01\n## Друга\n\nОще.\n';
+    const out = renderPublishedMarkdown(md, { meta: { pdfUrl: 'https://dv.parliament.bg/x' } });
+    assert.doesNotMatch(out, /^(Теми|В сила|Източник):/m);
+    assert.match(out, /<p class="section-source">.*стр\. 4 \(PDF\)<\/a><\/p>/);
+    assert.match(out, /Текст &lt;b>x&lt;\/b>\./, 'model HTML is shown as text');
+    assert.match(out, /^## Друга$/m, 'the next heading survives');
 });

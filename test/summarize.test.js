@@ -183,25 +183,6 @@ test('usage is priced at Opus 5.5 list prices', () => {
     assert.equal(usageCostUsd({ input: 1_000_000, output: 100_000, cacheWrite: 0, cacheRead: 0 }), 6);
 });
 
-test('topics go on the last line of each section, replacing old ones', async () => {
-    const { applyTopics, hasTopics } = await import('../scripts/tag-topics.js');
-    const md = '## А\n\nТекст.\n\nИзточник: акт 1\n\n## Б\n\nТекст.\n\nТеми: Здраве\n';
-    const out = applyTopics(
-        md,
-        new Map([
-            [1, ['Работа и заплати', 'Здраве', 'Образование']],
-            [2, ['Образование']],
-        ]),
-    );
-    assert.equal(
-        out,
-        '## А\n\nТекст.\n\nИзточник: акт 1\n\nТеми: Работа и заплати, Здраве\n\n## Б\n\nТекст.\n\nТеми: Образование\n',
-    );
-    assert.ok(hasTopics(out));
-    assert.ok(hasTopics(md), 'one tagged story marks the issue as tagged');
-    assert.ok(!hasTopics('## А\n\nТекст.\n'));
-});
-
 test('missed items are added after their anchor, or as a section at the end', () => {
     const md = '## А\n\nПърво изречение. Последно изречение.\n\nИзточник: акт 1\n';
     const { markdown, applied, skipped } = applyAdditions(md, [
@@ -219,20 +200,4 @@ test('missed items are added after their anchor, or as a section at the end', ()
         skipped.map((s) => s.why),
         ['anchor not found exactly once', 'unbalanced bold'],
     );
-});
-
-test('the tagger writes topics and the effective date, and only real dates', async () => {
-    const { applyTopics, validDate } = await import('../scripts/tag-topics.js');
-    const md = '## А\n\nТекст.\n\nТеми: Здраве\n\nВ сила: 2020-01-01\n';
-    assert.equal(
-        applyTopics(md, new Map([[1, { topics: ['Образование'], effective: '2027-09-15' }]])),
-        '## А\n\nТекст.\n\nТеми: Образование\n\nВ сила: 2027-09-15\n',
-    );
-    assert.equal(
-        applyTopics(md, new Map([[1, { topics: ['Здраве'], effective: '' }]])),
-        '## А\n\nТекст.\n\nТеми: Здраве\n',
-    );
-    assert.equal(validDate('2027-02-29'), '');
-    assert.equal(validDate('2028-02-29'), '2028-02-29');
-    assert.equal(validDate('скоро'), '');
 });

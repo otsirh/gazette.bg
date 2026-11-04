@@ -33,6 +33,7 @@ const BG_MONTHS_CAP = [
 ];
 
 const WORDS_PER_MINUTE = 180;
+const LEAD_TOPIC_LIMIT = 5;
 
 export function escapeHtml(s) {
     return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
@@ -178,6 +179,20 @@ export function searchTermVariants(term) {
     return [...out];
 }
 
+function uniqueSlugs(headings) {
+    const used = new Set();
+    return headings.map((h) => {
+        let id = slugify(h);
+        if (used.has(id)) {
+            let n = 2;
+            while (used.has(`${id}-${n}`)) n++;
+            id = `${id}-${n}`;
+        }
+        used.add(id);
+        return id;
+    });
+}
+
 // Promote any h1 to h2, assign unique heading IDs, and collect TOC items.
 // Shared by the static build and client-side navigation so anchor IDs are
 // always identical.
@@ -272,13 +287,64 @@ function renderNavCard(item) {
     );
 }
 
-// The archive: every issue, filed by year, with the search above it.
-export function renderArchive(items) {
+// The front page: a two-column editorial spread on wide screens. The left
+// column carries the lead story and its opening standfirst; the right column
+// lists the remaining topics as direct section deep-links.
+function renderLeadCard(item) {
+    const topics = topicsOf(item);
+    const slugs = uniqueSlugs(topics);
+    const headline = topics[0] || `Брой ${item.issue}`;
+    const rest = topics.slice(1);
+    const standfirst = item.lead ? `<p class="lead-standfirst">${escapeHtml(item.lead)}</p>` : '';
+
+    const metaParts = [];
+    if (topics.length) metaParts.push(pluralTopics(topics.length));
+    if (item.minutes) metaParts.push(`≈ ${item.minutes} мин четене`);
+    const metaHtml = metaParts.length ? `<span class="lead-meta">${escapeHtml(metaParts.join(' · '))}</span>` : '';
+
+    let contents = '';
+    if (rest.length) {
+        const shown = rest.slice(0, LEAD_TOPIC_LIMIT);
+        const hidden = rest.length - shown.length;
+        let items = shown
+            .map(
+                (t, idx) =>
+                    `<li><a class="issue-card lead-topic-link" ${cardAttrs(item, slugs[idx + 1])}>${escapeHtml(t)}</a></li>`,
+            )
+            .join('');
+        if (hidden > 0) {
+            items += `<li class="more"><a class="issue-card lead-topic-link" ${cardAttrs(item)}>още ${pluralTopics(hidden)} →</a></li>`;
+        }
+        contents = `<div class="lead-contents"><p class="contents-label">Още в броя</p><ol class="contents-list">${items}</ol></div>`;
+    }
+
+    const spreadCls = contents ? 'lead-spread' : 'lead-spread is-single';
+
+    return `<section class="lead-section">
+<p class="lead-dateline"><span>Последен брой</span><span class="rule"></span><span>Брой ${escapeHtml(String(item.issue))} · ${escapeHtml(formatDateLong(item.date))}</span></p>
+<div class="${spreadCls}">
+<div class="lead-main">
+<a class="issue-card issue-card-lead" ${cardAttrs(item)}>
+<h2 class="lead-title">${escapeHtml(headline)}</h2>
+${standfirst}
+<span class="lead-footer"><span class="lead-read">Прочети обобщението →</span>${metaHtml}</span>
+</a>
+</div>
+${contents}
+</div>
+</section>`;
+}
+
+// The newest issue is already shown above as the lead story, so its row in the
+// archive stays hidden while browsing and only appears when the reader filters
+// the register by search query.
+function renderArchive(items, leadItem) {
     if (!items.length) return '';
     const byYear = {};
+    if (leadItem) byYear[leadItem.year] = [{ item: leadItem, isLead: true }];
     for (const item of items) {
         if (!byYear[item.year]) byYear[item.year] = [];
-        byYear[item.year].push(item);
+        byYear[item.year].push({ item, isLead: false });
     }
     const years = Object.keys(byYear).sort((a, b) => Number(b) - Number(a));
     const total = items.length;
@@ -292,129 +358,35 @@ export function renderArchive(items) {
         '<button type="button" class="archive-search-clear" id="archive-search-clear" aria-label="Изчисти търсенето" hidden>×</button>' +
         '</div>';
     for (const year of years) {
-        html += `<div class="year-group"><h3 class="year-title"><span>${escapeHtml(year)}</span></h3><div class="issue-list">`;
-        for (const item of byYear[year]) html += renderRowCard(item);
+        const entries = byYear[year];
+        const groupCls = entries.every((e) => e.isLead) ? 'year-group is-lead-group filter-hidden' : 'year-group';
+        html += `<div class="${groupCls}"><h3 class="year-title"><span>${escapeHtml(year)}</span></h3><div class="issue-list">`;
+        for (const { item, isLead } of entries) {
+            html += renderRowCard(item, isLead ? 'is-lead-row filter-hidden' : '');
+        }
         html += '</div></div>';
     }
     html += '</section>';
     return html;
 }
 
-/* ─── Topics ─── */
+// The home page below the masthead: the newest issue as the lead story, every
+// older one in the archive register.
+export function renderHomeContent(all) {
+    if (!all.length) {
+        return '<p class="empty">В момента няма налични броеве. Опитайте отново по-късно.</p>';
+    }
+    return renderLeadCard(all[0]) + renderArchive(all.slice(1), all[0]);
+}
 
-// The fixed list a reader can follow. Every story carries one or two of these
-// on a "Теми: …" line at the end of its section; the label is what the line
-// says, the slug is the topic page's address (/topics/<slug>/). formerSlug is
-// the address used before 4 November 2026, which redirects here.
-export const TOPICS = [
-    {
-        slug: 'taxes',
-        formerSlug: 'dani-i-taksi',
-        label: 'Данъци и такси',
-        scope: 'данъци, акцизи, местни и държавни такси, глоби, винетки, тарифи на държавни услуги',
-    },
-    {
-        slug: 'jobs',
-        formerSlug: 'rabota',
-        label: 'Работа и заплати',
-        scope: 'минимална заплата, трудови права, заплати в бюджетната сфера, заетост, трудов стаж',
-    },
-    {
-        slug: 'pensions',
-        formerSlug: 'pensii',
-        label: 'Пенсии и помощи',
-        scope: 'пенсии, осигуровки, социални и семейни помощи, хора с увреждания',
-    },
-    {
-        slug: 'health',
-        formerSlug: 'zdrave',
-        label: 'Здраве',
-        scope: 'НЗОК, лекарства, болници, пациенти, ваксини, медицински стандарти',
-    },
-    {
-        slug: 'education',
-        formerSlug: 'obrazovanie',
-        label: 'Образование',
-        scope: 'училища, детски градини, университети, стипендии, наука, конкурси за преподаватели',
-    },
-    {
-        slug: 'transport',
-        formerSlug: 'transport',
-        label: 'Транспорт и шофьори',
-        scope: 'пътища, шофьори, коли, автомобилни застраховки, влакове, летища, пристанища',
-    },
-    {
-        slug: 'property',
-        formerSlug: 'imoti',
-        label: 'Имоти и строителство',
-        scope: 'кадастър, устройствени планове, отчуждаване, разрешения за строеж, търгове за имоти',
-    },
-    {
-        slug: 'business',
-        formerSlug: 'biznes',
-        label: 'Бизнес и финанси',
-        scope: 'фирми, лицензи, банки, застраховане, бюджет и обществени финанси, търговия, туризъм',
-    },
-    {
-        slug: 'nature',
-        formerSlug: 'priroda',
-        label: 'Земеделие и природа',
-        scope: 'земеделие, гори, води, защитени територии, отпадъци, климат',
-    },
-    {
-        slug: 'energy',
-        formerSlug: 'energiya',
-        label: 'Енергия и комунални услуги',
-        scope: 'ток, газ, парно, вода и канализация, цени на енергията',
-    },
-    {
-        slug: 'justice',
-        formerSlug: 'pravo',
-        label: 'Съд и права',
-        scope: 'съдилища, Конституционен съд, адвокати, граждански права, полиция, оръжия',
-    },
-    {
-        slug: 'government',
-        formerSlug: 'darzhava',
-        label: 'Държава и избори',
-        scope: 'избори, Народно събрание, министерства, международни договори, държавна администрация',
-    },
-];
+/* ─── Annotation lines ─── */
 
-const TOPIC_BY_LABEL = new Map(TOPICS.map((t) => [t.label.toLowerCase(), t]));
+// Summaries from November 2026 carry "Теми: …" and "В сила: …" lines at the
+// end of some sections (from a topics feature since taken down). They are data,
+// never shown: removed wherever a summary is rendered or indexed.
 const TOPIC_LINE_RE = /^Теми:[ \t]*(.+?)[ \t]*$/gm;
 const EFFECTIVE_LINE_RE = /^В сила:[ \t]*(\d{4}-\d{2}-\d{2})[ \t]*$/gm;
 
-// "2027-01-01" → "1 януари 2027".
-export function formatIsoDate(iso) {
-    const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(iso || ''));
-    if (!m) return '';
-    // A date that does not exist (30 February) reads back as another one.
-    const d = new Date(Date.UTC(Number(m[1]), Number(m[2]) - 1, Number(m[3])));
-    if (d.getUTCMonth() !== Number(m[2]) - 1 || d.getUTCDate() !== Number(m[3])) return '';
-    return `${Number(m[3])} ${BG_MONTHS[Number(m[2]) - 1]} ${m[1]}`;
-}
-
-export function topicPath(topic) {
-    return `/topics/${topic.slug}/`;
-}
-
-// "Работа и заплати, Пенсии и помощи" → the two topics; unknown labels drop out.
-export function parseTopicLine(text) {
-    const seen = new Set();
-    const out = [];
-    for (const part of String(text).split(/[,;]/)) {
-        const t = TOPIC_BY_LABEL.get(part.trim().toLowerCase());
-        if (t && !seen.has(t.slug)) {
-            seen.add(t.slug);
-            out.push(t);
-        }
-    }
-    return out;
-}
-
-// The annotation lines at the end of a section — topics and the date it takes
-// effect — which the site renders rather than prints.
 export function stripTopicLines(markdown) {
     return String(markdown).replace(TOPIC_LINE_RE, '').replace(EFFECTIVE_LINE_RE, '');
 }
@@ -486,17 +458,7 @@ export function splitStories(markdown) {
             slug = `${slug}-${n}`;
         }
         used.add(slug);
-        const body = m[2].trim();
-        const topicLine = [...body.matchAll(TOPIC_LINE_RE)].pop();
-        const effectiveLine = [...body.matchAll(EFFECTIVE_LINE_RE)].pop();
-        stories.push({
-            heading: stripMarkdownInline(m[1]),
-            headingMd: m[1],
-            slug,
-            body,
-            topics: topicLine ? parseTopicLine(topicLine[1]) : [],
-            effective: effectiveLine && formatIsoDate(effectiveLine[1]) ? effectiveLine[1] : '',
-        });
+        stories.push({ heading: stripMarkdownInline(m[1]), headingMd: m[1], slug, body: m[2].trim() });
     }
     return stories;
 }
@@ -595,14 +557,6 @@ export function stripSourceLines(markdown) {
     return String(markdown).replace(SOURCE_LINE_RE, '');
 }
 
-export function renderTopicChips(topics, origin = '') {
-    return topics
-        .map((t) => `<a class="topic-chip" href="${origin}${topicPath(t)}">${escapeHtml(t.label)}</a>`)
-        .join('');
-}
-
-const STORY_HEADING_RE = /^##\s+(.+?)\s*\n/;
-
 // The summaries are written by a model that reads third-party text, so any
 // HTML in them is shown as text, never run: only the site's own markup (added
 // after this) is HTML. Blockquote markers (">" at a line's start) stay.
@@ -610,37 +564,12 @@ export function escapeModelHtml(markdown) {
     return String(markdown).replace(/</g, '&lt;');
 }
 
-// The summary as the site serves it. Each section ends with the links to its
-// official text, then its topics and a link to the story's own page, in place
-// of the "Източник: …" and "Теми: …" lines. The build does this once; the
-// browser fetches the markdown already turned. Links are absolute when
-// `origin` is given, for feed readers.
-export function renderPublishedMarkdown(markdown, { meta = {}, item = null, origin = '' } = {}) {
-    const stories = splitStories(markdown);
-    let i = 0;
-    const out = escapeModelHtml(markdown)
-        .split(/(?=^##\s)/m)
-        .map((part) => {
-            if (!STORY_HEADING_RE.test(part)) return part;
-            const story = stories[i++];
-            // A footer is an HTML block: it must end with a blank line, or the
-            // next "## heading" would be read as part of it.
-            const trailing = /\n\n$/.test(part) || !part.endsWith('\n') ? part.match(/\n*$/)[0] || '\n' : '\n\n';
-            const body = stripTopicLines(part.replace(/\n*$/, ''))
-                .replace(/\n{3,}/g, '\n\n')
-                .trimEnd();
-            const chips = renderTopicChips(story.topics, origin);
-            const when = story.effective
-                ? `<span class="section-effective">В сила от ${escapeHtml(formatIsoDate(story.effective))}</span>`
-                : '';
-            const page = item
-                ? `<a class="story-link" href="${origin}${storyPath(item, story)}">Страница на новината →</a>`
-                : '';
-            const footer = chips || page || when ? `\n\n<p class="section-topics">${when}${chips}${page}</p>` : '';
-            return `${body}${footer}${trailing}`;
-        })
-        .join('');
-    return renderSourceLines(out, meta);
+// The summary as the site serves it: its HTML shown as text, each section's
+// "Източник: …" line turned into links to the official text, and the
+// annotation lines removed. The build does this once; the browser fetches the
+// markdown already turned.
+export function renderPublishedMarkdown(markdown, { meta = {} } = {}) {
+    return renderSourceLines(stripTopicLines(escapeModelHtml(markdown)), meta);
 }
 
 /* ─── Issue page ─── */

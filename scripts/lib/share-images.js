@@ -1,5 +1,5 @@
 // The picture a link to a story shows when it is shared (Open Graph): the
-// headline on the site's paper, with the issue and the topic above it and the
+// headline on the site's paper, with the issue above it and the
 // AI notice below. Made at build time, so nothing is committed and nothing runs
 // on a server. A failure here never fails the build: the story keeps the
 // site's own picture.

@@ -118,6 +118,7 @@
     size-adjust: 97.5%;
 }
 
+
 @font-face {
     font-family: "JetBrains Mono";
     font-style: normal;
@@ -298,6 +299,8 @@ a {
 
 /* Small caps label used everywhere the printed page would set
    a caption, folio, or standing head. */
+.lead-dateline,
+.lead-meta,
 .section-count,
 .contents-label,
 .year-title,
@@ -653,27 +656,46 @@ main .loading {
     white-space: nowrap;
 }
 
-/* A long count (a span of dates) wraps under the title on a phone. */
-.section-head {
-    flex-wrap: wrap;
+/* ─── Front page: the lead story ────────────────────── */
+
+.lead-section {
+    margin-bottom: var(--gap-3xl);
 }
 
-.week-section .section-count {
-    white-space: normal;
-}
-
-a.section-count {
-    text-decoration: none;
-}
-
-a.section-count:hover {
+.lead-dateline {
+    display: flex;
+    align-items: center;
+    gap: var(--gap-sm);
+    margin-bottom: var(--gap-md);
     color: var(--accent);
+}
+
+.lead-dateline .rule {
+    flex: 1 1 auto;
+    height: 1px;
+    background: var(--accent);
+    opacity: 0.35;
 }
 
 .issue-card {
     text-decoration: none;
     color: inherit;
     display: block;
+}
+
+.lead-spread {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: var(--gap-xl);
+    padding-top: var(--gap-xs);
+}
+
+.lead-main {
+    min-width: 0;
+}
+
+.issue-card-lead {
+    cursor: pointer;
 }
 
 .lead-title {
@@ -688,6 +710,10 @@ a.section-count:hover {
     transition: color 0.2s var(--ease);
 }
 
+.issue-card-lead:hover .lead-title {
+    color: var(--accent);
+}
+
 .lead-standfirst {
     margin: var(--gap-md) 0 0;
     max-width: 38rem;
@@ -697,7 +723,42 @@ a.section-count:hover {
     color: var(--ink-soft);
 }
 
-/* A numbered register of stories (more from an issue), with direct links. */
+.lead-footer {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: var(--gap-sm) var(--gap-lg);
+    margin-top: var(--gap-lg);
+}
+
+.lead-read {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.45rem;
+    font-family: var(--font-mono);
+    font-size: 0.6875rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.14em;
+    color: var(--accent);
+    border-bottom: 1px solid currentColor;
+    padding-bottom: 0.15rem;
+}
+
+.issue-card-lead:hover .lead-read {
+    color: var(--accent-hover);
+}
+
+.lead-meta {
+    color: var(--muted);
+    font-weight: 500;
+}
+
+/* Contents of the lead issue, set as a numbered register with direct section links. */
+.lead-contents {
+    min-width: 0;
+}
+
 .contents-label {
     margin: 0 0 var(--gap-xs);
     padding-bottom: var(--gap-xs);
@@ -735,232 +796,30 @@ a.section-count:hover {
     font-feature-settings: "tnum", "zero";
 }
 
-/* ─── Front page: this week, as stories ─────────────── */
-
-.week-section,
-.upcoming-section,
-.topics-section {
-    margin-bottom: var(--gap-3xl);
-}
-
-/* The date a change takes effect: the one fact readers plan around. */
-.content .section-effective,
-.meta-effective {
-    font-family: var(--font-mono);
-    font-size: 0.6875rem;
-    font-weight: 600;
-    color: var(--ink);
-}
-
-.month-group {
-    margin-bottom: var(--gap-2xl);
-}
-
-.month-group .year-title {
-    margin-bottom: 0;
-}
-
-.story-card-topics {
-    display: block;
-    margin-bottom: 0.35rem;
-    font-family: var(--font-mono);
-    font-size: 0.625rem;
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.12em;
-    color: var(--accent);
-}
-
-.story-card-meta {
-    display: block;
-    margin-top: 0.5rem;
-    font-family: var(--font-mono);
-    font-size: 0.625rem;
-    font-weight: 500;
-    text-transform: uppercase;
-    letter-spacing: 0.1em;
-    color: var(--muted);
-}
-
-.story-lead {
-    display: block;
-    padding-bottom: var(--gap-xl);
-    margin-bottom: var(--gap-xs);
-    border-bottom: 1px solid var(--hairline);
-    text-decoration: none;
-    color: inherit;
-}
-
-.story-lead:hover .lead-title {
-    color: var(--accent);
-}
-
-.story-list {
-    list-style: none;
-    margin: 0;
-    padding: 0;
-    display: grid;
-    grid-template-columns: minmax(0, 1fr);
-}
-
-.story-list li {
-    border-bottom: 1px solid var(--hairline-soft);
-    min-width: 0;
-}
-
-.story-card {
-    display: block;
-    padding: var(--gap-md) 0;
-    text-decoration: none;
-    color: inherit;
-}
-
-.story-card-title {
-    display: block;
-    font-family: var(--font-display);
-    font-size: 1.1875rem;
-    font-weight: 700;
-    line-height: 1.22;
-    letter-spacing: -0.005em;
-    color: var(--ink);
-    text-wrap: balance;
+.lead-topic-link {
+    padding: 0.5rem 0;
     transition: color 0.16s var(--ease);
 }
 
-.story-card:hover .story-card-title {
+.lead-topic-link:hover {
     color: var(--accent);
 }
 
-.story-card-lead {
-    display: block;
-    margin-top: 0.35rem;
-    font-size: 0.96875rem;
-    line-height: 1.5;
-    color: var(--ink-soft);
-}
-
-/* On a phone the week reads as headlines; the lead lines come back with room. */
-@media (max-width: 640px) {
-    .story-list-week .story-card-lead {
-        display: none;
-    }
-}
-
-@media (min-width: 760px) {
-    .story-list {
-        grid-template-columns: repeat(2, minmax(0, 1fr));
-        column-gap: var(--gap-2xl);
-    }
-}
-
-/* Topics: a register of the twelve, each with its count and newest headline. */
-.topic-grid {
-    list-style: none;
-    margin: 0;
-    padding: 0;
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(min(100%, 15rem), 1fr));
-    border-top: 1px solid var(--hairline);
-}
-
-.topic-grid li {
-    border-bottom: 1px solid var(--hairline);
-    min-width: 0;
-}
-
-.topic-cell {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) auto;
-    gap: 0.15rem var(--gap-sm);
-    padding: var(--gap-sm) var(--gap-md) var(--gap-sm) 0;
-    text-decoration: none;
-    color: inherit;
-}
-
-.topic-cell-label {
-    font-family: var(--font-display);
-    font-size: 1.0625rem;
-    font-weight: 700;
-    line-height: 1.25;
-    color: var(--ink);
-    transition: color 0.16s var(--ease);
-}
-
-.topic-cell:hover .topic-cell-label {
-    color: var(--accent);
-}
-
-.topic-cell-count {
-    font-family: var(--font-mono);
-    font-size: 0.6875rem;
-    font-weight: 600;
-    color: var(--accent);
-    font-variant-numeric: tabular-nums;
-    align-self: baseline;
-}
-
-.topic-cell-latest {
-    grid-column: 1 / -1;
-    font-size: 0.875rem;
-    line-height: 1.4;
+.contents-list li.more {
+    border-bottom: none;
+    font-style: italic;
     color: var(--muted);
 }
 
-/* Under each section: its topics and the link to the story's own page. */
-.content .section-topics {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: baseline;
-    gap: 0.25rem var(--gap-sm);
-    margin-top: calc(-1 * var(--gap-2xs));
-    font-family: var(--font-mono);
-    font-size: 0.6875rem;
-    line-height: 1.6;
-}
-
-.topic-chip {
-    font-family: var(--font-mono);
-    font-size: 0.625rem;
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.1em;
-    color: var(--accent);
-    text-decoration: none;
-}
-
-.content a.topic-chip {
-    background: none;
-    border-bottom: 1px solid transparent;
-}
-
-.content a.topic-chip:hover {
-    border-bottom-color: currentColor;
-}
-
-.content .section-topics .story-link {
-    margin-left: auto;
+.contents-list li.more::before {
+    content: "+";
     color: var(--muted);
-    text-decoration: none;
-    background: none;
-    border-bottom: 1px solid var(--hairline);
 }
 
-.content .section-topics .story-link:hover {
-    color: var(--accent);
-    border-bottom-color: var(--accent);
-}
-
-/* ─── Story and topic pages ─────────────────────────── */
+/* ─── Story pages ───────────────────────────────────── */
 
 a.back-btn {
     text-decoration: none;
-}
-
-.story-topics {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 0.25rem var(--gap-md);
-    margin: 0 0 var(--gap-sm);
 }
 
 .issue-header .story-title {
@@ -969,14 +828,6 @@ a.back-btn {
     letter-spacing: -0.015em;
     text-wrap: balance;
     max-width: 22ch;
-}
-
-.topic-scope {
-    margin: var(--gap-md) 0 0;
-    max-width: 40rem;
-    font-size: 1.0625rem;
-    line-height: 1.55;
-    color: var(--ink-soft);
 }
 
 .more-stories {
@@ -1993,6 +1844,19 @@ a.issue-share-btn {
 
 /* ─── Wide screens: broadsheet spread & margin TOC ──── */
 
+@media (min-width: 901px) {
+    .lead-spread:not(.is-single) {
+        grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr);
+        column-gap: var(--gap-3xl);
+        align-items: start;
+    }
+
+    .lead-spread:not(.is-single) .lead-contents {
+        padding-left: var(--gap-2xl);
+        border-left: 1px solid var(--hairline);
+    }
+}
+
 @media (min-width: 1000px) {
     .content {
         display: grid;
@@ -2040,7 +1904,7 @@ a.issue-share-btn {
         grid-column: 2;
     }
 
-    /* A story or topic page has no contents column. */
+    /* A story page has no contents column. */
     body[data-page] .content {
         display: block;
     }
