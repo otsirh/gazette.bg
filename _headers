@@ -8,6 +8,16 @@
   Content-Security-Policy: default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src 'self'; manifest-src 'self'; frame-ancestors 'none'; base-uri 'self'; object-src 'none'
   Permissions-Policy: camera=(), microphone=(), geolocation=(), payment=(), usb=()
 
+# Pages: Cloudflare's own default caching, plus no-transform, which stops
+# Cloudflare from rewriting them (it would inject its analytics script, which
+# the site neither wants nor allows to run).
+/
+  Cache-Control: public, max-age=0, must-revalidate, no-transform
+/issue/*
+  Cache-Control: public, max-age=0, must-revalidate, no-transform
+/offline/
+  Cache-Control: public, max-age=0, must-revalidate, no-transform
+
 # The fonts never change under the same name, so browsers may keep them for a
 # year. Give a changed font a new file name.
 /fonts/*
