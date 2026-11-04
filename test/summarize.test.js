@@ -5,7 +5,13 @@ import path from 'node:path';
 import { beforeEach, test } from 'node:test';
 import Anthropic from '@anthropic-ai/sdk';
 import { PDFDocument } from 'pdf-lib';
-import { applyEdits, sectionsWithoutSource, summarizePdf, usageCostUsd } from '../scripts/summarize-gazette.js';
+import {
+    applyAdditions,
+    applyEdits,
+    sectionsWithoutSource,
+    summarizePdf,
+    usageCostUsd,
+} from '../scripts/summarize-gazette.js';
 
 // The summarizer against a stand-in for the Claude API: the requests it sends
 // and what it makes of the streamed replies. Guards the call path across SDK
@@ -91,13 +97,13 @@ test('an issue is read in parts, written up, then checked against the PDF', asyn
         assert.equal(body.system[0].cache_control.type, 'ephemeral');
         assert.equal(body.temperature, undefined);
     }
-    assert.equal(chunk.body.output_config.effort, 'medium');
+    assert.equal(chunk.body.output_config.effort, 'high');
     assert.equal(chunk.body.messages[0].content[0].type, 'document');
     assert.equal(chunk.body.messages[0].content[0].source.media_type, 'application/pdf');
-    assert.equal(refine.body.output_config.effort, 'high');
+    assert.equal(refine.body.output_config.effort, 'xhigh');
     assert.match(refine.body.messages[0].content[0].text, /\[стр\. 2\] инвентар/);
     assert.match(refine.body.messages[0].content[0].text, /акт 1 · стр\. 2 · Министерски съвет — Постановление № 1/);
-    assert.equal(checkReq.body.output_config.effort, 'high');
+    assert.equal(checkReq.body.output_config.effort, 'xhigh');
     assert.equal(checkReq.body.output_config.format.type, 'json_schema');
     assert.equal(checkReq.body.messages[0].content[0].type, 'document', 'the check sees the PDF');
     assert.match(checkReq.body.messages[0].content[1].text, /Важи от \*\*1 март\*\*/);
@@ -134,9 +140,26 @@ test('a truncated summary fails the issue', async () => {
     await assert.rejects(summarizePdf(pdfPath, '2026', '97', { client, delayMs: 0 }), /max_tokens/);
 });
 
-test('a summary with garbled words fails the issue', async () => {
-    const { client } = fakeClaude([['- инвентар'], ['## Тема\n\nobhвата'], [NO_EDITS]]);
-    await assert.rejects(summarizePdf(pdfPath, '2026', '97', { client, delayMs: 0 }), /mixes Cyrillic and Latin/);
+test('a garbled word is mended once, and fails the issue if it stays', async () => {
+    const mended = fakeClaude([
+        ['- инвентар'],
+        ['## Тема\n\nВ обхвата е obhвата.'],
+        [NO_EDITS],
+        ['{"words":[{"wrong":"obhвата","right":"обхвата"}]}'],
+    ]);
+    const { markdown } = await summarizePdf(pdfPath, '2026', '97', { client: mended.client, delayMs: 0 });
+    assert.equal(markdown, '## Тема\n\nВ обхвата е обхвата.\n');
+    assert.equal(mended.requests[3].body.messages[0].content[0].type, 'text', 'the repair sends no PDF');
+
+    const stuck = fakeClaude([
+        ['- инвентар'],
+        ['## Тема\n\nobhвата'],
+        [NO_EDITS],
+        ['{"words":[{"wrong":"obhвата","right":"obhвата"}]}'],
+    ]);
+    const failure = await summarizePdf(pdfPath, '2026', '97', { client: stuck.client, delayMs: 0 }).catch((e) => e);
+    assert.match(failure.message, /mixes Cyrillic and Latin/);
+    assert.ok(failure.usage.input > 0, 'a failure says what it cost');
 });
 
 test('corrections apply once, tolerate dropped emphasis, and skip what is ambiguous', () => {
@@ -175,5 +198,41 @@ test('topics go on the last line of each section, replacing old ones', async () 
         '## А\n\nТекст.\n\nИзточник: акт 1\n\nТеми: Работа и заплати, Здраве\n\n## Б\n\nТекст.\n\nТеми: Образование\n',
     );
     assert.ok(hasTopics(out));
-    assert.ok(!hasTopics(md));
+    assert.ok(hasTopics(md), 'one tagged story marks the issue as tagged');
+    assert.ok(!hasTopics('## А\n\nТекст.\n'));
+});
+
+test('missed items are added after their anchor, or as a section at the end', () => {
+    const md = '## А\n\nПърво изречение. Последно изречение.\n\nИзточник: акт 1\n';
+    const { markdown, applied, skipped } = applyAdditions(md, [
+        { after: 'Последно изречение.', text: 'Нов абзац с **срок**.', reason: '', page: 2 },
+        { after: '', text: '## Б\n\nОще.\n\nИзточник: стр. 9', reason: '', page: 9 },
+        { after: 'Няма такова.', text: 'Абзац.', reason: '', page: 3 },
+        { after: 'Първо изречение.', text: 'Счупен **болд.', reason: '', page: 3 },
+    ]);
+    assert.equal(
+        markdown,
+        '## А\n\nПърво изречение. Последно изречение.\n\nНов абзац с **срок**.\n\nИзточник: акт 1\n\n## Б\n\nОще.\n\nИзточник: стр. 9\n',
+    );
+    assert.equal(applied.length, 2);
+    assert.deepEqual(
+        skipped.map((s) => s.why),
+        ['anchor not found exactly once', 'unbalanced bold'],
+    );
+});
+
+test('the tagger writes topics and the effective date, and only real dates', async () => {
+    const { applyTopics, validDate } = await import('../scripts/tag-topics.js');
+    const md = '## А\n\nТекст.\n\nТеми: Здраве\n\nВ сила: 2020-01-01\n';
+    assert.equal(
+        applyTopics(md, new Map([[1, { topics: ['Образование'], effective: '2027-09-15' }]])),
+        '## А\n\nТекст.\n\nТеми: Образование\n\nВ сила: 2027-09-15\n',
+    );
+    assert.equal(
+        applyTopics(md, new Map([[1, { topics: ['Здраве'], effective: '' }]])),
+        '## А\n\nТекст.\n\nТеми: Здраве\n',
+    );
+    assert.equal(validDate('2027-02-29'), '');
+    assert.equal(validDate('2028-02-29'), '2028-02-29');
+    assert.equal(validDate('скоро'), '');
 });

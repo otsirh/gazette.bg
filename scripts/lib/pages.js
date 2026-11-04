@@ -5,8 +5,10 @@
 import { marked } from 'marked';
 import {
     escapeHtml,
+    escapeModelHtml,
     formatDateLong,
     formatDateShort,
+    formatIsoDate,
     issueDateToIso,
     issuePath,
     processRenderedContent,
@@ -28,6 +30,12 @@ const FEED_ITEM_LIMIT = 50;
 // "This week" is every issue within this many days of the newest one.
 const WEEK_DAYS = 7;
 const WEEK_MIN_ISSUES = 2;
+
+// JSON inside a <script> element: a "<" in a headline could otherwise close
+// the element ("</script>") and start markup of its own.
+export function jsonForScript(value) {
+    return JSON.stringify(value).replace(/</g, '\\u003c');
+}
 
 // Anything spliced into a String.replace() replacement is data, not a pattern.
 export function lit(s) {
@@ -71,7 +79,7 @@ export function collectStories(all, readStories) {
 // canonical address, Open Graph and structured data.
 export function setHead(
     template,
-    { title, description, url, type = 'article', image = DEFAULT_OG_IMAGE, jsonLd = [], extra = '' },
+    { title, description, url, type = 'article', image = DEFAULT_OG_IMAGE, imageAlt = '', jsonLd = [], extra = '' },
 ) {
     let html = template;
     const attr = (s) => lit(escapeHtml(s));
@@ -84,7 +92,9 @@ export function setHead(
     html = html.replace(/(<link rel="canonical" href=")[^"]*("\s*\/>)/, `$1${attr(url)}$2`);
     html = html.replace(/(<meta property="og:image" content=")[^"]*("\s*\/>)/, `$1${attr(image)}$2`);
     html = html.replace(/(<meta name="twitter:image" content=")[^"]*("\s*\/>)/, `$1${attr(image)}$2`);
-    const ld = jsonLd.map((o) => `<script type="application/ld+json">${JSON.stringify(o)}</script>`).join('\n    ');
+    if (imageAlt)
+        html = html.replace(/(<meta property="og:image:alt" content=")[^"]*("\s*\/>)/, `$1${attr(imageAlt)}$2`);
+    const ld = jsonLd.map((o) => `<script type="application/ld+json">${jsonForScript(o)}</script>`).join('\n    ');
     return html.replace('</head>', `    ${lit([extra, ld].filter(Boolean).join('\n    '))}\n</head>`);
 }
 
@@ -118,8 +128,13 @@ const breadcrumb = (items) => ({
 
 // ─── Story page ───
 
+// On its own page the story's heading is the h1, so its ### parts become h2:
+// headings then step down one level at a time.
 export function renderStoryBody(story, meta) {
-    const md = renderSourceLines(stripTopicLines(story.body), meta);
+    const md = renderSourceLines(escapeModelHtml(stripTopicLines(story.body)), meta).replace(
+        /^(#{3,6})\s/gm,
+        (_m, h) => `${h.slice(1)} `,
+    );
     return processRenderedContent(marked.parse(md)).html;
 }
 
@@ -153,6 +168,7 @@ export function buildStoryPage(template, { item, story, siblings, meta, image })
         description,
         url,
         image: image || DEFAULT_OG_IMAGE,
+        imageAlt: image ? `${story.heading} — обобщение с AI, gazette.bg` : '',
         jsonLd: [
             article,
             breadcrumb([
@@ -181,7 +197,11 @@ export function buildStoryPage(template, { item, story, siblings, meta, image })
                 <div class="issue-header story-header" id="issue-header">
 <p class="issue-kicker"><span>Брой ${escapeHtml(String(item.issue))}</span><span class="rule"></span><span>Държавен вестник</span></p>
 ${chips}<h1 class="title story-title">${escapeHtml(story.heading)}</h1>
-<div class="issue-meta-bar"><p class="issue-meta" id="issue-meta"><span>Обобщение с AI</span><span class="sep">·</span><span>${escapeHtml(formatDateLong(item.date))}</span><span class="sep">·</span><span>≈ ${minutes} мин четене</span></p><button type="button" class="issue-share-btn" id="issue-share-btn" aria-label="Сподели или копирай връзка към тази новина">Сподели връзка</button></div>
+<div class="issue-meta-bar"><p class="issue-meta" id="issue-meta"><span>Обобщение с AI</span><span class="sep">·</span><span>${escapeHtml(formatDateLong(item.date))}</span>${
+        story.effective
+            ? `<span class="sep">·</span><span class="meta-effective">В сила от ${escapeHtml(formatIsoDate(story.effective))}</span>`
+            : ''
+    }<span class="sep">·</span><span>≈ ${minutes} мин четене</span></p><button type="button" class="issue-share-btn" id="issue-share-btn">Сподели връзка</button></div>
 </div>
                 <article class="content" id="content">${renderDisclaimer({ ...item, pdfUrl: meta?.pdfUrl || item.pdfUrl })}<div class="issue-body">${renderStoryBody(story, meta)}</div></article>
                 ${more}`;
@@ -190,12 +210,12 @@ ${chips}<h1 class="title story-title">${escapeHtml(story.heading)}</h1>
 
 // ─── Topic pages ───
 
-function storyRow({ item, story, lead }, { showTopic = null } = {}) {
+function storyRow({ item, story, lead }, { showTopic = null, kicker: kickerText = null, attrs = '' } = {}) {
     const extra = showTopic ? story.topics.filter((t) => t.slug !== showTopic) : story.topics;
-    const kicker = extra.length
-        ? `<span class="story-card-topics">${extra.map((t) => escapeHtml(t.label)).join(' · ')}</span>`
-        : '';
-    return `<li><a class="story-card" href="${escapeHtml(storyPath(item, story))}">${kicker}<span class="story-card-title">${escapeHtml(story.heading)}</span><span class="story-card-lead">${escapeHtml(truncate(lead, 160))}</span><span class="story-card-meta">${escapeHtml(issueLabel(item))}</span></a></li>`;
+    const kickerLabel = kickerText ?? extra.map((t) => t.label).join(' · ');
+    const kicker = kickerLabel ? `<span class="story-card-topics">${escapeHtml(kickerLabel)}</span>` : '';
+    const when = story.effective && kickerText === null ? ` · в сила от ${formatIsoDate(story.effective)}` : '';
+    return `<li${attrs}><a class="story-card" href="${escapeHtml(storyPath(item, story))}">${kicker}<span class="story-card-title">${escapeHtml(story.heading)}</span><span class="story-card-lead">${escapeHtml(truncate(lead, 160))}</span><span class="story-card-meta">${escapeHtml(issueLabel(item) + when)}</span></a></li>`;
 }
 
 export function topicStories(stories, topic) {
@@ -286,6 +306,119 @@ export function renderTopicGrid(stories) {
     return `<ul class="topic-grid">${cells.join('')}</ul>`;
 }
 
+// ─── Upcoming changes ───
+
+const BG_MONTH_NAMES = [
+    'Януари',
+    'Февруари',
+    'Март',
+    'Април',
+    'Май',
+    'Юни',
+    'Юли',
+    'Август',
+    'Септември',
+    'Октомври',
+    'Ноември',
+    'Декември',
+];
+const RECENT_DAYS = 30;
+
+const isoDaysBefore = (iso, days) =>
+    new Date(Date.parse(`${iso}T12:00:00Z`) - days * 86400000).toISOString().slice(0, 10);
+
+// What takes effect from `today` on, soonest first; and what took effect in
+// the month before. The page is rebuilt with each issue, and the browser hides
+// whatever has passed since (see app.js), so it is right on any day.
+export function upcomingStories(stories, today) {
+    const dated = stories.filter((s) => s.story.effective);
+    const upcoming = dated
+        .filter((s) => s.story.effective >= today)
+        .sort((a, b) => a.story.effective.localeCompare(b.story.effective));
+    const since = isoDaysBefore(today, RECENT_DAYS);
+    const recent = dated
+        .filter((s) => s.story.effective < today && s.story.effective >= since)
+        .sort((a, b) => b.story.effective.localeCompare(a.story.effective));
+    return { upcoming, recent };
+}
+
+const dayLabel = (iso) => formatIsoDate(iso).replace(/\s\d{4}$/, '');
+
+function upcomingRow(entry) {
+    return storyRow(entry, {
+        kicker: `От ${dayLabel(entry.story.effective)}`,
+        attrs: ` data-until="${escapeHtml(entry.story.effective)}"`,
+    });
+}
+
+export function buildUpcomingPage(template, stories, today) {
+    const url = `${SITE_ORIGIN}/predstoyashti/`;
+    const { upcoming, recent } = upcomingStories(stories, today);
+    const title = 'Предстоящи промени — какво влиза в сила според Държавен вестник';
+    const description =
+        'Законите, таксите и правилата от Държавен вестник по датата, от която важат: най-близките първи. Обобщения с AI.';
+    const html = setHead(template, {
+        title,
+        description,
+        url,
+        type: 'website',
+        jsonLd: [
+            {
+                '@context': 'https://schema.org',
+                '@type': 'CollectionPage',
+                name: title,
+                url,
+                inLanguage: 'bg',
+                isPartOf: { '@id': `${SITE_ORIGIN}/#website` },
+            },
+            breadcrumb([
+                ['Държавен вестник', `${SITE_ORIGIN}/`],
+                ['Предстоящи промени', url],
+            ]),
+        ],
+    });
+    const months = new Map();
+    for (const e of upcoming) {
+        const key = e.story.effective.slice(0, 7);
+        if (!months.has(key)) months.set(key, []);
+        months.get(key).push(e);
+    }
+    const groups = [...months]
+        .map(([key, entries]) => {
+            const [y, m] = key.split('-');
+            return `<section class="month-group"><h2 class="year-title"><span>${BG_MONTH_NAMES[Number(m) - 1]} ${y}</span></h2><ol class="story-list">${entries.map(upcomingRow).join('')}</ol></section>`;
+        })
+        .join('');
+    const recentHtml = recent.length
+        ? `<section class="month-group recent-group"><h2 class="year-title"><span>Влязоха в сила през последния месец</span></h2><ol class="story-list">${recent
+              .map((e) =>
+                  storyRow(e, {
+                      kicker: `От ${dayLabel(e.story.effective)}`,
+                      attrs: ` data-since="${escapeHtml(isoDaysBefore(e.story.effective, -RECENT_DAYS))}"`,
+                  }),
+              )
+              .join('')}</ol></section>`
+        : '';
+    const inner = `
+                <div class="back-bar"><a class="back-btn" href="/">← Начало</a></div>
+                <div class="issue-header topic-header" id="issue-header">
+<p class="issue-kicker"><span>Предстоящи промени</span><span class="rule"></span><span>Държавен вестник</span></p>
+<h1 class="title story-title">Какво влиза в сила</h1>
+<p class="topic-scope">Промените от Държавен вестник по датата, от която важат — най-близките първи. Датата е взета от обобщението; за точния срок вижте официалния текст на всяка новина.</p>
+</div>
+                <div class="topic-body upcoming-body">${groups || '<p class="empty">Засега няма обнародвани промени с бъдеща дата.</p>'}${recentHtml}</div>`;
+    return setBody(html, { page: 'upcoming', inner, folioLabel: 'Предстоящи промени' });
+}
+
+function renderUpcomingTeaser(stories, today) {
+    const { upcoming } = upcomingStories(stories, today);
+    if (!upcoming.length) return '';
+    return `<section class="upcoming-section" aria-labelledby="upcoming-title">
+<div class="section-head"><h2 class="section-title" id="upcoming-title">Скоро влизат в сила</h2><a class="section-count" href="/predstoyashti/">Всички предстоящи →</a></div>
+<ol class="story-list" data-show="6">${upcoming.slice(0, 24).map(upcomingRow).join('')}</ol>
+</section>`;
+}
+
 // ─── Topic feeds ───
 
 function rfc822(iso) {
@@ -325,7 +458,7 @@ export function weekStories(all, stories) {
     return { issues, entries: stories.filter((s) => keys.has(`${s.item.year}/${s.item.issue}`)) };
 }
 
-export function renderHome(all, stories) {
+export function renderHome(all, stories, today = new Date().toISOString().slice(0, 10)) {
     if (!all.length) return '<p class="empty">В момента няма налични броеве. Опитайте отново по-късно.</p>';
     const { issues, entries } = weekStories(all, stories);
     const [lead, ...rest] = entries;
@@ -350,5 +483,5 @@ ${leadHtml}
 <div class="section-head"><h2 class="section-title" id="topics-title">Теми</h2><a class="section-count" href="/tema/">Всички теми →</a></div>
 ${renderTopicGrid(stories)}
 </section>`;
-    return week + topics + renderArchive(all, null);
+    return week + renderUpcomingTeaser(stories, today) + topics + renderArchive(all);
 }

@@ -14,7 +14,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { chromium } from 'playwright';
-import { stripSourceLines } from '../src/js/shared.js';
+import { stripSourceLines, stripTopicLines } from '../src/js/shared.js';
 import { downloadIssuePdf, listIssues, readOfficialContents } from './download-latest-gazette.js';
 import { createLogger, isMain } from './lib/cli.js';
 import { ROOT, summaryPath } from './lib/issues.js';
@@ -198,7 +198,8 @@ async function runIssue(client, t, opts) {
     const published = fs.readFileSync(summaryPath(t.year, t.issue), 'utf8');
     const fresh = fs.readFileSync(newPath, 'utf8');
     const judgeUsage = newUsage();
-    const verdict = await judge(client, pdfPath, stripSourceLines(published), stripSourceLines(fresh), t, judgeUsage);
+    const blind = (md) => stripTopicLines(stripSourceLines(md));
+    const verdict = await judge(client, pdfPath, blind(published), blind(fresh), t, judgeUsage);
     const result = {
         issue: `${t.year}/${t.issue}`,
         pageCount: run.pageCount,
@@ -242,6 +243,8 @@ async function main() {
                     'OK',
                 );
             } catch (e) {
+                // A failure is still paid for.
+                if (e.usage) spent += usageCostUsd(e.usage);
                 log(`${t.year}/${t.issue} failed: ${e.message}`, 'ERROR');
             } finally {
                 inFlight--;

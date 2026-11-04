@@ -54,7 +54,7 @@ async function main() {
 
     try {
         buildCatalog();
-        buildSite();
+        await buildSite();
     } catch (e) {
         log(`Site rebuild failed (${e.message}). Run: npm run build`, 'WARN');
     }

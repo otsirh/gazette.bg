@@ -24,6 +24,11 @@ const MAX_ISSUES_PER_RUN = 2;
 // repeats would be paid for twice a day. After this many, the issue waits for
 // a person: the run stays red until its line in the attempts file is removed.
 const MAX_SUMMARY_ATTEMPTS = 3;
+// The job is killed at 90 minutes. No issue is started after this, so the one
+// in hand can finish and the run can still commit; the rest wait a few hours.
+const START_NO_SUMMARY_AFTER_MS = 45 * 60 * 1000;
+// One request to the API may take long on a dense issue, but not forever.
+const API_REQUEST_TIMEOUT_MS = 20 * 60 * 1000;
 // A slow moment on dv.parliament.bg, or on the home connection the proxy goes
 // out through, must not hold an issue back a whole day. Waits grow: 30s, then 60s.
 const LIST_LOAD_ATTEMPTS = 3;
@@ -261,6 +266,7 @@ export async function readOfficialContents(page, target) {
 // retry. A failed issue is reverted and retried next run; the others still go
 // through.
 async function run() {
+    const startedAt = Date.now();
     log('Run started');
 
     const failures = [];
@@ -320,13 +326,20 @@ async function run() {
     let client;
     for (const item of downloaded) {
         const key = `${item.year}/${item.issue}`;
+        if (Date.now() - startedAt > START_NO_SUMMARY_AFTER_MS) {
+            log(`${key} waits for the next run: this one is close to its time limit.`, 'WARN');
+            revertIssueDir(issueDir(item.year, item.issue));
+            continue;
+        }
+        // Counted before the paid work starts, so a run killed halfway through
+        // still counts it (the workflow commits even after a timeout).
+        const attempts = readAttempts();
+        attempts[key] = (attempts[key] ?? 0) + 1;
+        writeAttempts(attempts);
         try {
-            client ??= createClient();
+            client ??= createClient({ timeout: API_REQUEST_TIMEOUT_MS });
             await summarizeIssue(item.year, item.issue, item.pdfPath, { client, materials: item.materials });
         } catch (e) {
-            const attempts = readAttempts();
-            attempts[key] = (attempts[key] ?? 0) + 1;
-            writeAttempts(attempts);
             failures.push(key);
             log(
                 `Summarize failed for ${item.year}/${item.issue}: ${e.message}. Issue folder reverted; the next run retries it.`,
@@ -342,10 +355,10 @@ async function run() {
             materials: item.materials,
         });
         if (fs.existsSync(item.pdfPath)) fs.unlinkSync(item.pdfPath);
-        const attempts = readAttempts();
-        if (key in attempts) {
-            delete attempts[key];
-            writeAttempts(attempts);
+        const after = readAttempts();
+        if (key in after) {
+            delete after[key];
+            writeAttempts(after);
         }
         log(`Issue ${key} saved (JSON + MD)`, 'OK');
     }

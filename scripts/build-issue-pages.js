@@ -31,8 +31,12 @@ import {
     buildTopicFeed,
     buildTopicPage,
     buildTopicsIndex,
+    buildUpcomingPage,
     collectStories,
+    jsonForScript,
     renderHome,
+    setBody,
+    setHead,
     topicStories,
 } from './lib/pages.js';
 
@@ -53,7 +57,6 @@ const STATIC_ASSETS = [
     'og-image.png',
     'robots.txt',
     'fonts',
-    'src/js/shared.js',
 ];
 
 const SITE_ORIGIN = 'https://gazette.bg';
@@ -102,6 +105,56 @@ function buildNotFoundHtml(cleanTemplate) {
     html = html.replace('</head>', '    <meta name="robots" content="noindex" />\n</head>');
 
     return replaceHomeContent(html, body);
+}
+
+// esbuild when it loads; the scripts as written when it does not, so a build
+// never fails over minifying.
+async function loadMinifier() {
+    try {
+        const { transform } = await import('esbuild');
+        return async (code) => (await transform(code, { minify: true, format: 'esm', target: 'es2022' })).code;
+    } catch (e) {
+        console.warn(`[build-issue-pages] WARN: scripts not minified: ${e.message}`);
+        return async (code) => code;
+    }
+}
+
+// A story's address comes from its headline, so a rewritten summary moves some
+// stories. The issue's JSON keeps where each old address now leads
+// ("formerStories": { "old-slug": "new-slug", or "" for the issue itself }),
+// and Cloudflare Pages answers the old address with a permanent redirect.
+function buildRedirects(all) {
+    const lines = ['# Story addresses that moved when a summary was rewritten (see buildRedirects).'];
+    for (const item of all) {
+        const former = readIssueMeta(item).formerStories || {};
+        for (const [oldSlug, newSlug] of Object.entries(former)) {
+            if (!/^[a-z0-9-]+$/.test(oldSlug) || (newSlug && !/^[a-z0-9-]+$/.test(newSlug))) continue;
+            const base = issuePath(item);
+            lines.push(`${base}${oldSlug}/ ${base}${newSlug ? `${newSlug}/` : ''} 301`);
+        }
+    }
+    return `${lines.join('\n')}\n`;
+}
+
+// Shown in place of a page that was never opened while the reader is offline.
+function buildOfflinePage(template) {
+    const inner = `
+                <div class="back-bar"><a class="back-btn" href="/">← Начало</a></div>
+                <section class="not-found-section">
+                    <p class="not-found-eyebrow">Няма връзка</p>
+                    <h1 class="not-found-title">Тази страница не е запазена</h1>
+                    <p class="not-found-text">Няма връзка с интернет, а тази страница не е отваряна на това устройство. Страниците, които вече сте чели, остават достъпни и без връзка.</p>
+                    <p><a class="not-found-link" href="/">Към началната страница →</a></p>
+                </section>`;
+    let html = setHead(template, {
+        title: 'Няма връзка — gazette.bg',
+        description: 'Няма връзка с интернет.',
+        url: `${SITE_ORIGIN}/offline/`,
+        type: 'website',
+        extra: '<meta name="robots" content="noindex" />',
+    });
+    html = setBody(html, { page: 'offline', inner });
+    return html;
 }
 
 function shortHash(content) {
@@ -239,8 +292,8 @@ function buildIssuePage(template, item, prev, next) {
         ],
     };
     let headExtras =
-        `<script type="application/ld+json">${JSON.stringify(articleLd)}</script>\n` +
-        `    <script type="application/ld+json">${JSON.stringify(breadcrumbLd)}</script>`;
+        `<script type="application/ld+json">${jsonForScript(articleLd)}</script>\n` +
+        `    <script type="application/ld+json">${jsonForScript(breadcrumbLd)}</script>`;
     if (isoDate) headExtras = `<meta property="article:published_time" content="${isoDate}" />\n    ${headExtras}`;
     html = html.replace('</head>', `    ${lit(headExtras)}\n</head>`);
 
@@ -286,7 +339,7 @@ function buildSitemapXml(all, stories = []) {
             `  <url>\n    <loc>${SITE_ORIGIN}${storyPath(item, story)}</loc>\n    <lastmod>${iso || today}</lastmod>\n    <changefreq>yearly</changefreq>\n    <priority>0.6</priority>\n  </url>`,
         );
     }
-    for (const loc of ['/tema/', ...TOPICS.map(topicPath)]) {
+    for (const loc of ['/tema/', '/predstoyashti/', ...TOPICS.map(topicPath)]) {
         urls.push(
             `  <url>\n    <loc>${SITE_ORIGIN}${loc}</loc>\n    <lastmod>${latestIso}</lastmod>\n    <changefreq>weekly</changefreq>\n    <priority>0.5</priority>\n  </url>`,
         );
@@ -389,17 +442,11 @@ function buildSearchIndex(all) {
 // Writes the whole site into distDir, starting from an empty folder so nothing
 // outlives the build that made it. The one survivor is catalog.json, which the
 // catalog step just wrote there.
-// Share pictures are made for the stories of this many days before the newest
-// issue: links are shared while the news is fresh, and the build stays quick.
-const SHARE_IMAGE_DAYS = 90;
-
-// Renders the share picture of each recent story into og/ and returns where
-// each one is, by story address. A picture that fails is left out, and so is
+// Renders the share picture of every story into og/ (about 20 ms each) and
+// returns where each one is, by story address. A picture that fails is left out, and so is
 // every one if the renderer cannot start; those stories keep the site's own.
 async function buildShareImages(stories, write) {
     const images = new Map();
-    const newest = Date.parse(stories[0]?.iso || '');
-    if (!Number.isFinite(newest)) return images;
     let render;
     try {
         ({ renderShareImage: render } = await import('./lib/share-images.js'));
@@ -408,9 +455,7 @@ async function buildShareImages(stories, write) {
         return images;
     }
     let failed = 0;
-    for (const { item, story, iso } of stories) {
-        const t = Date.parse(iso || '');
-        if (!Number.isFinite(t) || newest - t > SHARE_IMAGE_DAYS * 86400000) continue;
+    for (const { item, story } of stories) {
         const rel = path.join('og', String(item.year), String(item.issue), `${story.slug}.png`);
         try {
             const png = await render({
@@ -429,6 +474,9 @@ async function buildShareImages(stories, write) {
         console.warn(`[build-issue-pages] WARN: ${failed} share picture(s) failed; those stories use the default.`);
     return images;
 }
+
+// The build's date in Bulgaria, which is what "upcoming" is measured from.
+const today = () => new Date().toLocaleDateString('sv-SE', { timeZone: 'Europe/Sofia' });
 
 export async function buildSite({ distDir = DIST_DIR, shareImages = true } = {}) {
     const catalog = JSON.parse(fs.readFileSync(path.join(distDir, 'catalog.json'), 'utf8'));
@@ -450,16 +498,41 @@ export async function buildSite({ distDir = DIST_DIR, shareImages = true } = {})
         if (name !== 'catalog.json') fs.rmSync(path.join(distDir, name), { recursive: true, force: true });
     }
     STATIC_ASSETS.forEach(copy);
-    const markedSrc = fs.readFileSync(path.join(ROOT, 'node_modules/marked/lib/marked.esm.js'), 'utf8');
-    const sharedSrc = fs.readFileSync(path.join(ROOT, 'src/js/shared.js'), 'utf8');
+    // Scripts may run only from the site's own files and the one small inline
+    // script of the template (the theme, before first paint), named by its
+    // hash — never script that found its way into a page.
+    const inlineScripts = [...cleanTemplate.matchAll(/<script>([\s\S]*?)<\/script>/g)].map((m) => m[1]);
+    const scriptHashes = inlineScripts.map((c) => `'sha256-${crypto.createHash('sha256').update(c).digest('base64')}'`);
+    const headersPath = path.join(distDir, '_headers');
+    const headers = fs.readFileSync(headersPath, 'utf8');
+    if (!headers.includes("script-src 'self' 'unsafe-inline'"))
+        throw new Error('_headers: script-src is not where the build expects it');
+    fs.writeFileSync(
+        headersPath,
+        headers.replace("script-src 'self' 'unsafe-inline'", `script-src 'self' ${scriptHashes.join(' ')}`),
+    );
+    // The share-picture fonts are read by the build, not by browsers.
+    fs.rmSync(path.join(distDir, 'fonts', 'og'), { recursive: true, force: true });
+    // The browser's scripts, minified, each named by a hash of what it holds:
+    // the imports carry the hashes, so a changed file is a new address and the
+    // old one can be cached for good.
+    const minify = await loadMinifier();
+    const markedRaw = fs.readFileSync(path.join(ROOT, 'node_modules/marked/lib/marked.esm.js'), 'utf8');
+    // marked's MIT notice stays with every copy of it.
+    const markedNotice = (markedRaw.match(/^\s*\/\*\*?[\s\S]*?\*\//) || [''])[0].trim();
+    const markedSrc = `${markedNotice}\n${await minify(markedRaw)}`;
+    const sharedSrc = await minify(fs.readFileSync(path.join(ROOT, 'src/js/shared.js'), 'utf8'));
     const markedHash = shortHash(markedSrc);
     const sharedHash = shortHash(sharedSrc);
     write('src/js/marked.js', markedSrc);
+    write('src/js/shared.js', sharedSrc);
 
-    const appSrc = fs
-        .readFileSync(path.join(ROOT, 'src/js/app.js'), 'utf8')
-        .replace("from './shared.js'", `from './shared.js?v=${sharedHash}'`)
-        .replace("import('./marked.js')", `import('./marked.js?v=${markedHash}')`);
+    const appSrc = await minify(
+        fs
+            .readFileSync(path.join(ROOT, 'src/js/app.js'), 'utf8')
+            .replace("from './shared.js'", `from './shared.js?v=${sharedHash}'`)
+            .replace("import('./marked.js')", `import('./marked.js?v=${markedHash}')`),
+    );
     const appHash = shortHash(appSrc);
     write('src/js/app.js', appSrc);
 
@@ -491,6 +564,7 @@ export async function buildSite({ distDir = DIST_DIR, shareImages = true } = {})
         );
     }
     write('tema/index.html', buildTopicsIndex(versionedTemplate, stories));
+    write('predstoyashti/index.html', buildUpcomingPage(versionedTemplate, stories, today()));
     for (const topic of TOPICS) {
         const entries = topicStories(stories, topic);
         write(path.join(topicPath(topic), 'index.html'), buildTopicPage(versionedTemplate, topic, entries));
@@ -498,11 +572,17 @@ export async function buildSite({ distDir = DIST_DIR, shareImages = true } = {})
     }
 
     // The front page: this week's stories, the topics, and every issue in the archive.
-    write('index.html', replaceHomeContent(versionedTemplate, renderHome(all, stories)));
+    write('index.html', replaceHomeContent(versionedTemplate, renderHome(all, stories, today())));
     write('sitemap.xml', buildSitemapXml(all, stories));
+    write('_redirects', buildRedirects(all));
     write('feed.xml', buildRssXml(all));
     write('search-index.json', buildSearchIndex(all));
     write('404.html', buildNotFoundHtml(versionedTemplate));
+    write('offline/index.html', buildOfflinePage(versionedTemplate));
+    // Offline reading. Its version follows the scripts and the template, so a
+    // new build replaces what readers have cached.
+    const swVersion = shortHash(`${appHash}${versionedTemplate}`);
+    write('sw.js', fs.readFileSync(path.join(ROOT, 'src', 'sw.js'), 'utf8').replace('__VERSION__', swVersion));
 
     console.log(
         `[build-issue-pages] Wrote the site to ${distDir}: home page, ${all.length} issue pages, ${stories.length} story pages (${images.size} with share pictures), ${TOPICS.length} topics, sitemap, feeds, search index and 404`,

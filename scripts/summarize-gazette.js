@@ -27,12 +27,13 @@ const PAGES_PER_CHUNK = 50;
 const CHECK_PAGES_PER_PART = 500;
 const CHECK_FALLBACK_PAGES_PER_PART = 100;
 const DELAY_BETWEEN_CHUNKS_MS = 10 * 1000;
-// Reading the pages is recall work and runs at medium; writing and checking
-// are where judgment matters, and run at high. Opus 5.5 defaults to medium,
-// so both are set explicitly.
-const CHUNK_EFFORT = 'medium';
-const REFINE_EFFORT = 'high';
-const CHECK_EFFORT = 'high';
+// Every stage thinks hard: reading the pages at high, so less is missed, and
+// writing and checking at xhigh, where judgment decides what readers see.
+// Thinking is billed as output, a small part of an issue's cost next to the
+// PDF itself. Opus 5.5 defaults to medium, so each is set explicitly.
+const CHUNK_EFFORT = 'high';
+const REFINE_EFFORT = 'xhigh';
+const CHECK_EFFORT = 'xhigh';
 
 function delay(ms) {
     return new Promise((resolve) => setTimeout(resolve, ms));
@@ -226,6 +227,90 @@ function locateOnce(text, find) {
 
 const boldCount = (s) => (s.match(/\*\*/g) || []).length;
 
+// What the check found missing. A paragraph goes after the line that holds its
+// anchor sentence; a whole new section (## …) goes at the end, where the less
+// important news sits.
+export function applyAdditions(markdown, additions) {
+    let text = markdown;
+    const applied = [];
+    const skipped = [];
+    for (const add of additions) {
+        const body = String(add.text ?? '').trim();
+        if (!body || boldCount(body) % 2) {
+            skipped.push({ ...add, why: body ? 'unbalanced bold' : 'empty text' });
+            continue;
+        }
+        if (/^##\s/.test(body)) {
+            text = `${text.trimEnd()}\n\n${body}\n`;
+            applied.push(add);
+            continue;
+        }
+        const span = locateOnce(text, String(add.after ?? ''));
+        if (!span) {
+            skipped.push({ ...add, why: 'anchor not found exactly once' });
+            continue;
+        }
+        const lineEnd = text.indexOf('\n', span.end);
+        const at = lineEnd === -1 ? text.length : lineEnd;
+        text = `${text.slice(0, at)}\n\n${body}${text.slice(at)}`;
+        applied.push(add);
+    }
+    return { markdown: text.replace(/\n{3,}/g, '\n\n'), applied, skipped };
+}
+
+const REPAIR_SCHEMA = {
+    type: 'object',
+    properties: {
+        words: {
+            type: 'array',
+            items: {
+                type: 'object',
+                properties: { wrong: { type: 'string' }, right: { type: 'string' } },
+                required: ['wrong', 'right'],
+                additionalProperties: false,
+            },
+        },
+    },
+    required: ['words'],
+    additionalProperties: false,
+};
+
+// A word typed with both alphabets ("obhвата") is replaced by the word meant,
+// asked of the model with only the sentences around it; a fix that is itself
+// mixed is not taken.
+export async function repairMixedScript(client, markdown, usage) {
+    const garbled = findMixedScriptWords(markdown);
+    if (!garbled.length) return markdown;
+    const context = garbled
+        .map((w) => {
+            const at = markdown.indexOf(w);
+            return `${w} — „…${markdown.slice(Math.max(0, at - 120), at + w.length + 120).replace(/\s+/g, ' ')}…“`;
+        })
+        .join('\n');
+    const json = await runClaude(
+        client,
+        [
+            {
+                type: 'text',
+                text: `В текст на български тези думи са написани със смесени кирилски и латински букви. За всяка дай думата, която е имало предвид (\`right\`), изцяло на кирилица — или на латиница, ако е чуждо име или съкращение.\n\n${context}`,
+            },
+        ],
+        'mixed-script repair',
+        'low',
+        {
+            system: [{ type: 'text', text: 'Поправяш правописни грешки. Отговаряш само с поисканото.' }],
+            format: { type: 'json_schema', schema: REPAIR_SCHEMA },
+            usage,
+        },
+    );
+    let text = markdown;
+    for (const { wrong, right } of JSON.parse(json).words) {
+        if (!garbled.includes(wrong) || !right || findMixedScriptWords(right).length) continue;
+        text = text.split(wrong).join(right);
+    }
+    return text;
+}
+
 // Sections that the site cannot link: every ## section should end with
 // "Източник: …".
 export function sectionsWithoutSource(markdown) {
@@ -241,6 +326,7 @@ async function checkSummary(client, sourceDoc, draft, { year, issue, materials, 
     const run = async (pagesPerPart) => {
         const parts = await splitPdf(sourceDoc, pagesPerPart);
         const edits = [];
+        const additions = [];
         for (const [i, part] of parts.entries()) {
             if (i > 0) await delay(delayMs);
             const range = parts.length > 1 ? `${part.first}–${part.last}` : null;
@@ -254,9 +340,11 @@ async function checkSummary(client, sourceDoc, draft, { year, issue, materials, 
                 CHECK_EFFORT,
                 { system: CACHED_CHECK_SYSTEM, format: { type: 'json_schema', schema: CHECK_SCHEMA }, usage },
             );
-            edits.push(...JSON.parse(json).edits);
+            const result = JSON.parse(json);
+            edits.push(...result.edits);
+            additions.push(...(result.additions || []));
         }
-        return edits;
+        return { edits, additions };
     };
     try {
         return await run(Math.min(CHECK_PAGES_PER_PART, pageCount));
@@ -276,13 +364,24 @@ async function checkSummary(client, sourceDoc, draft, { year, issue, materials, 
 //    ending with the acts and pages it came from;
 // 3. check — the summary is read against the PDF itself, and the corrections
 //    are applied and kept on record.
-export async function summarizePdf(
+export async function summarizePdf(pdfPath, year, issue, options) {
+    const usage = newUsage();
+    try {
+        return await summarizeWithUsage(pdfPath, year, issue, options, usage);
+    } catch (e) {
+        // What the failed attempt cost goes with the error, for budgets.
+        e.usage = usage;
+        throw e;
+    }
+}
+
+async function summarizeWithUsage(
     pdfPath,
     year,
     issue,
     { client, materials = [], delayMs = DELAY_BETWEEN_CHUNKS_MS },
+    usage,
 ) {
-    const usage = newUsage();
     const sourceDoc = await PDFDocument.load(fs.readFileSync(pdfPath));
     const pageCount = sourceDoc.getPageCount();
     const chunks = await splitPdf(sourceDoc, PAGES_PER_CHUNK);
@@ -325,7 +424,13 @@ export async function summarizePdf(
 
     console.log('  Checking the summary against the PDF...');
     await delay(delayMs);
-    const edits = await checkSummary(client, sourceDoc, draft, { year, issue, materials, usage, delayMs });
+    const { edits, additions } = await checkSummary(client, sourceDoc, draft, {
+        year,
+        issue,
+        materials,
+        usage,
+        delayMs,
+    });
     const checked = applyEdits(draft, edits);
     if (checked.skipped.length) {
         const json = await runClaude(
@@ -340,12 +445,19 @@ export async function summarizePdf(
         checked.applied.push(...retry.applied);
         checked.skipped = retry.skipped;
     }
-    const finalMarkdown = cleanMarkdown(checked.markdown);
-    console.log(`  Check: ${checked.applied.length} correction(s) applied, ${checked.skipped.length} not applied`);
+    const added = applyAdditions(checked.markdown, additions);
+    let finalMarkdown = cleanMarkdown(added.markdown);
+    console.log(
+        `  Check: ${checked.applied.length} correction(s) and ${added.applied.length} addition(s) applied, ${checked.skipped.length + added.skipped.length} not applied`,
+    );
     for (const s of checked.skipped) log(`Correction not applied (${s.why}): ${JSON.stringify(s.find)}`, 'WARN');
+    for (const s of added.skipped)
+        log(`Addition not applied (${s.why}): ${JSON.stringify(s.text.slice(0, 80))}`, 'WARN');
 
-    // Publishing garbled words is worse than publishing nothing: the summary is
-    // dropped, the PDF stays, and the next run has another go at it.
+    // Publishing garbled words is worse than publishing nothing. A few are
+    // mended by one cheap request; if any remain, the summary is dropped, the
+    // PDF stays, and the next run has another go at it.
+    finalMarkdown = await repairMixedScript(client, finalMarkdown, usage);
     const garbled = findMixedScriptWords(finalMarkdown);
     if (garbled.length) {
         throw new Error(`Summary mixes Cyrillic and Latin inside words: ${garbled.join(', ')}`);
@@ -355,7 +467,8 @@ export async function summarizePdf(
         model: MODEL,
         pageCount,
         corrections: checked.applied,
-        notApplied: checked.skipped,
+        additions: added.applied,
+        notApplied: [...checked.skipped, ...added.skipped],
         sectionsWithoutSource: sectionsWithoutSource(finalMarkdown),
         usage,
         costUsd: usageCostUsd(usage),

@@ -5,6 +5,7 @@ import {
     formatDateBulgarian,
     formatDateLong,
     formatDateShort,
+    formatIsoDate,
     issueDateToIso,
     issuesNewestFirst,
     issueTitle,
@@ -13,8 +14,8 @@ import {
     parseTopicLine,
     pluralTopics,
     readingMinutes,
+    renderArchive,
     renderDisclaimer,
-    renderHomeContent,
     renderIssueNav,
     renderPublishedMarkdown,
     renderSourceLines,
@@ -81,27 +82,15 @@ test('issues are listed newest first across years', () => {
     assert.deepEqual(issuesNewestFirst(null), []);
 });
 
-test('the home page leads with the newest issue and files the rest by year', () => {
-    const html = renderHomeContent(issuesNewestFirst(catalog));
-    assert.match(html, /^<section class="lead-section">/);
-    assert.match(html, /<h2 class="lead-title">Водеща<\/h2>/);
-    assert.match(html, /<p class="lead-standfirst">Кратко въведение към водещата тема\.<\/p>/);
-    assert.match(html, /href="\/issue\/2026\/2\/#втора-тема"[^>]*>Втора тема<\/a>/);
-    assert.match(html, /<span class="section-count">2 броя<\/span>/);
-    assert.match(html, /class="issue-card issue-card-row is-lead-row filter-hidden"[^>]*data-issue="2"/);
+test('the archive files every issue by year, newest first, with the search', () => {
+    const html = renderArchive(issuesNewestFirst(catalog));
+    assert.match(html, /^<section class="archive-section" id="archive">/);
+    assert.match(html, /<span class="section-count">3 броя<\/span>/);
+    assert.match(html, /id="archive-search"/);
+    assert.match(html, /class="issue-card issue-card-row"[^>]*data-issue="2"/);
     assert.ok(html.indexOf('<span>2026</span>') < html.indexOf('<span>2025</span>'));
     assert.match(html, /Първа &lt;тема&gt;/, 'topics are escaped');
-    assert.match(renderHomeContent([]), /няма налични броеве/);
-
-    const firstOfNewYear = renderHomeContent(
-        issuesNewestFirst({
-            years: {
-                2026: [{ issue: 104, date: '30 Декември 2026', file: 'issues/2026/104/104.md', topics: ['Старо'] }],
-                2027: [{ issue: 1, date: '5 Януари 2027', file: 'issues/2027/01/1.md', topics: ['Ново'] }],
-            },
-        }),
-    );
-    assert.match(firstOfNewYear, /class="year-group is-lead-group filter-hidden"><h3 class="year-title"><span>2027/);
+    assert.equal(renderArchive([]), '');
 });
 
 test('issue navigation links the neighbours that exist', () => {
@@ -230,4 +219,15 @@ test('a published section ends with its topics and a link to its own page', () =
         renderPublishedMarkdown(md, { item: { year: 2026, issue: 100 }, origin: 'https://gazette.bg' }),
         /href="https:\/\/gazette\.bg\/tema\/zdrave\/"/,
     );
+});
+
+test('a story carries the date it takes effect, shown under its section', () => {
+    assert.equal(formatIsoDate('2027-01-01'), '1 януари 2027');
+    assert.equal(formatIsoDate('2027-13-01'), '');
+    const md = '## Тема\n\nТекст.\n\nТеми: Здраве\n\nВ сила: 2027-01-01\n';
+    assert.equal(splitStories(md)[0].effective, '2027-01-01');
+    const out = renderPublishedMarkdown(md, { item: { year: 2026, issue: 1 } });
+    assert.match(out, /<span class="section-effective">В сила от 1 януари 2027<\/span>/);
+    assert.doesNotMatch(out, /^В сила:/m);
+    assert.equal(splitStories('## А\n\nВ сила: 2027-02-30\n')[0].effective, '', 'an impossible date is dropped');
 });

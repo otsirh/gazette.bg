@@ -68,8 +68,8 @@ test('sitemap, feed and search index cover the issues', () => {
     const urls = (read('sitemap.xml').match(/<url>/g) || []).length;
     assert.equal(
         urls,
-        summaries.length + 1 + stories.length + 13,
-        'home, issues, stories, the topics index and 12 topics',
+        summaries.length + 1 + stories.length + 14,
+        'home, issues, stories, the topics and upcoming pages, and 12 topics',
     );
     const feed = read('feed.xml');
     const items = feed.match(/<item>/g) || [];
@@ -159,4 +159,52 @@ test('a share picture is a 1200×630 PNG with the story on it', async () => {
     assert.equal(png.subarray(1, 4).toString(), 'PNG');
     assert.equal(png.readUInt32BE(16), 1200);
     assert.equal(png.readUInt32BE(20), 630);
+});
+
+test('upcoming changes, offline reading and lean assets are published', async () => {
+    const { upcomingStories } = await import('../scripts/lib/pages.js');
+    const mk = (effective, n) => ({
+        story: { effective, topics: [], slug: `s${n}`, heading: `${n}`, body: '' },
+        item: { year: 2026, issue: n },
+    });
+    const { upcoming, recent } = upcomingStories(
+        [mk('2027-01-01', 1), mk('2026-11-10', 2), mk('2026-10-20', 3), mk('2025-01-01', 4), mk('', 5)],
+        '2026-11-04',
+    );
+    assert.deepEqual(
+        upcoming.map((e) => e.item.issue),
+        [2, 1],
+    );
+    assert.deepEqual(
+        recent.map((e) => e.item.issue),
+        [3],
+    );
+
+    assert.match(read('predstoyashti/index.html'), /data-page="upcoming"/);
+    assert.match(read('offline/index.html'), /<meta name="robots" content="noindex" \/>/);
+    const sw = read('sw.js');
+    assert.doesNotMatch(sw, /__VERSION__/);
+    assert.match(sw, /const VERSION = '[0-9a-f]{8}'/);
+
+    const marked = read('src/js/marked.js');
+    assert.match(marked, /^\/\*\*[\s\S]*?MIT License/, 'marked keeps its licence notice');
+    assert.ok(read('src/js/app.js').split('\n').length < 20, 'scripts are minified');
+    assert.ok(!fs.existsSync(path.join(dist, 'fonts', 'og')), 'share-picture fonts stay out of the site');
+    assert.doesNotMatch(read('index.html'), /data-search=/);
+});
+
+test('a story page steps its headings down from its h1', () => {
+    for (const { year, issue, story } of stories.slice(0, 200)) {
+        const page = read(`issue/${year}/${issue}/${story.slug}/index.html`);
+        const article = page.slice(page.indexOf('<article'), page.indexOf('</article>'));
+        assert.doesNotMatch(article, /<h1|<h3/, `${year}/${issue}/${story.slug}`);
+    }
+});
+
+test('moved story addresses redirect, and nothing else does', () => {
+    const redirects = read('_redirects');
+    assert.match(redirects, /^# Story addresses that moved/);
+    for (const line of redirects.split('\n').filter((l) => l && !l.startsWith('#'))) {
+        assert.match(line, /^\/issue\/\d{4}\/\d+\/[a-z0-9-]+\/ \/issue\/\d{4}\/\d+\/(?:[a-z0-9-]+\/)? 301$/);
+    }
 });

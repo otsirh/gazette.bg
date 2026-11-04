@@ -43,8 +43,12 @@ jobs:
       contents: write  # needed to push commits
 
     steps:
+      # The write token is not left in .git/config for every later step (and
+      # every dependency) to find; only the push below is given it.
       - name: Checkout repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
 
       - name: Setup Node.js
         uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
@@ -52,8 +56,10 @@ jobs:
           node-version-file: .nvmrc
           cache: npm
 
+      # No dependency runs an install script here: none needs one (esbuild
+      # finds its binary without it), and the job holds secrets.
       - name: Install dependencies
-        run: npm ci
+        run: npm ci --ignore-scripts
 
       # Since 26 October 2026 dv.parliament.bg answers only Bulgarian
       # addresses, so the browser goes out through the Mac mini at home: an
@@ -110,16 +116,20 @@ jobs:
           if-no-files-found: ignore
           retention-days: 14
 
-      # Runs after a failed update too: a failed issue is reverted on disk, so
-      # what is left is complete issues, and one bad issue must not hold back
-      # the others. The run itself still ends red.
+      # Runs after a failed or timed-out update too: an issue on disk is either
+      # complete or gone, so what is left is worth keeping, and the attempts
+      # file must be kept so a failing issue is not paid for without end. The
+      # run itself still ends red.
       - name: Commit and push if there are changes
-        if: ${{ !cancelled() }}
+        if: ${{ always() }}
+        env:
+          PUSH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           # Avoid git "dubious ownership" inside the container.
           git config --global --add safe.directory "$GITHUB_WORKSPACE"
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git remote set-url origin "https://x-access-token:${PUSH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
           git add -A
           if git diff --staged --quiet; then
             echo "No files to commit."
