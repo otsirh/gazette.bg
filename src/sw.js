@@ -35,20 +35,36 @@ async function trim(cache) {
     for (const key of keys.slice(0, Math.max(0, keys.length - MAX_PAGES))) await cache.delete(key);
 }
 
-async function networkFirst(request) {
+// A slow answer is replaced by the saved copy only when there is one;
+// otherwise the reader waits for the network. The offline page stands in for
+// pages alone: a summary or index the page fetches must never come back as
+// HTML, or the page would show it as the summary.
+async function networkFirst(request, { offlinePage = false } = {}) {
     const cache = await caches.open(PAGES);
-    try {
-        const response = await Promise.race([
-            fetch(request),
-            new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), NETWORK_TIMEOUT_MS)),
-        ]);
+    const network = fetch(request).then(async (response) => {
         if (response.ok) {
             await cache.put(request, response.clone());
             trim(cache);
         }
         return response;
+    });
+    // Settles on its own even if the saved copy is served instead.
+    network.catch(() => {});
+    const fallback = async () => {
+        const saved = await cache.match(request, { ignoreSearch: true });
+        if (saved) return saved;
+        const offline = offlinePage ? await cache.match(OFFLINE) : null;
+        return offline || Response.error();
+    };
+    try {
+        const first = await Promise.race([
+            network,
+            new Promise((resolve) => setTimeout(resolve, NETWORK_TIMEOUT_MS, null)),
+        ]);
+        if (first) return first;
+        return (await cache.match(request, { ignoreSearch: true })) || (await network);
     } catch {
-        return (await cache.match(request, { ignoreSearch: true })) || (await cache.match(OFFLINE)) || Response.error();
+        return fallback();
     }
 }
 
@@ -67,7 +83,7 @@ self.addEventListener('fetch', (event) => {
     const url = new URL(request.url);
     if (url.origin !== self.location.origin) return;
     if (request.mode === 'navigate') {
-        event.respondWith(networkFirst(request));
+        event.respondWith(networkFirst(request, { offlinePage: true }));
     } else if (/^\/(fonts|src\/js|og)\//.test(url.pathname) || /\.(png|ico|svg)$/.test(url.pathname)) {
         event.respondWith(cacheFirst(request));
     } else if (/^\/issues\/|^\/(catalog|search-index)\.json$/.test(url.pathname)) {

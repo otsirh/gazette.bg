@@ -581,7 +581,6 @@ export function renderDisclaimer(item) {
     return `<p class="content-disclaimer">Текстът по-долу е неофициално обобщение, генерирано с AI, и може да съдържа грешки. За официален текст и правни цели използвайте ${official}.</p>`;
 }
 
-export const CONTENT_DISCLAIMER = renderDisclaimer();
 export const END_MARK = '<p class="end-mark" aria-hidden="true">◼</p>';
 
 export function issueTitle(item) {
@@ -604,7 +603,8 @@ export function renderIssueHeader(item, minutes) {
     const meta = ['Обобщение с AI'];
     if (topics.length) meta.push(pluralTopics(topics.length));
     if (minutes) meta.push(`≈ ${minutes} мин четене`);
-    const metaHtml = meta.map((m) => `<span>${escapeHtml(m)}</span>`).join('<span class="sep">·</span>');
+    // The dots between the items are drawn by the stylesheet (.issue-meta).
+    const metaHtml = meta.map((m) => `<span>${escapeHtml(m)}</span>`).join('');
 
     return (
         `<p class="issue-kicker"><span>Брой ${escapeHtml(String(item.issue))}</span><span class="rule"></span><span>Държавен вестник</span></p>` +

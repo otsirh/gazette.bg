@@ -184,7 +184,7 @@ export function buildStoryPage(template, { item, story, siblings, meta, image })
                 <div class="issue-header story-header" id="issue-header">
 <p class="issue-kicker"><span>Брой ${escapeHtml(String(item.issue))}</span><span class="rule"></span><span>Държавен вестник</span></p>
 <h1 class="title story-title">${escapeHtml(story.heading)}</h1>
-<div class="issue-meta-bar"><p class="issue-meta" id="issue-meta"><span>Обобщение с AI</span><span class="sep">·</span><span>${escapeHtml(formatDateLong(item.date))}</span><span class="sep">·</span><span>≈ ${minutes} мин четене</span></p><button type="button" class="issue-share-btn" id="issue-share-btn">Сподели връзка</button></div>
+<div class="issue-meta-bar"><p class="issue-meta" id="issue-meta"><span>Обобщение с AI</span><span>${escapeHtml(formatDateLong(item.date))}</span><span>≈ ${minutes} мин четене</span></p><button type="button" class="issue-share-btn" id="issue-share-btn">Сподели връзка</button></div>
 </div>
                 <article class="content" id="content">${renderDisclaimer({ ...item, pdfUrl: meta?.pdfUrl || item.pdfUrl })}<div class="issue-body">${renderStoryBody(story, meta)}</div></article>
                 ${more}`;

@@ -1210,16 +1210,26 @@ a.issue-share-btn {
     margin: var(--gap-md) 0 0;
 }
 
+/* Every item opens with its own dot. The line is pulled left by one dot's
+   width and clipped there, so the dot that starts a line, the first or a
+   wrapped one, is cut away instead of dangling at the end of the line above. */
 .issue-meta {
+    --meta-dot: calc(2 * var(--gap-sm) + 1ch);
     display: flex;
     flex-wrap: wrap;
     align-items: center;
-    gap: 0.4rem var(--gap-sm);
-    margin: 0;
+    row-gap: 0.4rem;
+    margin: 0 0 0 calc(-1 * var(--meta-dot));
+    clip-path: inset(0 0 0 var(--meta-dot));
     color: var(--muted);
 }
 
-.issue-meta .sep {
+.issue-meta > span::before {
+    content: "·";
+    display: inline-block;
+    width: var(--meta-dot);
+    text-align: center;
+    letter-spacing: 0;
     color: var(--hairline);
 }
 

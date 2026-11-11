@@ -784,6 +784,18 @@ function onMainTouchStart(e) {
     if (card) warmIssue(card.dataset.file);
 }
 
+// True once the text is on the clipboard; false where the browser has no
+// clipboard (an insecure page) or refuses the write.
+async function copyText(text) {
+    try {
+        if (!navigator.clipboard) return false;
+        await navigator.clipboard.writeText(text);
+        return true;
+    } catch {
+        return false;
+    }
+}
+
 async function shareCurrentIssue(btn) {
     const canonical = document.querySelector('link[rel="canonical"]')?.getAttribute('href') || location.href;
     if (navigator.share && window.matchMedia?.('(pointer: coarse)').matches) {
@@ -794,14 +806,15 @@ async function shareCurrentIssue(btn) {
             /* user cancelled or share unavailable — fall back to clipboard */
         }
     }
-    try {
-        await navigator.clipboard?.writeText(canonical);
-    } catch {
-        /* ignore clipboard restrictions */
+    // Says "copied" only when it was; if the clipboard is blocked, the address
+    // is offered in a prompt to copy by hand.
+    if (!(await copyText(canonical))) {
+        window.prompt('Копирайте връзката:', canonical);
+        return;
     }
     btn.dataset.copied = 'true';
     btn.textContent = 'Копирано ✓';
-    announce('Връзката към броя е копирана.');
+    announce('Връзката е копирана.');
     clearTimeout(btn._copyTimer);
     btn._copyTimer = setTimeout(() => {
         delete btn.dataset.copied;
@@ -856,13 +869,17 @@ function onMainClick(e) {
         if (location.hash !== hash) history.pushState(null, '', hash);
         heading.scrollIntoView({ behavior: scrollBehavior(), block: 'start' });
         flashTargetHeading(heading);
-        navigator.clipboard?.writeText(location.href).catch(() => {});
-        heading.dataset.copied = 'true';
-        clearTimeout(heading._copyTimer);
-        heading._copyTimer = setTimeout(() => {
-            delete heading.dataset.copied;
-        }, 1800);
-        announce('Връзката към темата е копирана.');
+        // The address bar already holds the link; the mark says so only
+        // when it reached the clipboard too.
+        copyText(location.href).then((copied) => {
+            if (!copied) return;
+            heading.dataset.copied = 'true';
+            clearTimeout(heading._copyTimer);
+            heading._copyTimer = setTimeout(() => {
+                delete heading.dataset.copied;
+            }, 1800);
+            announce('Връзката към темата е копирана.');
+        });
         return;
     }
 

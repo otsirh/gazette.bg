@@ -25,7 +25,16 @@ import {
 } from '../src/js/shared.js';
 import { isMain } from './lib/cli.js';
 import { ROOT } from './lib/issues.js';
-import { buildStoryPage, collectStories, jsonForScript, setBody, setHead } from './lib/pages.js';
+import {
+    buildStoryPage,
+    collectStories,
+    jsonForScript,
+    lit,
+    SITE_ORIGIN,
+    setBody,
+    setHead,
+    truncate,
+} from './lib/pages.js';
 
 const TEMPLATE_PATH = path.join(ROOT, 'src', 'index.html');
 const CSS_PATH = path.join(ROOT, 'src', 'css', 'styles.css');
@@ -46,23 +55,11 @@ const STATIC_ASSETS = [
     'fonts',
 ];
 
-const SITE_ORIGIN = 'https://gazette.bg';
-
-// Anything spliced into a String.replace() replacement is data, not a pattern.
-// A summary that writes "глоба до $1 000 лв." would otherwise have its "$1"
-// read as a capture reference and rewrite the page around it — and "$&" or "$'"
-// would splice whole chunks of the template into the article. Escaping the
-// dollar makes the value literal; the $1/$2 written in the templates below stay
-// capture references, which is what they are meant to be.
-function lit(s) {
-    return String(s).replace(/\$/g, '$$$$');
-}
-
-function truncate(s, max) {
-    const clean = String(s).replace(/\s+/g, ' ').trim();
-    if (clean.length <= max) return clean;
-    return `${clean.slice(0, max - 1).replace(/[\s.,;:–-]+$/, '')}…`;
-}
+// Every value spliced into a String.replace() replacement below goes through
+// lit(): a summary that writes "глоба до $1 000 лв." would otherwise have its
+// "$1" read as a capture reference and rewrite the page around it, and "$&" or
+// "$'" would splice whole chunks of the template into the article. The $1/$2
+// written in the templates themselves stay capture references.
 
 function replaceHomeContent(html, content) {
     return html.replace(/(<!--HOME-CONTENT-START-->)[\s\S]*?(<!--HOME-CONTENT-END-->)/, `$1${lit(content)}$2`);
@@ -427,12 +424,10 @@ function buildSearchIndex(all) {
     return JSON.stringify(index);
 }
 
-// Writes the whole site into distDir, starting from an empty folder so nothing
-// outlives the build that made it. The one survivor is catalog.json, which the
-// catalog step just wrote there.
 // Renders the share picture of every story into og/ (about 20 ms each) and
-// returns where each one is, by story address. A picture that fails is left out, and so is
-// every one if the renderer cannot start; those stories keep the site's own.
+// returns where each one is, by story address. A picture that fails is left
+// out, and so is every one if the renderer cannot start; those stories keep
+// the site's own.
 async function buildShareImages(stories, write) {
     const images = new Map();
     let render;
@@ -449,7 +444,6 @@ async function buildShareImages(stories, write) {
             const png = await render({
                 headline: story.heading,
                 kicker: `ДВ · Брой ${item.issue} · ${formatDateLong(item.date)}`,
-                topic: '',
             });
             write(rel, png);
             images.set(storyPath(item, story), `${SITE_ORIGIN}/${rel.split(path.sep).join('/')}`);
@@ -463,6 +457,9 @@ async function buildShareImages(stories, write) {
     return images;
 }
 
+// Writes the whole site into distDir, starting from an empty folder so nothing
+// outlives the build that made it. The one survivor is catalog.json, which the
+// catalog step just wrote there.
 export async function buildSite({ distDir = DIST_DIR, shareImages = true } = {}) {
     const catalog = JSON.parse(fs.readFileSync(path.join(distDir, 'catalog.json'), 'utf8'));
     // Inline the stylesheet so it doesn't block initial render.
@@ -531,7 +528,7 @@ export async function buildSite({ distDir = DIST_DIR, shareImages = true } = {})
         write(item.file, readPublishedMarkdown(item));
     });
 
-    // Every story gets a page of its own; topics gather them.
+    // Every story gets a page of its own, for search engines and shared links.
     const stories = collectStories(all, (item) => splitStories(readRawMarkdown(item)));
     const byIssue = new Map();
     for (const s of stories) {
