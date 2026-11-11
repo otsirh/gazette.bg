@@ -11,8 +11,6 @@ Anthropic), за да видите за минути какво ви засяг�
 съдържат грешки и нямат правна сила. Официалният текст е на
 [dv.parliament.bg](https://dv.parliament.bg).
 
-Забелязахте грешка в обобщение? [Съобщете за нея](https://github.com/otsirh/gazette.bg/issues/new?template=mistake.yml).
-
 ## Как работи
 
 Всеки ден в 12:00 и в 17:00 UTC работният поток

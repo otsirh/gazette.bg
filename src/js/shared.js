@@ -574,15 +574,11 @@ export function renderPublishedMarkdown(markdown, { meta = {} } = {}) {
 
 /* ─── Issue page ─── */
 
-const REPORT_URL_BASE = 'https://github.com/otsirh/gazette.bg/issues/new?template=mistake.yml';
-
 export function renderDisclaimer(item) {
-    const issueUrl = item?.year && item?.issue ? `https://gazette.bg${issuePath(item)}` : '';
-    const reportHref = issueUrl ? `${REPORT_URL_BASE}&issue=${encodeURIComponent(issueUrl)}` : REPORT_URL_BASE;
     const official = item?.pdfUrl
         ? `<a href="${escapeHtml(item.pdfUrl)}" target="_blank" rel="noopener">официалния брой (PDF)</a> на dv.parliament.bg`
         : '<a href="https://dv.parliament.bg" target="_blank" rel="noopener">dv.parliament.bg</a>';
-    return `<p class="content-disclaimer">Текстът по-долу е неофициално обобщение, генерирано с AI, и може да съдържа грешки. За официален текст и правни цели използвайте ${official}. Забелязахте неточност? <a href="${escapeHtml(reportHref)}" target="_blank" rel="noopener">Съобщете за нея</a>.</p>`;
+    return `<p class="content-disclaimer">Текстът по-долу е неофициално обобщение, генерирано с AI, и може да съдържа грешки. За официален текст и правни цели използвайте ${official}.</p>`;
 }
 
 export const CONTENT_DISCLAIMER = renderDisclaimer();

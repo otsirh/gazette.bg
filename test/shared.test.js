@@ -111,12 +111,6 @@ test('issue navigation links the neighbours that exist', () => {
     assert.equal(renderIssueNav(null, null), '');
 });
 
-test('disclaimer links to the mistake report template prefilled with the issue URL', () => {
-    const html = renderDisclaimer({ year: '2026', issue: 37 });
-    assert.match(html, /template=mistake\.yml&amp;issue=https%3A%2F%2Fgazette\.bg%2Fissue%2F2026%2F37%2F/);
-    assert.match(renderDisclaimer(), /template=mistake\.yml"/);
-});
-
 test('Bulgarian stemmer collapses articles, plurals, and -ик/-иц palatalization', () => {
     assert.equal(stemBg('глоба'), stemBg('глобите'));
     assert.equal(stemBg('винетка'), stemBg('винетките'));
