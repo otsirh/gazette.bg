@@ -22,7 +22,9 @@
     "process-issue-pdf": "node scripts/process-issue-pdf.js",
     "check-api": "node scripts/check-api.js",
     "generate-og-image": "node scripts/generate-og-image.js",
-    "generate-favicon": "node scripts/generate-favicon.js"
+    "generate-favicon": "node scripts/generate-favicon.js",
+    "live:update": "node --env-file-if-exists=.env live/update.js",
+    "live:build": "node live/build.js"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^1.8.0",

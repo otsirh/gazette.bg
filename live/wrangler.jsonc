@@ -1,0 +1,17 @@
+// live.gazette.bg is plain files: a Worker that only serves dist-live/ as
+// static assets. Deployed by .github/workflows/update-live.yml, whose token
+// has no rights on the gazette.bg zone, so the domain is not in here: it was
+// attached once with
+//   npx wrangler deploy --config live/wrangler.jsonc --domain live.gazette.bg
+// and stays attached across deploys.
+{
+    "name": "gazette-live",
+    "compatibility_date": "2026-11-01",
+    "assets": {
+        "directory": "../dist-live",
+        "not_found_handling": "404-page",
+        "html_handling": "auto-trailing-slash"
+    },
+    "workers_dev": false,
+    "preview_urls": false
+}

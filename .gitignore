@@ -7,3 +7,7 @@ node_modules/
 dist/
 diagnostics/
 .eval/
+
+# live.gazette.bg: the built site and the local state
+dist-live/
+.live-state.json
