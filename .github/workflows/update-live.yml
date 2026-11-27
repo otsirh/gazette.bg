@@ -55,12 +55,10 @@ jobs:
           LIVE_MONTHLY_BUDGET: ${{ vars.LIVE_MONTHLY_BUDGET || '40' }}
 
       # Wrangler is pinned here rather than in package.json: only this job
-      # needs it. Creating the project fails harmlessly once it exists.
+      # needs it. The site is a Worker serving dist-live/ as static assets on
+      # live.gazette.bg (live/wrangler.jsonc).
       - name: Publish
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          PROJECT: ${{ vars.LIVE_PAGES_PROJECT || 'gazette-live' }}
-        run: |
-          npx --yes wrangler@4.169.0 pages project create "$PROJECT" --production-branch=main >/dev/null 2>&1 || true
-          npx --yes wrangler@4.169.0 pages deploy dist-live --project-name="$PROJECT" --branch=main --commit-dirty=true
+        run: npx --yes wrangler@4.169.0 deploy --config live/wrangler.jsonc

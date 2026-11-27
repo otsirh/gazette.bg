@@ -21,7 +21,8 @@
 4. **Обзор.** Claude Sonnet пише „Какво се случва в България сега“, когато
    най-горещите истории се сменят, и поне на два часа.
 5. **Публикуване.** `build.js` сглобява `dist-live/`, а Wrangler го качва в
-   Cloudflare Pages.
+   Cloudflare като Worker, който само раздава файловете на `live.gazette.bg`
+   (`wrangler.jsonc`).
 
 Състоянието (историите) е в самия публикуван сайт — `state.json`. Всяко
 обновяване го чете оттам, допълва го и го публикува наново, затова няма база
@@ -50,15 +51,14 @@
 
 В GitHub → Settings → Secrets and variables → Actions:
 
-| Име                     | Вид      | Стойност                                                      |
-| ----------------------- | -------- | ------------------------------------------------------------- |
-| `ANTHROPIC_API_KEY`     | Secret   | вече е там                                                    |
-| `CLOUDFLARE_API_TOKEN`  | Secret   | токен с право „Cloudflare Pages: Edit“                        |
-| `CLOUDFLARE_ACCOUNT_ID` | Secret   | ID на акаунта в Cloudflare                                    |
-| `LIVE_URL`              | Variable | `https://gazette-live.pages.dev`, после `https://live.gazette.bg` |
+| Име                     | Вид      | Стойност                                             |
+| ----------------------- | -------- | ---------------------------------------------------- |
+| `ANTHROPIC_API_KEY`     | Secret   | същият като за gazette.bg                            |
+| `CLOUDFLARE_API_TOKEN`  | Secret   | токен по шаблона „Edit Cloudflare Workers“, за gazette.bg |
+| `CLOUDFLARE_ACCOUNT_ID` | Secret   | ID на акаунта в Cloudflare                           |
+| `LIVE_URL`              | Variable | `https://live.gazette.bg`                            |
 
-След първото публикуване: Cloudflare → Workers & Pages → `gazette-live` →
-Custom domains → `live.gazette.bg`.
+Домейнът се закача сам при публикуване (`routes` в `wrangler.jsonc`).
 
 ## Локално
 

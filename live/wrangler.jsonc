@@ -1,0 +1,13 @@
+// live.gazette.bg is plain files: a Worker that only serves dist-live/ as
+// static assets, on its own domain. Deployed by .github/workflows/update-live.yml.
+{
+    "name": "gazette-live",
+    "compatibility_date": "2026-11-01",
+    "assets": {
+        "directory": "../dist-live",
+        "not_found_handling": "404-page",
+        "html_handling": "auto-trailing-slash"
+    },
+    "routes": [{ "pattern": "live.gazette.bg", "custom_domain": true }],
+    "workers_dev": false
+}
