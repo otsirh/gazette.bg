@@ -54,11 +54,11 @@
 | Име                     | Вид      | Стойност                                             |
 | ----------------------- | -------- | ---------------------------------------------------- |
 | `ANTHROPIC_API_KEY`     | Secret   | същият като за gazette.bg                            |
-| `CLOUDFLARE_API_TOKEN`  | Secret   | токен по шаблона „Edit Cloudflare Workers“, за gazette.bg |
+| `CLOUDFLARE_API_TOKEN`  | Secret   | токен с Workers Scripts: Edit и Account Settings: Read |
 | `CLOUDFLARE_ACCOUNT_ID` | Secret   | ID на акаунта в Cloudflare                           |
 | `LIVE_URL`              | Variable | `https://live.gazette.bg`                            |
 
-Домейнът се закача сам при публикуване (`routes` в `wrangler.jsonc`).
+Домейнът е закачен веднъж (командата е в `wrangler.jsonc`) и остава при всяко публикуване, затова токенът няма нужда от права върху зоната gazette.bg.
 
 ## Локално
 
