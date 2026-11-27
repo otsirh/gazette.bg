@@ -1,0 +1,210 @@
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
+import { test } from 'node:test';
+import { buildSite } from '../live/build.js';
+import { articleText, isOffTopic, parseFeed, toText } from '../live/lib/feeds.js';
+import { HALF_LIFE, heatAt, rankStories, spreadTree, trendOf, trustOf } from '../live/lib/stories.js';
+import { sourceIdForName } from '../live/sources.js';
+import { applyWrite } from '../live/update.js';
+
+const HOUR = 3600 * 1000;
+const NOW = Date.parse('2026-11-28T12:00:00Z');
+
+const item = (id, source, hoursAgo, extra = {}) => ({
+    id,
+    source,
+    kind: source.endsWith('-yt') ? 'video' : 'article',
+    title: `t${id}`,
+    url: `https://example.bg/${id}`,
+    at: NOW - hoursAgo * HOUR,
+    ...extra,
+});
+
+const story = (items, extra = {}) => ({
+    id: 's1',
+    title: 'Заглавие',
+    summary: '',
+    disputed: '',
+    createdAt: NOW - 10 * HOUR,
+    updatedAt: NOW,
+    items,
+    timeline: [],
+    ...extra,
+});
+
+test('parseFeed reads RSS items with CDATA and entities', () => {
+    const xml = `<rss><channel><title>x</title>
+<item><title><![CDATA[Парламентът &quot;прие&quot; бюджета]]></title><link>https://www.bta.bg/a</link>
+<pubDate>Sat, 28 Nov 2026 10:00:00 +0200</pubDate><description><![CDATA[<p>Текст &amp; още</p>]]></description><category>Политика</category></item>
+<item><title>Без връзка</title><link>javascript:alert(1)</link></item>
+</channel></rss>`;
+    const [a, ...rest] = parseFeed(xml, NOW);
+    assert.equal(rest.length, 0, 'an item without a web link is dropped');
+    assert.equal(a.title, 'Парламентът "прие" бюджета');
+    assert.equal(a.url, 'https://www.bta.bg/a');
+    assert.equal(a.at, Date.parse('2026-11-28T08:00:00Z'));
+    assert.equal(a.description, 'Текст & още');
+    assert.equal(a.category, 'Политика');
+});
+
+test('parseFeed reads YouTube Atom entries', () => {
+    const xml = `<feed><entry><yt:videoId>pG-G0z9jG68</yt:videoId><title>По света и у нас</title>
+<link rel="alternate" href="https://www.youtube.com/watch?v=pG-G0z9jG68"/><published>2026-11-27T21:31:35+00:00</published>
+<media:group><media:thumbnail url="https://i1.ytimg.com/vi/pG-G0z9jG68/hqdefault.jpg" width="480"/><media:description>Емисия</media:description></media:group></entry></feed>`;
+    const [v] = parseFeed(xml, NOW);
+    assert.equal(v.videoId, 'pG-G0z9jG68');
+    assert.equal(v.url, 'https://www.youtube.com/watch?v=pG-G0z9jG68');
+    assert.equal(v.description, 'Емисия');
+});
+
+test('parseFeed stamps a future date with the time it was read', () => {
+    const xml = `<rss><item><title>a</title><link>https://x.bg/a</link><pubDate>Sat, 28 Nov 2026 20:00:00 +0200</pubDate></item></rss>`;
+    assert.equal(parseFeed(xml, NOW)[0].at, NOW);
+});
+
+test('toText strips markup, including markup hidden in entities', () => {
+    assert.equal(toText('<b>a</b> &lt;script&gt;x&lt;/script&gt; b'), 'a x b');
+});
+
+test('isOffTopic drops sport by path or category, keeps the rest', () => {
+    assert.equal(isOffTopic({ url: 'https://www.24chasa.bg/sport/article/1', category: '' }), true);
+    assert.equal(isOffTopic({ url: 'https://x.bg/a/1', category: 'Футбол' }), true);
+    assert.equal(isOffTopic({ url: 'https://x.bg/bulgaria/1', category: 'Политика' }), false);
+});
+
+test('articleText keeps paragraphs and drops boilerplate', () => {
+    const html = `<nav><p>Меню меню меню меню меню меню меню меню меню меню</p></nav>
+<p>Премиерът заяви днес, че бюджетът ще бъде внесен до края на седмицата.</p>
+<p>Кратко</p><p>Този сайт използва бисквитки, за да работи по-добре за вас.</p>`;
+    assert.equal(articleText(html), 'Премиерът заяви днес, че бюджетът ще бъде внесен до края на седмицата.');
+});
+
+test('heat halves every HALF_LIFE and a new outlet counts more than a repeat', () => {
+    const one = story([item('a', 'dnevnik', 0)]);
+    const old = story([item('a', 'dnevnik', HALF_LIFE / HOUR)]);
+    assert.ok(Math.abs(heatAt(one, NOW) - 1) < 1e-9);
+    assert.ok(Math.abs(heatAt(old, NOW) - 0.5) < 1e-9);
+    const twoOutlets = story([item('a', 'dnevnik', 0), item('b', 'sega', 0)]);
+    const sameOutlet = story([item('a', 'dnevnik', 0), item('b', 'dnevnik', 0)]);
+    assert.ok(heatAt(twoOutlets, NOW) > heatAt(sameOutlet, NOW));
+    // A channel and the site of the same outlet are one outlet.
+    const siteAndChannel = story([item('a', 'bnt', 0), item('b', 'bnt-yt', 0)]);
+    assert.ok(heatAt(siteAndChannel, NOW) < 2 * 1.2);
+});
+
+test('a story nobody writes about leaves the page', () => {
+    const fading = story([item('a', 'dnevnik', 20)]);
+    const busy = story(
+        ['dnevnik', 'sega', 'bta', 'bnt', 'capital'].map((s, i) => item(`b${i}`, s, 1)),
+        { id: 's2' },
+    );
+    const ranked = rankStories([fading, busy], NOW);
+    assert.deepEqual(
+        ranked.map((r) => r.story.id),
+        ['s2'],
+    );
+    assert.equal(ranked[0].level.id, 'warm');
+});
+
+test('trend: new, rising, falling', () => {
+    assert.equal(trendOf(story([item('a', 'bta', 1)]), NOW), 'new');
+    const rising = story([item('a', 'bta', 6), item('b', 'sega', 1), item('c', 'bnt', 0.5), item('d', 'capital', 0.2)]);
+    assert.equal(trendOf(rising, NOW), 'up');
+    const falling = story([item('a', 'bta', 8), item('b', 'sega', 7), item('c', 'bnt', 6.5)]);
+    assert.equal(trendOf(falling, NOW), 'down');
+});
+
+test('trust: first-hand plus another outlet is confirmed; one outlet is not', () => {
+    assert.equal(trustOf(story([item('a', 'dnevnik', 1)])).id, 'single');
+    assert.equal(trustOf(story([item('a', 'dnevnik', 1), item('b', 'sega', 1)])).id, 'several');
+    const quoted = story([item('a', 'dnevnik', 1, { cites: 'МВР', citesKind: 'institution' }), item('b', 'sega', 1)]);
+    assert.equal(trustOf(quoted).id, 'confirmed');
+    assert.equal(trustOf(story([item('a', 'bta', 1), item('b', 'sega', 1), item('c', 'dnevnik', 1)])).id, 'confirmed');
+});
+
+test('spreadTree hangs a citing item under the outlet it cites', () => {
+    const s = story([
+        item('a', 'bta', 5, { cites: 'МВР', citesKind: 'institution' }),
+        item('b', 'dnevnik', 4, { cites: 'БТА', citesKind: 'media', citesSource: 'bta' }),
+        item('c', 'sega', 3, { citesKind: 'own' }),
+    ]);
+    const roots = spreadTree(s);
+    assert.equal(roots.length, 2);
+    assert.equal(roots[0].name, 'МВР');
+    assert.equal(roots[0].children[0].item.id, 'a');
+    assert.equal(roots[0].children[0].children[0].item.id, 'b');
+    assert.equal(roots[1].item.id, 'c');
+});
+
+test('sourceIdForName finds an outlet by any of its names', () => {
+    assert.equal(sourceIdForName('БТА'), 'bta');
+    assert.equal(sourceIdForName('„Сега“'), 'sega');
+    assert.equal(sourceIdForName('Нова телевизия'), 'nova-yt');
+    assert.equal(sourceIdForName('МВР'), null);
+});
+
+test('applyWrite fills in cites and timeline and clears the pending marks', () => {
+    const a = item('a', 'dnevnik', 2, { pending: true, description: 'x' });
+    const b = item('b', 'sega', 1, { pending: true });
+    const s = story([a, b]);
+    applyWrite(
+        s,
+        [a, b],
+        {
+            title: 'Ново заглавие',
+            summary: 'Обобщение',
+            disputed: '',
+            items: [
+                { n: 0, cites: 'БТА', citesKind: 'media' },
+                { n: 1, cites: '', citesKind: 'own' },
+                { n: 7, cites: 'x', citesKind: 'media' },
+            ],
+            events: [
+                { n: [1], who: 'Министър', what: 'заяви нещо' },
+                { n: [9], who: 'Никой', what: 'няма такъв материал' },
+            ],
+        },
+        NOW,
+    );
+    assert.equal(s.title, 'Ново заглавие');
+    assert.equal(a.citesSource, 'bta');
+    assert.equal(b.cites, null);
+    assert.equal(s.timeline.length, 1);
+    assert.equal(s.timeline[0].at, b.at);
+    assert.ok(!a.pending && !b.pending && !('description' in a));
+});
+
+test('buildSite escapes everything from feeds and the model', () => {
+    const out = fs.mkdtempSync(path.join(os.tmpdir(), 'live-'));
+    const s = story(
+        [
+            item('a', 'dnevnik', 1, { title: '<img src=x onerror=alert(1)>', url: 'javascript:alert(1)' }),
+            item('b', 'bnt-yt', 1, { videoId: 'abc"><x', title: 'видео' }),
+            item('c', 'sega', 1),
+        ],
+        {
+            title: '<script>alert(1)</script>',
+            timeline: [{ at: NOW - HOUR, who: '<b>x</b>', what: 'заяви', items: ['a'] }],
+        },
+    );
+    const state = {
+        updatedAt: NOW,
+        stories: [s],
+        overview: { at: NOW, lines: [{ story: 's1', text: '<i>ред</i>' }] },
+        sources: {},
+    };
+    buildSite(state, { now: NOW, outDir: out });
+    const home = fs.readFileSync(path.join(out, 'index.html'), 'utf8');
+    const page = fs.readFileSync(path.join(out, 's', 's1', 'index.html'), 'utf8');
+    for (const html of [home, page]) {
+        assert.ok(!html.includes('<script>alert'), 'no raw script from a title');
+        assert.ok(!html.includes('<img src=x'), 'no raw markup from a feed');
+        assert.ok(!html.includes('<i>ред'), 'no raw markup from the model');
+        assert.ok(!html.includes('href="javascript:'), 'no script links');
+    }
+    assert.ok(!page.includes('abc"'), 'a malformed video id is not used');
+    assert.ok(fs.existsSync(path.join(out, 'state.json')));
+    fs.rmSync(out, { recursive: true, force: true });
+});

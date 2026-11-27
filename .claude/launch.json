@@ -1,0 +1,11 @@
+{
+    "version": "0.0.1",
+    "configurations": [
+        {
+            "name": "live",
+            "runtimeExecutable": "npx",
+            "runtimeArgs": ["--yes", "serve", "dist-live", "-p", "3100"],
+            "port": 3100
+        }
+    ]
+}
