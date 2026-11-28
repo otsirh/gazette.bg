@@ -629,7 +629,7 @@ button {
     .cards-big {
         grid-template-columns: 1fr 1fr;
     }
-    .cards-big > .card:first-child {
+    .cards-big > .card.wide {
         grid-column: 1 / -1;
     }
 }
@@ -886,12 +886,6 @@ button {
     .card.with-video .card-thumb {
         flex: 0 0 40%;
         aspect-ratio: auto;
-    }
-    .cards-big > .card:not(:first-child).with-video .card-link {
-        flex-direction: column;
-    }
-    .cards-big > .card:not(:first-child).with-video .card-thumb {
-        aspect-ratio: 16 / 9;
     }
 }
 

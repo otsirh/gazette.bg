@@ -3,7 +3,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { test } from 'node:test';
-import { buildSite } from '../live/build.js';
+import { buildSite, wideCards } from '../live/build.js';
 import { articleText, isOffTopic, parseFeed, toText } from '../live/lib/feeds.js';
 import { HALF_LIFE, heatAt, rankStories, spreadTree, trendOf, trustOf } from '../live/lib/stories.js';
 import { sourceIdForName } from '../live/sources.js';
@@ -439,4 +439,11 @@ test('a news list page gives dated items with clean headlines', async () => {
     assert.equal(items[1].title, 'Министърът откри новата сграда на агенцията');
     assert.equal(parseBgDate('23 Ное 2026'), Date.parse('2026-11-23T12:00:00+02:00'));
     assert.equal(parseBgDate('ноември 17, 2026'), Date.parse('2026-11-17T12:00:00+02:00'));
+});
+
+test('hot cards: video cards and lone text cards take the whole row, text cards pair up', () => {
+    assert.deepEqual(wideCards([false, false, false]), [true, false, false]);
+    assert.deepEqual(wideCards([false, true, false, true, false]), [true, true, true, true, true]);
+    assert.deepEqual(wideCards([true, false, false, false, true]), [true, false, false, true, true]);
+    assert.deepEqual(wideCards([]), []);
 });

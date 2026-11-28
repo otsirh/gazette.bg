@@ -147,6 +147,7 @@ function applyFilter(id) {
     }
     const empty = document.querySelector('[data-filter-empty]');
     if (empty) empty.hidden = shown > 0;
+    layoutHot();
     store.set('live:filter', id === 'mine' ? 'all' : id);
 }
 
@@ -184,6 +185,24 @@ async function share(btn) {
 }
 
 // ─── Live updates without a reload ──────────────────────────────────────
+
+// The hot cards still shown, laid out again (see wideCards in build.js): the
+// first, video cards and a lone text card take the whole row; two text cards
+// share one.
+function layoutHot() {
+    for (const list of document.querySelectorAll('.cards-big')) {
+        const cards = [...list.children].filter((c) => !c.hidden);
+        for (let i = 0; i < cards.length; i++) {
+            const pair =
+                i > 0 &&
+                i + 1 < cards.length &&
+                !cards[i].classList.contains('with-video') &&
+                !cards[i + 1].classList.contains('with-video');
+            cards[i].classList.toggle('wide', !pair);
+            if (pair) cards[++i].classList.remove('wide');
+        }
+    }
+}
 
 const version = () => document.body.dataset.version;
 
