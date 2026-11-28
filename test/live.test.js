@@ -3,7 +3,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { test } from 'node:test';
-import { buildSite, wideCards } from '../live/build.js';
+import { buildSite } from '../live/build.js';
 import { articleText, isOffTopic, parseFeed, toText } from '../live/lib/feeds.js';
 import { HALF_LIFE, heatAt, rankStories, spreadTree, trendOf, trustOf } from '../live/lib/stories.js';
 import { sourceIdForName } from '../live/sources.js';
@@ -409,13 +409,6 @@ test('a news list page gives dated items with clean headlines', async () => {
     assert.equal(items[1].title, 'Министърът откри новата сграда на агенцията');
     assert.equal(parseBgDate('23 Ное 2026'), Date.parse('2026-11-23T12:00:00+02:00'));
     assert.equal(parseBgDate('ноември 17, 2026'), Date.parse('2026-11-17T12:00:00+02:00'));
-});
-
-test('hot cards: video cards and lone text cards take the whole row, text cards pair up', () => {
-    assert.deepEqual(wideCards([false, false, false]), [true, false, false]);
-    assert.deepEqual(wideCards([false, true, false, true, false]), [true, true, true, true, true]);
-    assert.deepEqual(wideCards([true, false, false, false, true]), [true, false, false, true, true]);
-    assert.deepEqual(wideCards([]), []);
 });
 
 test('video ids come back from watch links only', async () => {
@@ -927,7 +920,7 @@ test('the build writes an RSS feed, story titles as headings, and a service work
     assert.match(rss, /<link>https:\/\/live\.gazette\.bg\/s\/rss12345\/<\/link>/);
     assert.ok(rss.includes('Заглавие &lt;с&gt; „кавички“'), 'titles are escaped');
     const home = fs.readFileSync(path.join(out, 'index.html'), 'utf8');
-    assert.match(home, /<h3 class="card-title">/);
+    assert.match(home, /<h3 class="topic-title">/);
     assert.match(home, /application\/rss\+xml/);
     const sw = fs.readFileSync(path.join(out, 'sw.js'), 'utf8');
     const v = home.match(/style\.css\?v=(\w+)/)[1];
@@ -946,14 +939,14 @@ test('plain words: a name with a number gets quotes, kinds and trust in everyday
     fs.rmSync(out, { recursive: true, force: true });
 });
 
-test('„Току-що“ opens the outlet’s own article, not our page', async () => {
+test('the flow opens the outlet’s own article, not our page', async () => {
     const out = fs.mkdtempSync(path.join(os.tmpdir(), 'live-'));
     const s = story([item('a', 'bta', 0.5, { url: 'https://www.bta.bg/a1' }), item('b', 'sega', 0.4)], {
         id: 'just1234',
     });
     await buildSite({ updatedAt: NOW, stories: [s], sources: {} }, { now: NOW, outDir: out, images: false });
     const home = fs.readFileSync(path.join(out, 'index.html'), 'utf8');
-    const rail = home.slice(home.indexOf('class="justin"'), home.indexOf('</ol>', home.indexOf('class="justin"')));
+    const rail = home.slice(home.indexOf('class="flow-in"'), home.indexOf('</ol>', home.indexOf('class="flow-in"')));
     assert.ok(rail.includes('href="https://www.bta.bg/a1" rel="noopener" target="_blank"'));
     assert.ok(!rail.includes('href="/s/'));
     fs.rmSync(out, { recursive: true, force: true });
@@ -975,4 +968,65 @@ test('one answer from the writer only asks to hide a story; a check that cannot 
     );
     assert.equal(s.sensitive, true, 'no check possible: hidden, to be safe');
     assert.equal(s.sensitiveAsked, undefined);
+});
+
+test('pulse: the flow sends each new item to its topic, the rest to „Други теми“', async () => {
+    const { flowOf, contributors, heatCurve, axisTicks, buckets, sofiaOffset } = await import('../live/lib/pulse.js');
+    const a = story([item('a1', 'bta', 0.1), item('a2', 'sega', 0.3)], { id: 'aaaa1111' });
+    const b = story([item('b1', 'bnt', 0.2), item('b2', 'mediapool', 2)], { id: 'bbbb2222' });
+    const ranked = rankStories([a, b], NOW);
+    const { top, latest } = flowOf(ranked, NOW, { rows: 3, topics: 1 });
+    assert.equal(top.length, 1);
+    assert.deepEqual(
+        latest.map((x) => x.item.id),
+        ['a1', 'b1', 'a2'],
+        'newest first',
+    );
+    const topId = top[0].story.id;
+    for (const x of latest) assert.equal(x.topic, x.story.id === topId ? 0 : -1);
+    // Who adds the heat: the shares add up to the whole.
+    const c = contributors(b, NOW);
+    assert.ok(Math.abs(c.reduce((s, e) => s + e.share, 0) - 1) < 1e-9);
+    // The curve ends at the heat now.
+    const curve = heatCurve(a, NOW, undefined, 10);
+    assert.equal(curve.length, 11);
+    assert.ok(Math.abs(curve.at(-1).heat - heatAt(a, NOW)) < 1e-9);
+    // Axis ticks fall on whole hours of Sofia time.
+    const { ticks } = axisTicks(NOW - 30 * HOUR, NOW, 6);
+    assert.ok(ticks.length >= 2 && ticks.length <= 6);
+    for (const t of ticks) assert.equal((t + sofiaOffset(t)) % (6 * HOUR), 0);
+    assert.deepEqual(buckets([{ at: 0 }, { at: 4 }, { at: 9 }, { at: 10 }], 0, 10, 2), [2, 2]);
+});
+
+test('a story page: why it is hot, how it grew, and its timeline from the first item to now', async () => {
+    const out = fs.mkdtempSync(path.join(os.tmpdir(), 'live-'));
+    const outlets = ['bta', 'sega', 'mediapool', 'clubz', 'fakti', '24chasa', 'bnt', 'dnevnik'];
+    const items = outlets.map((o, i) => item(`i${i}`, o, 6 - i * 0.7));
+    const timeline = Array.from({ length: 20 }, (_, k) => ({
+        at: NOW - (6 - k * 0.3) * HOUR,
+        who: `Министър ${k}`,
+        what: `заяви нещо ${k}`,
+        items: ['i1'],
+    }));
+    const s = story(items, { id: 'grow1234', title: 'Тема', summary: 'Обобщение', timeline });
+    await buildSite({ updatedAt: NOW, stories: [s], sources: {} }, { now: NOW, outDir: out, images: false });
+    const page = fs.readFileSync(path.join(out, 's', 'grow1234', 'index.html'), 'utf8');
+    assert.match(page, /id="why"/);
+    assert.match(page, /Как се разгоря/);
+    assert.match(page, /Кой вдига градусите/);
+    assert.match(page, /href="#timeline"/);
+    // Oldest first: the first item, then the steps, then now.
+    const first = page.indexOf('Първата публикация');
+    const step0 = page.indexOf('Министър 0');
+    const step19 = page.indexOf('Министър 19');
+    const nowAt = page.indexOf('class="tl-step tl-now"');
+    assert.ok(first > 0 && first < step0 && step0 < step19 && step19 < nowAt);
+    // A long timeline folds its middle, and says how many steps are folded.
+    assert.match(page, /<details class="tl-fold"><summary>Покажи още 9 стъпки<\/summary>/);
+    assert.ok(page.includes('Заяви нещо 0'), 'each step starts with a capital');
+    const home = fs.readFileSync(path.join(out, 'index.html'), 'utf8');
+    assert.match(home, /class="flow"/);
+    assert.match(home, /Откъде идва информацията/);
+    assert.match(home, /За последните 24 часа: <b>8 публикации<\/b> от <b>8 източника<\/b>/);
+    fs.rmSync(out, { recursive: true, force: true });
 });
