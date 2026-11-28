@@ -10,6 +10,10 @@ import satori from 'satori';
 const require = createRequire(import.meta.url);
 const W = 1200;
 const H = 630;
+// The titles on a share picture are the model's, so the picture says so
+// where it begins (AI Act, Art. 50(4)).
+const AI_LABEL = 'Написано от изкуствен интелект';
+
 const C = {
     bg: '#0b0d12',
     text: '#f3f4f7',
@@ -103,7 +107,10 @@ export async function storyImage({ title }) {
                 color: C.text,
             },
             [
-                el('div', { justifyContent: 'space-between', alignItems: 'center' }, [brand()]),
+                el('div', { justifyContent: 'space-between', alignItems: 'center' }, [
+                    brand(),
+                    el('div', { fontSize: 24, color: C.muted }, AI_LABEL),
+                ]),
                 el(
                     'div',
                     { fontSize: titleSize(title), fontWeight: 700, lineHeight: 1.18, letterSpacing: -1, lineClamp: 4 },
@@ -111,7 +118,6 @@ export async function storyImage({ title }) {
                 ),
                 el('div', { gap: 34, fontSize: 26, color: C.muted, borderTop: `2px solid ${C.line}`, paddingTop: 24 }, [
                     el('div', { color: C.text }, 'Какво се случва в България сега'),
-                    el('div', {}, 'обобщено с AI'),
                 ]),
             ],
         ),
@@ -133,7 +139,10 @@ export async function homeImage(top) {
                 gap: 30,
             },
             [
-                brand(),
+                el('div', { justifyContent: 'space-between', alignItems: 'center' }, [
+                    brand(),
+                    el('div', { fontSize: 24, color: C.muted }, AI_LABEL),
+                ]),
                 el(
                     'div',
                     { fontSize: 47, fontWeight: 700, lineHeight: 1.1, letterSpacing: -1 },
