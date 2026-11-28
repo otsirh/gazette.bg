@@ -1915,6 +1915,18 @@ export const SOURCES = [
         aliases: [],
     },
     {
+        id: 'gerb',
+        list: '^/news/\\d+/',
+        name: 'ГЕРБ',
+        home: 'https://gerb.bg',
+        feed: 'https://gerb.bg/news',
+        kind: 'article',
+        tier: 1,
+        partisan: true,
+        why: 'Официалният сайт на партията: говорят самите политици. Казаното е тяхна позиция, не проверен факт.',
+        aliases: ['ГЕРБ', 'ГЕРБ-СДС'],
+    },
+    {
         id: 'dps-yt',
         name: 'ДПС (видео)',
         home: 'https://www.youtube.com/channel/UCe3zBAfVSpq56npcKGzfWCA',

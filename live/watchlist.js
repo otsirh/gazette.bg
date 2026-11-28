@@ -372,7 +372,7 @@ export const WANTED = [
         since: '2026-11',
         check: { robotsOf: 'https://gerb.bg' },
         contact: '',
-        note: 'Официалният канал UC_boJf3ewIsSlwLSzxkYoDg (@gerb-official) няма клип от май 2026. Да се върне, ако започне пак, или да се намери новият им канал.',
+        note: 'Официалният канал UC_boJf3ewIsSlwLSzxkYoDg (@gerb-official) няма клип от май 2026; ГЕРБ се чете от сайта си (gerb.bg/news). Каналът да се върне, ако започне пак.',
     },
     {
         id: 'itn-yt',
