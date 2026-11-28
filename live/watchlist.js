@@ -15,7 +15,8 @@
 //        'outlet'   — a channel whose outlet refuses AI on its own site
 //        'gone'     — no feed, or the site moved
 //   check: what the weekly check reads: { feed } | { list, pattern } |
-//          { robotsOf } (the site whose robots.txt decides, for channels)
+//          { robotsOf } (the site whose robots.txt decides, for channels) |
+//          { page } (a bot wall: readable once the page answers)
 //
 // DECLINED: looked at and not taken, with the rule of SOURCES-POLICY.md it
 // breaks and the examples. Kept so a later review knows it was decided, and
@@ -185,15 +186,6 @@ export const WANTED = [
         note: 'robots.txt спира AI агентите.',
     },
     {
-        id: 'brod',
-        name: 'BROD',
-        why: 'robots',
-        since: '2026-11',
-        check: { robotsOf: 'https://brod.bg' },
-        contact: '',
-        note: 'robots.txt спира AI агентите.',
-    },
-    {
         id: 'economy-bg',
         name: 'Economy.bg',
         why: 'robots',
@@ -243,7 +235,7 @@ export const WANTED = [
         name: 'Банкер',
         why: 'bot-wall',
         since: '2026-11',
-        check: { robotsOf: 'https://www.banker.bg' },
+        check: { page: 'https://www.banker.bg/' },
         contact: '',
         note: 'Проверка на Cloudflare спира сървърите.',
     },
@@ -252,7 +244,7 @@ export const WANTED = [
         name: 'Министерство на финансите',
         why: 'bot-wall',
         since: '2026-11',
-        check: { robotsOf: 'https://www.minfin.bg' },
+        check: { page: 'https://www.minfin.bg/' },
         contact: '',
         note: 'Проверка на Cloudflare дори на robots.txt. Важен източник — добър кандидат за писмо.',
     },
@@ -261,7 +253,7 @@ export const WANTED = [
         name: 'МОН',
         why: 'bot-wall',
         since: '2026-11',
-        check: { robotsOf: 'https://www.mon.bg' },
+        check: { page: 'https://www.mon.bg/' },
         contact: '',
         note: 'Проверка на Cloudflare. Засега „Аз-буки“.',
     },
