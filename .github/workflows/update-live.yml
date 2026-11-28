@@ -3,10 +3,13 @@ name: Update live.gazette.bg
 on:
   workflow_dispatch: {}
   schedule:
-    # Every 10 minutes. GitHub starts scheduled runs late, and at busy times
-    # skips some altogether; asking twice as often keeps the gap short. A run
-    # with nothing new costs a cent at most.
-    - cron: '*/10 * * * *'
+    # Every 10 minutes by day, every 30 at night (23:00–06:00 in Sofia in
+    # winter; an hour later in summer), when almost nothing is published and
+    # news time nearly stops anyway. GitHub starts scheduled runs late, and
+    # at busy times skips some altogether. A run with nothing new costs a
+    # cent at most.
+    - cron: '*/10 4-20 * * *'
+    - cron: '*/30 21-23,0-3 * * *'
 
 # Two updates must not publish over each other: each reads the state the
 # last one published.
@@ -86,6 +89,8 @@ jobs:
         run: node live/update.js
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          # Optional; without it the seal key is derived from ANTHROPIC_API_KEY.
+          LIVE_SEAL_KEY: ${{ secrets.LIVE_SEAL_KEY }}
           YOUTUBE_API_KEY: ${{ secrets.YOUTUBE_API_KEY }}
           LIVE_STATE_URL: ${{ vars.LIVE_URL }}/state.json
           LIVE_MONTHLY_BUDGET: ${{ vars.LIVE_MONTHLY_BUDGET || '100' }}
