@@ -827,8 +827,9 @@ function repliesBlock(story) {
 // the state, so a link someone shared still works; it is not indexed, and it
 // borrows the site's picture, since its own is no longer made.
 //
-// The page goes from why it is hot, to how it unfolded, to the videos and
-// the articles themselves; the chips at the top jump to each.
+// The page goes from why it is hot, to the videos (most people would rather
+// watch and listen than read), to how it unfolded, to the articles
+// themselves; the chips at the top jump to each.
 function storyPage(state, r, ranked, now, { cold = false, clock = WALL_CLOCK } = {}) {
     const s = r.story;
     const url = `${SITE_ORIGIN}/s/${s.id}/`;
@@ -837,8 +838,8 @@ function storyPage(state, r, ranked, now, { cold = false, clock = WALL_CLOCK } =
     const image = cold ? `${SITE_ORIGIN}/og/home.png` : `${SITE_ORIGIN}/og/${s.id}.png`;
     const jump = [
         `<a href="#why">${WHY_TITLE[r.level.id]}</a>`,
-        '<a href="#timeline">Хронология</a>',
         videos ? `<a href="#videos">▶ ${plural(videosOf(s).length, 'видео', 'видеа')}</a>` : '',
+        '<a href="#timeline">Хронология</a>',
         articles ? `<a href="#articles">${plural(articles, 'статия', 'статии')}</a>` : '',
     ].join('');
     return `${head({
@@ -877,8 +878,8 @@ ${cold ? '<p class="cold-note">Тази новина изстина: за нея
     <nav class="jump" aria-label="На тази страница">${jump}</nav>
 </header>
 ${whyBlock(r, ranked, now, clock)}
-${timelineBlock(r, now)}
 ${videos}
+${timelineBlock(r, now)}
 ${sourcesBlock(s, now)}
 ${repliesBlock(s)}
 ${moreBlock(r, ranked, now, clock)}
