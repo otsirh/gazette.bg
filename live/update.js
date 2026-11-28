@@ -41,6 +41,20 @@ const SEEN_TTL = 4 * 24 * HOUR;
 
 const sourceName = (id) => SOURCE_BY_ID.get(id)?.name ?? id;
 const proxyFor = (sourceId) => (SOURCE_BY_ID.get(sourceId)?.viaBulgaria && process.env.LIVE_PROXY) || null;
+const FEED_ACCEPT = 'application/rss+xml, application/atom+xml, application/xml;q=0.9, text/xml;q=0.9, */*;q=0.8';
+
+// Direct first (or through Bulgaria for the sites known to need it); a site
+// that turns the direct request away gets a second try through Bulgaria, so
+// a newly blocked site is read without anyone marking it.
+async function fetchSmart(url, sourceId, opts) {
+    const proxy = proxyFor(sourceId);
+    try {
+        return await fetchText(url, { ...opts, proxy });
+    } catch (err) {
+        if (proxy || !process.env.LIVE_PROXY) throw err;
+        return fetchText(url, { ...opts, proxy: process.env.LIVE_PROXY });
+    }
+}
 
 export function emptyState() {
     return {
@@ -77,10 +91,7 @@ async function loadState() {
 async function readFeeds(state, now) {
     const results = await mapLimit(SOURCES, 8, async (source) => {
         try {
-            const xml = await fetchText(source.feed, {
-                accept: 'application/rss+xml, application/atom+xml, text/xml',
-                proxy: proxyFor(source.id),
-            });
+            const xml = await fetchSmart(source.feed, source.id, { accept: FEED_ACCEPT });
             const entries = parseFeed(xml, now);
             state.sources[source.id] = { ok: true, at: now, count: entries.length };
             return entries.map((e) => ({ ...e, source: source.id, kind: source.kind }));
@@ -236,11 +247,7 @@ export async function update({ now = Date.now() } = {}) {
             4,
             async (it) => {
                 try {
-                    const page = await fetchText(it.url, {
-                        timeoutMs: 12000,
-                        accept: 'text/html',
-                        proxy: proxyFor(it.source),
-                    });
+                    const page = await fetchSmart(it.url, it.source, { timeoutMs: 12000, accept: 'text/html' });
                     texts.set(it.id, articleText(page));
                 } catch {
                     // The feed's own excerpt stands in.
