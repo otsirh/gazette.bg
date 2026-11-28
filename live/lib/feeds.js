@@ -218,3 +218,81 @@ export function articleText(html, max = 2500) {
     }
     return text.trim();
 }
+
+// ─── News list pages (institutions without a feed) ──────────────────────
+
+const BG_MONTHS = ['яну', 'фев', 'мар', 'апр', 'май', 'юни', 'юли', 'авг', 'сеп', 'окт', 'ное', 'дек'];
+
+// A date in any of the forms Bulgarian institution sites print, as ms
+// (noon Sofia time when no hour is given), or null.
+export function parseBgDate(text) {
+    const t = String(text);
+    let m = t.match(/(20\d\d)-(\d\d)-(\d\d)(?:[ T](\d\d):(\d\d))?/);
+    if (m) return Date.parse(`${m[1]}-${m[2]}-${m[3]}T${m[4] ?? '12'}:${m[5] ?? '00'}:00+02:00`);
+    m = t.match(/\b(\d{1,2})[./-](\d{1,2})[./-](20\d\d)(?:\D{1,4}(\d{1,2}):(\d\d))?/);
+    if (m) {
+        const [, d, mo, y, h, mi] = m;
+        return Date.parse(
+            `${y}-${mo.padStart(2, '0')}-${d.padStart(2, '0')}T${(h ?? '12').padStart(2, '0')}:${mi ?? '00'}:00+02:00`,
+        );
+    }
+    m = t.match(/\b(\d{1,2})\s+([А-Яа-я]{3})[а-я]*\.?\s+(20\d\d)/);
+    if (m) {
+        const mo = BG_MONTHS.indexOf(m[2].toLowerCase());
+        if (mo >= 0)
+            return Date.parse(`${m[3]}-${String(mo + 1).padStart(2, '0')}-${m[1].padStart(2, '0')}T12:00:00+02:00`);
+    }
+    m = t.match(/(?:^|[^А-Яа-я])([А-Яа-я]{3})[а-я]*\s+(\d{1,2}),\s*(20\d\d)/);
+    if (m) {
+        const mo = BG_MONTHS.indexOf(m[1].toLowerCase());
+        if (mo >= 0)
+            return Date.parse(`${m[3]}-${String(mo + 1).padStart(2, '0')}-${m[2].padStart(2, '0')}T12:00:00+02:00`);
+    }
+    return null;
+}
+
+// The news items on a list page: links whose address matches `pattern`,
+// their text as the headline, and the nearest date printed around them.
+export function parseList(html, baseUrl, pattern, now = Date.now()) {
+    const re = new RegExp(pattern);
+    const out = new Map();
+    for (const m of html.matchAll(/<a\b([^>]*)>([\s\S]*?)<\/a>/gi)) {
+        const attrs = m[1];
+        const href = attrs.match(/href\s*=\s*["']([^"'#]+)["']/i)?.[1];
+        if (!href) continue;
+        let url;
+        try {
+            url = new URL(decodeEntities(href), baseUrl);
+        } catch {
+            continue;
+        }
+        if (!isWebUrl(url.href)) continue;
+        const path = decodeURIComponent(url.pathname) + url.search;
+        if (!re.test(path)) continue;
+        const titleAttr = decodeEntities(attrs.match(/title\s*=\s*["']([^"']+)["']/i)?.[1] ?? '');
+        let title = toText(m[2]) || titleAttr;
+        if (titleAttr.length > title.length) title = titleAttr;
+        // Some lists print the date inside the link: keep it for the date,
+        // drop it from the headline.
+        const around = html.slice(Math.max(0, m.index - 500), m.index + m[0].length + 500);
+        const at = parseBgDate(m[2]) ?? parseBgDate(path) ?? parseBgDate(around);
+        title = title
+            .replace(/^\s*(\d{1,2}[./-]\d{1,2}[./-]20\d\d|\d{1,2}\s+[А-Яа-я]{3}[а-я]*\.?\s+20\d\d)\s*/, '')
+            .replace(/^\s*\d{1,2}:\d\d\s+/, '')
+            .trim();
+        if (title.length < 20) continue;
+        const key = url.href;
+        if (out.has(key)) continue;
+        out.set(key, {
+            url: key,
+            title: title.slice(0, 300),
+            description: '',
+            at: at && at <= now + 10 * 60 * 1000 ? at : now,
+            category: '',
+            videoId: null,
+            thumb: null,
+            dated: Boolean(at),
+        });
+    }
+    return [...out.values()];
+}

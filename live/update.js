@@ -23,7 +23,7 @@ import { createLogger, isMain } from '../scripts/lib/cli.js';
 import { buildSite, OUT_DIR } from './build.js';
 import { clusterItems, proofread, writeOverview, writeStory } from './lib/ai.js';
 import { fillPlaces, frameStories, mergeSame, pastFor, readParliament, retire } from './lib/depth.js';
-import { articleText, fetchText, isOffTopic, itemId, mapLimit, parseFeed, siteOf } from './lib/feeds.js';
+import { articleText, fetchText, isOffTopic, itemId, mapLimit, parseFeed, parseList, siteOf } from './lib/feeds.js';
 import { applyBlocklist, copiesSource, inElectionSilence, loadPolicy } from './lib/policy.js';
 import { aiRefused, pathAllowed, tdmReserved } from './lib/robots.js';
 import { pruneStories, rankStories } from './lib/stories.js';
@@ -177,7 +177,11 @@ async function readFeeds(state, now, silence) {
         }
         try {
             const xml = await fetchSmart(source.feed, source.id, { accept: FEED_ACCEPT });
-            const entries = parseFeed(xml, now);
+            // A news list page instead of a feed: only items with a printed
+            // date, so an old notice is never taken for news.
+            const entries = source.list
+                ? parseList(xml, source.feed, source.list, now).filter((e) => e.dated)
+                : parseFeed(xml, now);
             state.sources[source.id] = { ok: true, at: now, count: entries.length };
             return entries.map((e) => ({ ...e, source: source.id, kind: source.kind }));
         } catch (err) {

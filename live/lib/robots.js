@@ -29,28 +29,26 @@ export function parseRobots(text) {
     return groups;
 }
 
-// The group that applies to us: Anthropic's own if the site names it,
-// otherwise the one for every agent.
-function ourGroup(groups) {
-    return groups.find((g) => g.agents.some((a) => ANTHROPIC.test(a))) ?? groups.find((g) => g.agents.includes('*'));
+// The groups that apply to us: every group naming one of Anthropic's agents,
+// and the group for everyone. A path is ours to read only if none of them
+// forbids it: a site that welcomes Claude-User but shuts out ClaudeBot has
+// said no.
+function ourGroups(groups) {
+    return groups.filter((g) => g.agents.some((a) => ANTHROPIC.test(a) || a === '*'));
 }
 
 function matches(rule, path) {
     if (!rule) return false;
-    const re = new RegExp(
-        `^${rule
-            .replace(/[.+?^${}()|[\]\\]/g, '\\$&')
-            .replace(/\*/g, '.*')
-            .replace(/\\\$$/, '$')}`,
-    );
-    return re.test(path);
+    const pattern = rule
+        .replace(/[.+?^${}()|[\]\\]/g, '\\$&')
+        .replace(/\*/g, '.*')
+        .replace(/\\\$$/, '$');
+    return new RegExp(`^${pattern}`).test(path);
 }
 
-// Whether robots.txt lets us read this path: the longest matching rule
-// wins, and allow wins a tie (RFC 9309).
-export function pathAllowed(robots, path) {
-    const g = ourGroup(parseRobots(robots));
-    if (!g) return true;
+// Within one group the longest matching rule wins, and allow wins a tie
+// (RFC 9309).
+function groupAllows(g, path) {
     let best = null;
     for (const [kind, rule] of g.rules) {
         if (kind === 'disallow' && !rule) continue;
@@ -59,6 +57,10 @@ export function pathAllowed(robots, path) {
             best = [kind, rule];
     }
     return !best || best[0] === 'allow';
+}
+
+export function pathAllowed(robots, path) {
+    return ourGroups(parseRobots(robots)).every((g) => groupAllows(g, path));
 }
 
 // The whole site refuses AI: ai-input=no, or "Disallow: /" for us.
