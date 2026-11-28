@@ -24,8 +24,16 @@ import { buildSite, OUT_DIR } from './build.js';
 import { clusterItems, OVERVIEW_MODEL, proofread, writeOverview, writeStory } from './lib/ai.js';
 import { fillPlaces, frameStories, mergeSame, pastFor, readParliament, recheckSensitive, retire } from './lib/depth.js';
 import { articleText, fetchText, isOffTopic, itemId, mapLimit, parseFeed, parseList, siteOf } from './lib/feeds.js';
-import { applyBlocklist, copiesSource, inElectionSilence, loadPolicy } from './lib/policy.js';
+import {
+    applyBlocklist,
+    copiesSource,
+    inElectionSilence,
+    loadPolicy,
+    unquote,
+    unverifiedQuotes,
+} from './lib/policy.js';
 import { aiRefused, pathAllowed, tdmReserved } from './lib/robots.js';
+import { openSeals, publicState } from './lib/seal.js';
 import { pruneStories, rankStories } from './lib/stories.js';
 import { aiTexts, clip, recutOld, tidy, tidyState } from './lib/text.js';
 import { channelIdOf, channelUploads, madeForKids } from './lib/youtube.js';
@@ -152,12 +160,13 @@ async function mayRead(url, sourceId) {
 
 // A story leaving the page is kept for the record, outside the site: what
 // it said and which headlines and links it said it from (uploaded by the
-// workflow as a private-to-the-repo artifact for 90 days).
+// workflow as an artifact for 90 days). The repository is public, so anyone
+// signed in to GitHub can download it: sensitive items go sealed.
 function keepEvidence(stories, now) {
     if (!stories.length) return;
     const dir = path.join(path.dirname(LOCAL_STATE), '.evidence');
     fs.mkdirSync(dir, { recursive: true });
-    fs.writeFileSync(path.join(dir, `retired-${now}.json`), JSON.stringify(stories));
+    fs.writeFileSync(path.join(dir, `retired-${now}.json`), JSON.stringify(publicState({ stories }).stories));
 }
 
 async function readFeeds(state, now, silence) {
@@ -235,10 +244,13 @@ function monthOf(ms) {
 
 export async function update({ now = Date.now() } = {}) {
     const state = await loadState();
+    openSeals(state);
     const policy = loadPolicy();
     const silence = inElectionSilence(policy, now);
     if (silence) log('Election silence: no poll stories, no party channels (Изборен кодекс чл. 182, 205).', 'WARN');
     applyBlocklist(state, policy);
+    // „Никой не казва“ was judged from headlines alone and was often wrong.
+    for (const s of state.stories) if (s.framing) delete s.framing.missing;
     const meter = { usd: 0, calls: 0 };
     // Every text the model writes in this update, to be proofread at the end.
     const proof = [];
@@ -418,6 +430,9 @@ export async function update({ now = Date.now() } = {}) {
             if (copiesSource(result.summary, sources)) result.summary = '';
             if (copiesSource(result.background, sources)) result.background = '';
             result.events = (result.events ?? []).filter((e) => !copiesSource(e.what, sources));
+            for (const q of checkQuotes(result, story, sources)) {
+                log(`${story.id}: not in any source, unquoted: ${q}`, 'WARN');
+            }
         } catch (err) {
             log(`Writing ${story.id} failed: ${err.message}`, 'WARN');
             for (const it of pending) {
@@ -523,6 +538,32 @@ export async function update({ now = Date.now() } = {}) {
     return state;
 }
 
+// A quote is said word for word in a source (or in what the story already
+// says, checked before), or it is not a quote: the marks go and the words
+// stay, so nothing on the page claims to be someone's exact words when no
+// source has them. Not dropped: a long name in quotes („Асоциацията на
+// европейските автомобилостроители“) may differ from the article by an
+// ending, and the step must not be lost for that. Returns what was unquoted.
+export function checkQuotes(result, story, sources) {
+    const known = [
+        ...sources,
+        story.title,
+        story.summary,
+        story.disputed,
+        ...story.timeline.map((e) => `${e.what} ${e.quote ?? ''}`),
+    ];
+    const out = [];
+    const fix = (o, f) => {
+        const loose = unverifiedQuotes(o?.[f], known);
+        if (!loose.length) return;
+        o[f] = unquote(o[f], loose);
+        out.push(...loose);
+    };
+    for (const f of ['title', 'summary', 'disputed', 'background']) fix(result, f);
+    for (const e of result.events ?? []) fix(e, 'what');
+    return out;
+}
+
 export function applyWrite(story, pending, result, now, proof = []) {
     if (result.title?.trim()) story.title = clip(tidy(result.title), 140);
     if (result.summary?.trim()) story.summary = clip(tidy(result.summary), 600);
@@ -530,15 +571,10 @@ export function applyWrite(story, pending, result, now, proof = []) {
     proof.push([story, 'title'], [story, 'summary'], [story, 'disputed']);
     if (typeof result.place === 'string') story.place = result.place;
     // A story about a child or a victim of violence shows no outlet's
-    // headline and no pictures: a headline may name or show them.
+    // headline and no pictures: a headline may name or show them. They are
+    // hidden when the site is built and sealed in the published state
+    // (lib/seal.js), not deleted, so one wrong flag costs nothing for good.
     if (result.sensitive === true) story.sensitive = true;
-    if (story.sensitive) {
-        for (const it of story.items) {
-            it.title = '';
-            delete it.thumb;
-            delete it.videoId;
-        }
-    }
     const related = (result.related ?? []).map((n) => result.past?.[n]).filter(Boolean);
     if (related.length && result.background?.trim()) {
         story.context = {

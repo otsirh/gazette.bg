@@ -110,20 +110,29 @@ export function sparkline(story, now, buckets = 24, size = 2 * HOUR) {
 }
 
 // How far the story can be trusted, from who carries it, never from what it
-// says: first-hand word, how many separate outlets, whether they disagree.
+// says: first-hand word, how many outlets know it for themselves, whether
+// they disagree.
+//
+// An outlet that only retells another outlet ("according to BTA") adds
+// reach, not confirmation, and a party's own channel speaks for its side
+// only: neither counts as a separate confirming outlet. First-hand is an
+// institution's own channel, or an outlet reporting what an institution
+// announced; a person speaking in an interview is their view, not a fact
+// confirmed. A story whose sources contradict each other is never
+// "Потвърдено".
 export function trustOf(story) {
     const outlets = new Set(story.items.map((i) => outletOf(i.source)));
     const neutral = story.items.filter((i) => !isPartisan(i.source));
-    const firstHand =
-        neutral.some((i) => tierOf(i.source) === 1) ||
-        neutral.some((i) => i.citesKind === 'institution' || i.citesKind === 'person');
-    const strong = neutral.some((i) => tierOf(i.source) <= 2);
+    const ownWord = new Set(neutral.filter((i) => i.citesKind !== 'media').map((i) => outletOf(i.source)));
+    const firstHand = neutral.some((i) => tierOf(i.source) === 1) || neutral.some((i) => i.citesKind === 'institution');
+    const strong = neutral.some((i) => tierOf(i.source) <= 2 && i.citesKind !== 'media');
+    const disputed = story.disputed || '';
     let level;
-    if (firstHand && outlets.size >= 2) level = { id: 'confirmed', label: 'Потвърдено' };
-    else if (outlets.size >= 3 && strong) level = { id: 'confirmed', label: 'Потвърдено' };
+    if (!disputed && firstHand && ownWord.size >= 2) level = { id: 'confirmed', label: 'Потвърдено' };
+    else if (!disputed && ownWord.size >= 3 && strong) level = { id: 'confirmed', label: 'Потвърдено' };
     else if (outlets.size >= 2) level = { id: 'several', label: 'Няколко източника' };
     else level = { id: 'single', label: 'Само един източник' };
-    return { ...level, outlets: outlets.size, firstHand, disputed: story.disputed || '' };
+    return { ...level, outlets: outlets.size, independent: ownWord.size, firstHand, disputed };
 }
 
 // Who broke the story: the institution the earliest item reports from, or
@@ -172,17 +181,22 @@ export function spreadTree(story) {
     return roots;
 }
 
-// Ranks stories for the page, hottest first, with what the page shows. Only
-// the MAX_HOT hottest can be "hot"; the rest above the line are warm.
-export function rankStories(stories, now) {
+// Every story with what the page would show for it, hottest first, the cold
+// ones too (they still have a page, so a shared link keeps working).
+export function scoreStories(stories, now) {
     const clock = newsClock(stories, now);
-    const ranked = stories
+    return stories
         .map((s) => {
             const heat = heatAt(s, now, clock);
             return { story: s, heat, level: levelOf(heat), trend: trendOf(s, now, clock), trust: trustOf(s) };
         })
-        .filter((r) => r.heat >= SHOW_HEAT)
         .sort((a, b) => b.heat - a.heat);
+}
+
+// Ranks stories for the page, hottest first, with what the page shows. Only
+// the MAX_HOT hottest can be "hot"; the rest above the line are warm.
+export function rankStories(stories, now) {
+    const ranked = scoreStories(stories, now).filter((r) => r.heat >= SHOW_HEAT);
     ranked.forEach((r, i) => {
         if (r.level.id === 'hot' && i >= MAX_HOT) r.level = LEVELS[1];
     });
