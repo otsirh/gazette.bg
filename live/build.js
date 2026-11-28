@@ -14,9 +14,8 @@ import { fileURLToPath } from 'node:url';
 import { isMain as isMainModule } from '../scripts/lib/cli.js';
 import { isWebUrl } from './lib/feeds.js';
 import { homeImage, iconPng, storyImage } from './lib/og.js';
-import { MAP, OUTLINE, placeOf } from './lib/places.js';
+import { placeOf } from './lib/places.js';
 import { inElectionSilence, isPollStory, loadPolicy, POLL, silenceFilter } from './lib/policy.js';
-import { riverData, riverJson, riverSay, riverSvg } from './lib/river.js';
 import { publicState } from './lib/seal.js';
 import { IMPORTANT, lastAt, originOf, rankStories, scoreStories, sparkline, storyWeight } from './lib/stories.js';
 import { outletOf, SOURCE_BY_ID, SOURCES, tierOf } from './sources.js';
@@ -36,7 +35,7 @@ const CONTACT = /^[^\s@<>"]+@[^\s@<>"]+\.[a-z]{2,}$/i.test(process.env.LIVE_CONT
 const HOUR = 3600 * 1000;
 
 // Bumped by hand when style.css or live.js change, so browsers fetch them anew.
-const ASSET_VERSION = '29';
+const ASSET_VERSION = '31';
 
 const shortHash = (t) => createHash('sha1').update(String(t)).digest('base64url').slice(0, 8);
 
@@ -238,7 +237,6 @@ const videosOf = (story) =>
 const thumb = (videoId) => `https://i.ytimg.com/vi/${esc(videoId)}/mqdefault.jpg`;
 
 const ICONS = {
-    share: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12M7 8l5-5 5 5M5 13v6a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>',
     play: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5.5v13l11-6.5z" fill="currentColor"/></svg>',
     pin: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 22s7-6.2 7-12a7 7 0 1 0-14 0c0 5.8 7 12 7 12zm0-9.5a2.5 2.5 0 1 1 0-5 2.5 2.5 0 0 1 0 5z" fill="currentColor"/></svg>',
 };
@@ -287,7 +285,6 @@ function topbar(state, now, { status = true } = {}) {
         <a class="skip" href="#main">Към съдържанието</a>
         <a class="brand" href="/"><span class="live-dot" aria-hidden="true"></span><span class="brand-live">НА ЖИВО</span><span class="brand-name">live.gazette.bg</span></a>
         ${status ? `<span class="status" data-status>обновено ${timeEl(state.updatedAt || now, now, true)}</span>` : '<span class="status"></span>'}
-        <button type="button" class="icon-btn" data-share data-share-title="Какво се случва в България сега" data-share-url="${SITE_ORIGIN}/" aria-label="Сподели сайта">${ICONS.share}</button>
     </div>
 </header>`;
 }
@@ -340,7 +337,6 @@ function cardMeta(r) {
         `<span>${plural(r.trust.outlets, 'медия', 'медии')}</span>`,
         videos ? `<span class="has-video">▶ ${plural(videos, 'видео', 'видеа')}</span>` : '',
         place ? `<span class="place">${ICONS.pin}${esc(place.name)}</span>` : '',
-        r.trust.disputed ? '<span class="has-dispute">⚠ противоречия</span>' : '',
     ]
         .filter(Boolean)
         .join('');
@@ -374,40 +370,11 @@ function storyCard(r, now, { big = false, wide = false } = {}) {
             <span class="card-foot"><span class="meta">${cardMeta(r)}</span></span>
         </span>
     </a>
-    <button type="button" class="icon-btn card-share" data-share data-share-title="${esc(s.title)}" data-share-url="${SITE_ORIGIN}/s/${esc(s.id)}/" aria-label="Сподели">${ICONS.share}</button>
 </li>`;
 }
 
 function rowItem(r, now, note = '') {
     return `<li class="row heat-${r.level.id}" ${cardData(r)}><a href="/s/${esc(r.story.id)}/">${tempBadge(r)}<span class="row-title">${esc(r.story.title)}</span><span class="row-meta">${note}${timeEl(lastAt(r.story), now, true)}</span></a></li>`;
-}
-
-// The river of the day (lib/river.js): drawn wide for a screen and narrow
-// for a phone; the page's script reads out any half hour along it.
-const hourOf = (ms) =>
-    Number(
-        new Intl.DateTimeFormat('en-GB', { timeZone: 'Europe/Sofia', hour: 'numeric', hourCycle: 'h23' }).format(ms),
-    );
-
-function riverBlock(main, now) {
-    const data = riverData(main, now);
-    const total = data.series.reduce((sum, s) => sum + s.total, 0);
-    if (data.series.length < 3 || total < 20) return '';
-    const opts = {
-        isImportant: (s) => (storyWeight(s) ?? 0) >= IMPORTANT,
-        clock: (ms, hourOnly) => (hourOnly ? hourOf(ms) : fmtClock.format(ms)),
-    };
-    return `<section class="river-box" data-river aria-labelledby="g-river">
-    <h2 id="g-river" class="group-title">Денят <span>за какво се пише от сутринта досега</span></h2>
-    <p class="river-say">${riverSay(data)
-        .map((l) => `<span><b>${esc(l.when)}:</b> <a href="/s/${esc(l.id)}/">${esc(l.title)}</a></span>`)
-        .join('')}</p>
-    <p class="river-how">Всяка цветна лента е една история. Колкото е по-широка, толкова повече медии пишат за нея в този час. Сините засягат много хора. Плъзни пръст по реката, за да видиш всеки час.</p>
-    ${riverSvg(data, { ...opts, cls: 'river-wide' })}
-    ${riverSvg(data, { ...opts, w: 600, h: 400, labels: 3, every: 12, fs: 21, cls: 'river-narrow' })}
-    <div class="river-read" data-river-read aria-live="polite" tabindex="0" aria-label="Кой час: стрелките наляво и надясно местят по реката"></div>
-    <script type="application/json" data-river-json>${riverJson(data)}</script>
-</section>`;
 }
 
 function heroBlock(state, ranked, mainCount, now) {
@@ -451,24 +418,6 @@ function welcomeBlock() {
 </details>`;
 }
 
-function filters() {
-    const f = [
-        ['all', 'Всички'],
-        ['hot', 'Горещи'],
-        ['video', '▶ С видео'],
-        ['confirmed', '✓ Потвърдени'],
-        ['important', '⚖ Важни'],
-        ['mine', 'Нови за мен'],
-        ['follow', '★ Следени'],
-    ];
-    return `<div class="filters" role="toolbar" aria-label="Покажи">${f
-        .map(
-            ([id, label], i) =>
-                `<button type="button" class="filter${i === 0 ? ' on' : ''}" data-filter="${id}"${id === 'mine' || id === 'follow' ? ' hidden' : ''} aria-pressed="${i === 0}">${label}</button>`,
-        )
-        .join('')}</div>`;
-}
-
 function justIn(ranked, now) {
     // An item without its own headline (a protected story) shows the story's.
     const latest = ranked
@@ -500,51 +449,6 @@ function howBox() {
 }
 
 const isMain = (r) => r.trust.outlets >= 2 || r.trust.firstHand;
-
-// Local stories on a map: one dot per oblast, as big as its stories are hot,
-// the colour of the hottest one.
-function mapBlock(ranked, now) {
-    const byPlace = new Map();
-    for (const r of ranked) {
-        const p = placeOf(r.story.place);
-        if (!p) continue;
-        if (!byPlace.has(p.name)) byPlace.set(p.name, { p, list: [] });
-        byPlace.get(p.name).list.push(r);
-    }
-    if (!byPlace.size) return '';
-    const places = [...byPlace.values()].sort((a, b) => b.list[0].heat - a.list[0].heat);
-    const dots = places
-        .map(({ p, list }) => {
-            const heat = list.reduce((sum, r) => sum + r.heat, 0);
-            const rad = Math.min(34, 9 + Math.sqrt(heat) * 5);
-            const [x, y] = p.xy.map((v) => Number(v.toFixed(0)));
-            const titles = list.map((r) => r.story.title).join('\n');
-            const label = {
-                below: [x, y + rad + 22, 'middle'],
-                above: [x, y - rad - 10, 'middle'],
-                left: [x - rad - 8, y + 7, 'end'],
-                right: [x + rad + 8, y + 7, 'start'],
-            }[p.side];
-            return `<a href="/s/${esc(list[0].story.id)}/"><title>${esc(`${p.name}: ${titles}`)}</title><circle class="map-dot heat-${list[0].level.id}" cx="${x}" cy="${y}" r="${rad.toFixed(0)}"/><text class="map-label" x="${label[0].toFixed(0)}" y="${label[1].toFixed(0)}" text-anchor="${label[2]}">${esc(p.seat)}${list.length > 1 ? ` · ${list.length}` : ''}</text></a>`;
-        })
-        .join('');
-    const rows = places
-        .flatMap(({ p, list }) =>
-            list
-                .slice(0, 3)
-                .map(
-                    (r) =>
-                        `<li class="heat-${r.level.id}"><a href="/s/${esc(r.story.id)}/"><span class="map-place">${esc(p.name)}</span><span class="map-title">${esc(r.story.title)}</span>${timeEl(lastAt(r.story), now, true)}</a></li>`,
-                ),
-        )
-        .slice(0, 12)
-        .join('');
-    return `<section class="group map-group" aria-labelledby="g-map"><h2 id="g-map" class="group-title">По места <span>местните истории в момента</span></h2>
-<div class="map-wrap">
-    <svg class="map" role="group" viewBox="-20 -20 ${MAP.width + 40} ${MAP.height + 40}" aria-label="Карта на България с местните истории"><path class="map-land" d="${OUTLINE}"/>${dots}</svg>
-    <ol class="map-list">${rows}</ol>
-</div></section>`;
-}
 
 function frontPage(state, ranked, now) {
     const main = ranked.filter(isMain);
@@ -578,8 +482,6 @@ function frontPage(state, ranked, now) {
         groups.push(`<section class="group" aria-labelledby="g-warm"><h2 id="g-warm" class="group-title t-warm">Актуално</h2>
 <ol class="cards">${warm.map((r) => storyCard(r, now)).join('')}</ol></section>`);
     }
-    const map = mapBlock(main, now);
-    if (map) groups.push(map);
     if (cool.length) {
         groups.push(`<section class="group" aria-labelledby="g-cool"><h2 id="g-cool" class="group-title">Утихва <span>вече се пише по-малко</span></h2>
 <ol class="rows">${cool.map((r) => rowItem(r, now, `${plural(r.trust.outlets, 'медия', 'медии')} · `)).join('')}</ol></section>`);
@@ -622,14 +524,11 @@ ${topbar(state, now)}
 <main id="main" class="wrap">
 ${state.silence ? '<p class="silence">Изборен ден: до края на гласуването не показваме социологически проучвания и партийни канали (Изборен кодекс, чл. 182 и 205).</p>' : ''}
 ${heroBlock(state, ranked, main.length, now)}
-${riverBlock(main, now)}
 ${welcomeBlock()}
 <div class="since" data-since hidden></div>
 <div class="layout">
     <div class="feed">
-        ${filters()}
         ${body}
-        <p class="filter-empty" data-filter-empty hidden>Няма такива истории в момента.</p>
     </div>
     <aside class="rail">
         ${justIn(ranked, now)}
@@ -645,137 +544,12 @@ ${footer()}
 
 // ─── Story page ─────────────────────────────────────────────────────────
 
-function actorsOf(story) {
-    const groups = new Map();
-    for (const e of story.timeline) {
-        const name = (e.actor || (e.who ?? '').split(',')[0]).trim();
-        if (!name) continue;
-        const key = name.toLowerCase();
-        if (!groups.has(key)) groups.set(key, { name, role: '', events: [] });
-        const g = groups.get(key);
-        g.events.push(e);
-        const role = (e.who ?? '').includes(',') ? e.who.split(',').slice(1).join(',').trim() : '';
-        if (role && !g.role) g.role = role;
-    }
-    return [...groups.values()]
-        .map((g) => ({ ...g, events: g.events.sort((a, b) => b.at - a.at) }))
-        .sort((a, b) => b.events.length - a.events.length || b.events[0].at - a.events[0].at);
-}
-
-function initials(name) {
-    return esc(
-        name
-            .replace(/[„“"«»()]/g, '')
-            .split(/\s+/)
-            .filter(Boolean)
-            .slice(0, 2)
-            .map((w) => w[0])
-            .join('')
-            .toUpperCase(),
-    );
-}
-
 // A quote from the parliament's verbatim record: where it is, and the
 // sitting's video.
 function recordLinks(e) {
     const parts = [ext(e.url, `🏛 ${esc(e.label || 'Стенограма')}`)];
     if (e.video) parts.push(ext(e.video, '▶ запис на заседанието'));
     return parts.join(' · ');
-}
-
-function contextBlock(story, now) {
-    const c = story.context;
-    if (!c?.background) return '';
-    const rel = (c.related ?? [])
-        .map(
-            (p) => `<li><time>${esc(when(p.at, now))}</time> <b>${esc(p.title)}</b><span>${esc(p.summary)}</span></li>`,
-        )
-        .join('');
-    return `<section class="context" aria-labelledby="context">
-    <h2 id="context" class="context-title">Какво стана преди</h2>
-    <p>${esc(c.background)}</p>
-    ${rel ? `<details><summary>${plural(c.related.length, 'по-ранна история', 'по-ранни истории')}</summary><ul>${rel}</ul></details>` : ''}
-</section>`;
-}
-
-function framingBlock(story, now) {
-    const f = story.framing;
-    // A story about a child or a victim shows no headlines, so no angles either.
-    if (story.sensitive || !f?.angles?.length) return '';
-    const byId = new Map(story.items.map((i) => [i.id, i]));
-    const angles = f.angles
-        .map((a) => {
-            const outlets = new Map();
-            for (const id of a.items) {
-                const it = byId.get(id);
-                if (it && !outlets.has(outletOf(it.source))) outlets.set(outletOf(it.source), it);
-            }
-            const chipsHtml = [...outlets.values()]
-                .map(
-                    (it) =>
-                        `<a class="src-chip" href="${href(it.url)}" target="_blank" rel="noopener" title="${esc(itemTitle(it))}">${srcMark(it.source)}${sourceLabel(it.source)}</a>`,
-                )
-                .join('');
-            return `<li class="angle"><b>${esc(a.label)}</b><p>${esc(a.summary)}</p><div class="src-chips">${chipsHtml}</div></li>`;
-        })
-        .join('');
-    // Every outlet's first headline, side by side, by kind of source.
-    const seen = new Set();
-    const firsts = [];
-    for (const it of [...story.items].sort((a, b) => a.at - b.at)) {
-        const o = outletOf(it.source);
-        if (seen.has(o)) continue;
-        seen.add(o);
-        firsts.push(it);
-    }
-    const byKind = KIND_ORDER.map((k) => {
-        const list = firsts.filter((it) => kindOf(it.source) === k);
-        if (!list.length) return '';
-        return `<div class="hl-group"><h3><i class="kd k-${k}"></i>${esc(KINDS[k].title ?? capFirst(KINDS[k].many))}</h3><ul>${list
-            .map(
-                (it) =>
-                    `<li><span>${srcMark(it.source)}${sourceLabel(it.source)}</span>${ext(it.url, esc(itemTitle(it)))}</li>`,
-            )
-            .join('')}</ul></div>`;
-    }).join('');
-    return `<section class="panel" aria-labelledby="framing">
-    <h2 id="framing" class="panel-title">Как го представят <span>една и съща новина, различни ъгли</span></h2>
-    <ul class="angles">${angles}</ul>
-    <details class="headlines"><summary>Заглавията един до друг (${firsts.length})</summary><div class="hl-grid">${byKind}</div></details>
-    <p class="quiet small">Описанието е автоматично, по заглавията; ${timeEl(f.at, now, true)}.</p>
-</section>`;
-}
-
-function actorsBlock(story, now) {
-    const actors = actorsOf(story);
-    if (actors.length < 2) return '';
-    const byId = new Map(story.items.map((i) => [i.id, i]));
-    const cards = actors.slice(0, 9).map((a) => {
-        const latest = a.events[0];
-        const src = latest.items
-            .map((id) => byId.get(id))
-            .filter(Boolean)
-            .slice(0, 2)
-            .map((i) => ext(i.url, sourceLabel(i.source)))
-            .join(', ');
-        const more =
-            a.events.length > 1
-                ? `<details class="voice-more"><summary>още ${a.events.length - 1}</summary><ul>${a.events
-                      .slice(1)
-                      .map((e) => `<li>${timeEl(e.at, now)} ${esc(capFirst(e.what))}</li>`)
-                      .join('')}</ul></details>`
-                : '';
-        return `<li class="voice">
-    <div class="voice-head"><span class="avatar" aria-hidden="true">${initials(a.name)}</span><span><b>${esc(a.name)}</b>${a.role ? `<small>${esc(a.role)}</small>` : ''}</span></div>
-    <p class="voice-what">${latest.quote ? `<q class="quote">${esc(latest.quote)}</q>` : esc(capFirst(latest.what))}</p>
-    <p class="voice-src">${timeEl(latest.at, now)}${latest.source === 'parliament' ? ` · ${recordLinks(latest)}` : src ? ` · ${src}` : ''}</p>
-    ${more}
-</li>`;
-    });
-    return `<section class="panel" aria-labelledby="voices">
-    <h2 id="voices" class="panel-title">Кой какво казва <span>${plural(actors.length, 'страна', 'страни')} в историята</span></h2>
-    <ul class="voices">${cards.join('')}</ul>
-</section>`;
 }
 
 function videoTile(v, now) {
@@ -888,21 +662,9 @@ function storyPage(state, r, ranked, now, { cold = false } = {}) {
     const videos = videosOf(s).length;
     const url = `${SITE_ORIGIN}/s/${s.id}/`;
     const blocks = {
-        context: contextBlock(s, now),
         videos: videoBlock(s, now),
-        framing: framingBlock(s, now),
-        voices: actorsBlock(s, now),
         timeline: timelineBlock(s),
     };
-    const nav = [
-        ['videos', `▶ ${plural(videos, 'видео', 'видеа')}`],
-        ['framing', 'Как го представят'],
-        ['voices', 'Кой какво казва'],
-        ['timeline', 'Хронология'],
-    ]
-        .filter(([id]) => blocks[id] && (id !== 'timeline' || s.timeline.length))
-        .map(([id, label]) => `<a class="btn btn-ghost" href="#${id}">${label}</a>`)
-        .join('');
     const originStat = origin
         ? stat(
               'Първи сред следените',
@@ -943,11 +705,6 @@ ${cold ? '<p class="cold-note">Тази история изстина: за не
     <h1>${esc(s.title)}</h1>
     ${s.summary ? `<p class="lede">${esc(s.summary)}</p>` : ''}
     <p class="ai-note">Обобщено автоматично с изкуствен интелект от ${plural(s.items.length, 'материал', 'материала')} на ${plural(r.trust.outlets, 'медия', 'медии')}. Всяко твърдение води към материала, от който е взето — проверявай там. <a href="/about/">Как работи</a></p>
-    <div class="actions">
-        <button type="button" class="btn" data-share data-share-title="${esc(s.title)}" data-share-url="${url}">${ICONS.share} Сподели</button>
-        <button type="button" class="btn btn-ghost" data-follow="${esc(s.id)}" aria-pressed="false">☆ Следи</button>
-        ${nav}
-    </div>
     <dl class="stats">
         ${stat('Потвърждение', `<span class="trust trust-${r.trust.id}">${esc(r.trust.label)}</span>${coverageBar(s, { legend: true })}`)}
         ${originStat}
@@ -955,12 +712,8 @@ ${cold ? '<p class="cold-note">Тази история изстина: за не
         ${weightStat(s)}
         ${stat('Нажеженост', `<span class="stat-temp heat-${r.level.id}">${tempOf(r.heat)}°</span>${sparkSvg(sparkline(s, now))}<small>колко се пише, последни 48 ч</small>`)}
     </dl>
-    ${r.trust.disputed ? `<p class="disputed"><b>⚠ Спорно:</b> ${esc(r.trust.disputed)}</p>` : ''}
 </header>
-${blocks.context}
 ${blocks.videos}
-${blocks.framing}
-${blocks.voices}
 ${repliesBlock(s)}
 ${blocks.timeline}
 ${sourcesBlock(s, now)}
@@ -1061,7 +814,7 @@ ${topbar(state, now)}
 <p><b>Тежестта на източника</b> идва от проверими неща, не от политическата му линия: дали говори самата институция или човек, дали медията отговаря по закон за точността си, дали има известен собственик и подписани материали.</p>
 <p><b>Независимите автори</b> са журналисти, коментатори и малки екипи без медия зад тях: известен човек отговаря за казаното, но няма редакция, която да го проверява. Тежат малко по-малко от редакционните медии.</p>
 <p><b>Партийните канали</b> са първоизточник за това какво казват политиците, но казаното е тяхна позиция. Затова сами никога не потвърждават история.</p>
-<p><b>„Потвърдено“</b> значи: има първоизточник (институцията говори сама или медия съобщава какво е обявила) и още една медия, която пише от свое име, или поне три такива медии, сред които агенция или обществена медия. Медия, която само преразказва друга („според БТА“), разпространява новината, но не я потвърждава; интервю е мнение, не потвърден факт. „Противоречия“ значи, че източниците си противоречат за съществен факт – тогава историята не е „Потвърдено“, докато спорът не се разреши.</p>
+<p><b>„Потвърдено“</b> значи: има първоизточник (институцията говори сама или медия съобщава какво е обявила) и още една медия, която пише от свое име, или поне три такива медии, сред които агенция или обществена медия. Медия, която само преразказва друга („според БТА“), разпространява новината, но не я потвърждава; интервю е мнение, не потвърден факт. Ако източниците си противоречат за съществен факт, историята не е „Потвърдено“, докато спорът не се разреши.</p>
 <p><b>Кого четем.</b> Източник влиза, ако го позволява законът (robots.txt, условията за ползване), ако някой отговаря за него (известен собственик или автор с име), ако редовно пише за България и ако е активен. Не четем източник, за който независима проверка е установила дезинформация или разпространение на санкционирани медии, нито такъв, който системно използва език на омразата, обиди, внушения без доказателства, клюки или скрита реклама. Политическата позиция, шумните заглавия и малката аудитория не са причина да махнем някого — те влияят само на тежестта му.</p>
 <p><b>Нажежеността</b> (°) расте с всяка медия, която пише по историята; още материали от същата медия добавят все по-малко, така че шумът на една медия не прави история гореща. Пада наполовина за около 6 часа новини: през деня — за около 6 часа, а нощем, когато почти никой не пише, часовникът почти спира. Горещи са най-много 10 истории наведнъж. Щом за една история спре да се пише, тя изстива и изчезва.</p>
 </div>
