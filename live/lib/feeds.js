@@ -61,6 +61,24 @@ export function itemId(url) {
 // Feed entries as { url, title, description, at, category, videoId, thumb }.
 // `now` bounds the dates: a feed that stamps items in the future (a wrong
 // time zone) gets them stamped with the moment we read them.
+// A wall-clock time in Sofia, as milliseconds since the epoch.
+function sofiaTime(y, mo, d, h, mi, sec = 0) {
+    const guess = Date.UTC(y, mo - 1, d, h, mi, sec);
+    const parts = new Intl.DateTimeFormat('en-GB', {
+        timeZone: 'Europe/Sofia',
+        hourCycle: 'h23',
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+    }).formatToParts(guess);
+    const v = (t) => Number(parts.find((p) => p.type === t).value);
+    const asSofia = Date.UTC(v('year'), v('month') - 1, v('day'), v('hour'), v('minute'), v('second'));
+    return guess - (asSofia - guess);
+}
+
 export function parseFeed(xml, now = Date.now()) {
     const blocks = xml.match(/<item[\s>][\s\S]*?<\/item>/gi) ?? xml.match(/<entry[\s>][\s\S]*?<\/entry>/gi) ?? [];
     const out = [];
@@ -69,9 +87,14 @@ export function parseFeed(xml, now = Date.now()) {
         let url = toText(tag(b, 'link')) || attr(b, 'link', 'href', 'rel="alternate"') || attr(b, 'link', 'href');
         const guid = toText(tag(b, 'guid'));
         if (!isWebUrl(url) && isWebUrl(guid)) url = guid;
+        // Some home-made feeds put the link in <url>.
+        if (!isWebUrl(url)) url = toText(tag(b, 'url'));
         if (!title || !isWebUrl(url)) continue;
         const rawDate = toText(tag(b, 'pubDate') || tag(b, 'published') || tag(b, 'dc:date') || tag(b, 'updated'));
         let at = Date.parse(rawDate);
+        // "2026-11-28 12:28:10" without a zone is Bulgarian time.
+        const plain = rawDate.match(/^(\d{4})-(\d\d)-(\d\d)[ T](\d\d):(\d\d)(?::(\d\d))?$/);
+        if (plain) at = sofiaTime(...plain.slice(1).map((n) => Number(n ?? 0)));
         if (!Number.isFinite(at) || at > now + 10 * 60 * 1000) at = now;
         const description = toText(
             tag(b, 'description') || tag(b, 'media:description') || tag(b, 'summary') || tag(b, 'content:encoded'),

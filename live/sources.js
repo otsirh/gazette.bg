@@ -98,17 +98,6 @@ export const SOURCES = [
         aliases: ['Да, България', 'ДБ', 'Демократична България'],
     },
     {
-        id: 'gerb-yt',
-        name: 'ГЕРБ (видео)',
-        home: 'https://www.youtube.com/channel/UC_boJf3ewIsSlwLSzxkYoDg',
-        feed: yt('UC_boJf3ewIsSlwLSzxkYoDg'),
-        kind: 'video',
-        tier: 1,
-        partisan: true,
-        why: 'Официален канал: говорят самите политици. Казаното е тяхна позиция, не проверен факт.',
-        aliases: ['ГЕРБ', 'ГЕРБ-СДС'],
-    },
-    {
         id: 'vazrazhdane-yt',
         name: 'Възраждане (видео)',
         home: 'https://www.youtube.com/channel/UCxEuyBwMVfSX6rohabNUZ-w',
@@ -118,17 +107,6 @@ export const SOURCES = [
         partisan: true,
         why: 'Официален канал: говорят самите политици. Казаното е тяхна позиция, не проверен факт.',
         aliases: ['Възраждане'],
-    },
-    {
-        id: 'itn-yt',
-        name: 'Има такъв народ (видео)',
-        home: 'https://www.youtube.com/channel/UCGKMX5rSDuaEnfN5d9FjfgQ',
-        feed: yt('UCGKMX5rSDuaEnfN5d9FjfgQ'),
-        kind: 'video',
-        tier: 1,
-        partisan: true,
-        why: 'Официален канал: говорят самите политици. Казаното е тяхна позиция, не проверен факт.',
-        aliases: ['Има такъв народ', 'ИТН'],
     },
     {
         id: 'velichie-yt',
@@ -185,6 +163,7 @@ export const SOURCES = [
     },
     {
         id: 'vas',
+        viaBulgaria: true,
         name: 'ВАС',
         home: 'https://sac.justice.bg',
         feed: 'https://sac.justice.bg/feed/vas-news-topic/',
@@ -237,6 +216,7 @@ export const SOURCES = [
     },
     {
         id: 'mvr',
+        viaBulgaria: true,
         list: '^/press/актуална-информация/актуална-информация/новини/.+',
         name: 'МВР',
         home: 'https://www.mvr.bg',
@@ -303,6 +283,7 @@ export const SOURCES = [
     },
     {
         id: 'constcourt',
+        viaBulgaria: true,
         list: '^/bg/news-\\d+',
         name: 'Конституционен съд',
         home: 'https://www.constcourt.bg',
@@ -631,6 +612,7 @@ export const SOURCES = [
     },
     {
         id: 'investor',
+        viaBulgaria: true,
         name: 'Investor.bg',
         home: 'https://www.investor.bg',
         feed: 'https://www.investor.bg/rss/news',

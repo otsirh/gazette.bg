@@ -365,6 +365,24 @@ export const WANTED = [
         contact: '',
         note: 'robots.txt: Disallow: / за всички.',
     },
+    {
+        id: 'gerb-yt',
+        name: 'ГЕРБ (видео)',
+        why: 'gone',
+        since: '2026-11',
+        check: { robotsOf: 'https://gerb.bg' },
+        contact: '',
+        note: 'Официалният канал UC_boJf3ewIsSlwLSzxkYoDg (@gerb-official) няма клип от май 2026. Да се върне, ако започне пак, или да се намери новият им канал.',
+    },
+    {
+        id: 'itn-yt',
+        name: 'Има такъв народ (видео)',
+        why: 'gone',
+        since: '2026-11',
+        check: { robotsOf: 'https://itn.bg' },
+        contact: '',
+        note: 'Каналът UCGKMX5rSDuaEnfN5d9FjfgQ няма клип от май 2026; партията не е в парламента.',
+    },
 ];
 
 export const DECLINED = [

@@ -79,7 +79,10 @@ export async function checkSite(c) {
     const newest = Math.max(0, ...entries.map((e) => e.at));
     return {
         ok: entries.length > 0 && now - newest < 7 * DAY,
-        note: `${entries.length} items, newest ${ago(newest)} ago; e.g. «${entries[0]?.title?.slice(0, 80) ?? ''}»`,
+        note: `${entries.length} items, newest ${ago(newest)} ago; ${entries
+            .slice(0, c.titles ?? 1)
+            .map((e) => `«${e.title?.slice(0, 110) ?? ''}»`)
+            .join(' ')}`,
     };
 }
 
