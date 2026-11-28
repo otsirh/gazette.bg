@@ -932,3 +932,25 @@ test('the build writes an RSS feed, story titles as headings, and a service work
     assert.ok(sw.includes(`const VERSION = '${v}'`), 'the worker keeps the styles the pages ask for');
     fs.rmSync(out, { recursive: true, force: true });
 });
+
+test('a story that weighs much but is little written about is shown under „Тихо, но важно“', async () => {
+    const { storyWeight } = await import('../live/lib/stories.js');
+    const weight = { scope: 'country', money: 'none', rules: true, lasting: true, why: 'нов данък за всички' };
+    assert.equal(storyWeight({ weight }), 6);
+    assert.equal(storyWeight({}), null);
+    const out = fs.mkdtempSync(path.join(os.tmpdir(), 'live-'));
+    const quiet = story([item('a', 'bta', 3), item('b', 'sega', 3)], { id: 'quiet123', title: 'Нов данък', weight });
+    const loud = story(
+        ['bta', 'sega', 'mediapool', 'clubz', 'fakti', '24chasa', 'bnt', 'btv'].map((o, i) => item(`l${i}`, o, 0.3)),
+        { id: 'loud1234', title: 'Катастрофа' },
+    );
+    await buildSite({ updatedAt: NOW, stories: [quiet, loud], sources: {} }, { now: NOW, outDir: out, images: false });
+    const home = fs.readFileSync(path.join(out, 'index.html'), 'utf8');
+    const section = home.slice(
+        home.indexOf('Тихо, но важно'),
+        home.indexOf('</section>', home.indexOf('Тихо, но важно')),
+    );
+    assert.ok(section.includes('quiet123') && section.includes('нов данък за всички'));
+    assert.ok(!section.includes('loud1234'));
+    fs.rmSync(out, { recursive: true, force: true });
+});

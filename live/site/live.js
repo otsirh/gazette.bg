@@ -124,6 +124,7 @@ const FILTERS = {
     hot: (el) => el.dataset.level === 'hot',
     video: (el) => el.dataset.video === '1',
     confirmed: (el) => el.dataset.trust === 'confirmed',
+    important: (el) => Number(el.dataset.weight || 0) >= 5,
     mine: (el) => el.dataset.mine === '1',
     follow: (el) => followed().has(el.dataset.story),
 };

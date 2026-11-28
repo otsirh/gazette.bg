@@ -17,7 +17,7 @@ import { homeImage, iconPng, storyImage } from './lib/og.js';
 import { MAP, OUTLINE, placeOf } from './lib/places.js';
 import { inElectionSilence, isPollStory, loadPolicy, POLL, silenceFilter } from './lib/policy.js';
 import { publicState } from './lib/seal.js';
-import { lastAt, originOf, rankStories, scoreStories, sparkline } from './lib/stories.js';
+import { IMPORTANT, lastAt, originOf, rankStories, scoreStories, sparkline, storyWeight } from './lib/stories.js';
 import { outletOf, SOURCE_BY_ID, SOURCES, tierOf } from './sources.js';
 
 const require = createRequire(import.meta.url);
@@ -35,7 +35,7 @@ const CONTACT = /^[^\s@<>"]+@[^\s@<>"]+\.[a-z]{2,}$/i.test(process.env.LIVE_CONT
 const HOUR = 3600 * 1000;
 
 // Bumped by hand when style.css or live.js change, so browsers fetch them anew.
-const ASSET_VERSION = '27';
+const ASSET_VERSION = '28';
 
 const shortHash = (t) => createHash('sha1').update(String(t)).digest('base64url').slice(0, 8);
 
@@ -309,7 +309,25 @@ function footer() {
 function cardData(r) {
     const s = r.story;
     const step = Math.max(0, ...s.timeline.map((e) => e.at));
-    return `data-story="${esc(s.id)}" data-first="${Math.min(...s.items.map((i) => i.at))}" data-last="${lastAt(s)}" data-step="${step}" data-level="${r.level.id}" data-trust="${r.trust.id}" data-video="${videosOf(s).length ? 1 : 0}"`;
+    return `data-story="${esc(s.id)}" data-first="${Math.min(...s.items.map((i) => i.at))}" data-last="${lastAt(s)}" data-step="${step}" data-weight="${storyWeight(s) ?? ''}" data-level="${r.level.id}" data-trust="${r.trust.id}" data-video="${videosOf(s).length ? 1 : 0}"`;
+}
+
+const WEIGHT_LABEL = (w) => (w >= IMPORTANT ? 'Голяма' : w >= 3 ? 'Средна' : 'Малка');
+
+function weightStat(s) {
+    const w = storyWeight(s);
+    if (w === null) return '';
+    return stat(
+        'Тежест',
+        `<span class="stat-weight${w >= IMPORTANT ? ' big' : ''}">${WEIGHT_LABEL(w)}</span><small>${s.weight.why ? `${esc(s.weight.why)} · ` : ''}колко засяга хората, не колко се пише</small>`,
+    );
+}
+
+// Why an important story matters, in a line under its summary.
+function whyLine(s) {
+    const w = storyWeight(s);
+    if (w === null || w < IMPORTANT || !s.weight.why) return '';
+    return `<span class="card-why"><span aria-hidden="true">⚖</span> ${esc(s.weight.why)}</span>`;
 }
 
 function cardMeta(r) {
@@ -351,6 +369,7 @@ function storyCard(r, now, { big = false, wide = false } = {}) {
             <span class="card-top">${tempBadge(r)}${cardTrend(r)}<span class="ago">${timeEl(lastAt(s), now, true)}</span></span>
             <h3 class="card-title">${esc(s.title)}</h3>
             ${s.summary ? `<span class="card-summary">${esc(s.summary)}</span>` : ''}
+            ${whyLine(s)}
             <span class="card-foot"><span class="meta">${cardMeta(r)}</span></span>
         </span>
     </a>
@@ -409,6 +428,7 @@ function filters() {
         ['hot', 'Горещи'],
         ['video', '▶ С видео'],
         ['confirmed', '✓ Потвърдени'],
+        ['important', '⚖ Важни'],
         ['mine', 'Нови за мен'],
         ['follow', '★ Следени'],
     ];
@@ -444,6 +464,7 @@ function howBox() {
     <h2 id="how" class="rail-title">Как да четеш</h2>
     <p><b class="t-hot">87°</b> Нажеженост: колко медии пишат сега. Без нови материали пада наполовина за около 6 часа; нощем, когато никой не пише, почти не изстива.</p>
     <p><span class="cov cov-mini"><span class="cov-bar"><i class="k-first" style="flex:1"></i><i class="k-public" style="flex:1"></i><i class="k-editorial" style="flex:3"></i><i class="k-independent" style="flex:1"></i><i class="k-partisan" style="flex:1"></i><i class="k-unverified" style="flex:1"></i></span></span>Кой отразява историята: първоизточници, обществени и редакционни медии, независими автори, партийни канали, непроверени.</p>
+    <p><b class="t-weight">⚖ Важно</b> Тежест: кого засяга историята, колко обществени пари, дали вече е решено правило за много хора и колко ще трае. Не зависи от това колко се пише.</p>
     <p>Щом с <kbd>Tab</kbd> стигнеш до история: <kbd>J</kbd> <kbd>K</kbd> – следваща и предишна, <kbd>Enter</kbd> – отвори.</p>
     <p><a href="/sources/">Всички ${SOURCES.length} източника →</a></p>
 </section>`;
@@ -499,8 +520,15 @@ function mapBlock(ranked, now) {
 function frontPage(state, ranked, now) {
     const main = ranked.filter(isMain);
     const hot = main.filter((r) => r.level.id === 'hot');
-    const warm = main.filter((r) => r.level.id === 'warm');
-    const cool = main.filter((r) => r.level.id === 'cool').slice(0, 24);
+    // Important, and not among the loudest: what a page ordered by noise
+    // would bury. Shown once, here, and not again lower down.
+    const quiet = main
+        .filter((r) => r.level.id !== 'hot' && (storyWeight(r.story) ?? 0) >= IMPORTANT)
+        .sort((a, b) => storyWeight(b.story) - storyWeight(a.story) || b.heat - a.heat)
+        .slice(0, 6);
+    const inQuiet = new Set(quiet.map((r) => r.story.id));
+    const warm = main.filter((r) => r.level.id === 'warm' && !inQuiet.has(r.story.id));
+    const cool = main.filter((r) => r.level.id === 'cool' && !inQuiet.has(r.story.id)).slice(0, 24);
     const singles = ranked
         .filter((r) => !isMain(r))
         .sort((a, b) => lastAt(b.story) - lastAt(a.story))
@@ -512,6 +540,10 @@ function frontPage(state, ranked, now) {
             const wide = wideCards(hot.map((r) => videosOf(r.story).length > 0));
             return hot.map((r, i) => storyCard(r, now, { big: true, wide: wide[i] })).join('');
         })()}</ol></section>`);
+    }
+    if (quiet.length) {
+        groups.push(`<section class="group" aria-labelledby="g-quiet"><h2 id="g-quiet" class="group-title t-weight">Тихо, но важно <span>засяга много хора, а се пише малко</span></h2>
+<ol class="cards">${quiet.map((r) => storyCard(r, now)).join('')}</ol></section>`);
     }
     if (warm.length) {
         groups.push(`<section class="group" aria-labelledby="g-warm"><h2 id="g-warm" class="group-title t-warm">Актуално</h2>
@@ -890,6 +922,7 @@ ${cold ? '<p class="cold-note">Тази история изстина: за не
         ${stat('Потвърждение', `<span class="trust trust-${r.trust.id}">${esc(r.trust.label)}</span>${coverageBar(s, { legend: true })}`)}
         ${originStat}
         ${stat('Медии', `${r.trust.outlets}<small>${plural(s.items.length, 'материал', 'материала')}${videos ? `, ${plural(videos, 'видео', 'видеа')}` : ''}</small>`)}
+        ${weightStat(s)}
         ${stat('Нажеженост', `<span class="stat-temp heat-${r.level.id}">${tempOf(r.heat)}°</span>${sparkSvg(sparkline(s, now))}<small>колко се пише, последни 48 ч</small>`)}
     </dl>
     ${r.trust.disputed ? `<p class="disputed"><b>⚠ Спорно:</b> ${esc(r.trust.disputed)}</p>` : ''}
