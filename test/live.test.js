@@ -794,6 +794,7 @@ test('a card says when its story last gained a step; the trend never reads like 
     assert.match(home, new RegExp(`data-step="${NOW - 8 * HOUR}"`));
     assert.ok(!/▼ утихва/.test(home), 'the falling trend is „отслабва“');
     fs.rmSync(out, { recursive: true, force: true });
+});
 
 test('a deadline enters the ledger only word for word, with a real future date and someone to answer for it', async () => {
     const { acceptCommitments, recordCommitments } = await import('../live/lib/ledger.js');
