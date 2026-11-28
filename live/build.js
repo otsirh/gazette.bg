@@ -90,6 +90,7 @@ const KINDS = {
     first: {
         one: 'първоизточник',
         many: 'първоизточника',
+        title: 'Първоизточници',
         long: 'Първоизточник — институцията или човекът говорят сами',
     },
     public: { one: 'обществена медия', many: 'обществени медии', long: 'Агенция или обществена медия' },
@@ -99,10 +100,16 @@ const KINDS = {
         many: 'независими автори',
         long: 'Независим автор — известен човек, без редакция зад него',
     },
-    partisan: { one: 'партиен канал', many: 'партийни канала', long: 'Партиен канал — позиция, не проверен факт' },
+    partisan: {
+        one: 'партиен канал',
+        many: 'партийни канала',
+        title: 'Партийни канали',
+        long: 'Партиен канал — позиция, не проверен факт',
+    },
     unverified: {
         one: 'непроверен източник',
         many: 'непроверени източника',
+        title: 'Непроверени източници',
         long: 'Непроверен източник или без подпис',
     },
 };
@@ -374,7 +381,7 @@ function welcomeBlock() {
     <p class="welcome-title">Тук за минута виждаш какво става в държавата.</p>
     <ul class="welcome-points">
         <li><span class="wp-icon wp-hot">87°</span><span><b>Горещото е отгоре.</b> Колкото повече медии пишат, толкова по-високо. Щом спрат, историята изстива и изчезва.</span></li>
-        <li><span class="wp-icon wp-ok">✓</span><span><b>Знаеш на кого да вярваш.</b> Кой я каза първи, колко медии я потвърждават и какви са.</span></li>
+        <li><span class="wp-icon wp-ok">✓</span><span><b>Знаеш на кого да вярваш.</b> Кой пръв е съобщил новината, колко медии я потвърждават и какви са.</span></li>
         <li><span class="wp-icon wp-vid">▶</span><span><b>Чуваш хората сами.</b> Видеата от телевизиите, институциите и партиите, на едно място.</span></li>
     </ul>
     <button type="button" class="btn" data-welcome-close>Ясно, покажи ми</button>
@@ -639,7 +646,7 @@ function framingBlock(story, now) {
     const byKind = KIND_ORDER.map((k) => {
         const list = firsts.filter((it) => kindOf(it.source) === k);
         if (!list.length) return '';
-        return `<div class="hl-group"><h3><i class="kd k-${k}"></i>${esc(KINDS[k].many[0].toUpperCase() + KINDS[k].many.slice(1))}</h3><ul>${list
+        return `<div class="hl-group"><h3><i class="kd k-${k}"></i>${esc(KINDS[k].title ?? capFirst(KINDS[k].many))}</h3><ul>${list
             .map(
                 (it) =>
                     `<li><span>${srcMark(it.source)}${sourceLabel(it.source)}</span>${ext(it.url, esc(itemTitle(it)))}</li>`,
@@ -931,7 +938,7 @@ function storyPage(state, r, ranked, now) {
     const originStat = origin
         ? stat(
               'Първи съобщи',
-              `${esc(origin.name)}<small>${timeEl(origin.at, now)}${origin.via ? ` · по ${sourceLabel(origin.via)}` : ''}</small>`,
+              `${esc(origin.name)}<small>${timeEl(origin.at, now)}${origin.via && sourceLabel(origin.via) !== esc(origin.name) ? ` · по материал на ${sourceLabel(origin.via)}` : ''}</small>`,
           )
         : '';
     return `${head({
@@ -1119,8 +1126,8 @@ function aboutPage(state, now) {
         ? `<a href="mailto:${esc(CONTACT)}">${esc(CONTACT)}</a>`
         : 'адреса за връзка, който ще бъде публикуван тук';
     const operator = OPERATOR
-        ? `<p>Сайтът се списва и поддържа от <b>${esc(OPERATOR)}</b>, физическо лице, с нестопанска цел.${ADDRESS ? ` Адрес за кореспонденция: ${esc(ADDRESS)}.` : ''} Връзка: ${mail}.</p>`
-        : `<p>Връзка: ${mail}.</p>`;
+        ? `<p>Сайтът се списва и поддържа от <b>${esc(OPERATOR)}</b>, физическо лице, с нестопанска цел.${ADDRESS ? ` Адрес за кореспонденция: ${esc(ADDRESS)}.` : ''} Връзка: ${CONTACT ? mail : 'ще бъде публикувана тук'}.</p>`
+        : `<p>Връзка: ${CONTACT ? mail : 'ще бъде публикувана тук'}.</p>`;
     return `${head({
         title: 'За сайта — live.gazette.bg',
         description: 'Какво е live.gazette.bg, как работи, поправки и отговори, авторски права и лични данни.',
@@ -1146,7 +1153,7 @@ ${operator}
 </div>
 <div class="prose panel">
 <h2 class="panel-title">Поправки, премахване и отговор</h2>
-<p>Ако нещо е невярно, назовава човек, който не бива да бъде назован, или е съдържание, което трябва да махнем, пишете на ${mail} с връзката към страницата. Отговаряме до 24 часа; невярното поправяме или махаме, а поправките записваме в <a href="/corrections/">дневника на поправките</a>.</p>
+<p>Ако нещо е невярно, назовава човек, който не бива да бъде назован, или е съдържание, което трябва да махнем, пиши на ${mail} с връзката към страницата. Отговаряме до 24 часа; невярното поправяме или махаме, а поправките записваме в <a href="/corrections/">дневника на поправките</a>.</p>
 <p>Всеки, когото една история засяга — включително кандидати и партии по време на избори (Изборен кодекс, чл. 188), — може да изпрати отговор. Публикуваме го незабавно, на страницата на историята, без коментар.</p>
 <p>Медия, която не иска да бъде четена или да бъде показвана с лого, може да ни пише или просто да го забрани в robots.txt — спираме сами.</p>
 </div>
@@ -1189,7 +1196,7 @@ ${topbar(state, now)}
 <main id="main" class="wrap narrow">
 <a class="back" href="/">← Всичко, което се случва сега</a>
 <header class="story-head"><h1>Поправки</h1>
-<p class="lede">Всичко, което сме поправили или махнали след сигнал, с дата. Сигнали: ${CONTACT ? `<a href="mailto:${esc(CONTACT)}">${esc(CONTACT)}</a>` : 'вижте „За сайта“'}.</p></header>
+<p class="lede">Всичко, което сме поправили или махнали след сигнал, с дата. Сигнали: ${CONTACT ? `<a href="mailto:${esc(CONTACT)}">${esc(CONTACT)}</a>` : 'виж „За сайта“'}.</p></header>
 <div class="panel"><ul class="item-list corrections-list">${rows || '<li class="quiet">Още няма поправки.</li>'}</ul></div>
 </main>
 ${footer()}

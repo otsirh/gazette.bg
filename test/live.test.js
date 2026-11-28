@@ -502,3 +502,45 @@ test('built pages: counts agree with their nouns', async () => {
     assert.match(fs.readFileSync(path.join(out, 's', 'many', 'index.html'), 'utf8'), /Още 3 видеа/);
     fs.rmSync(out, { recursive: true, force: true });
 });
+
+test('tidy: decimal comma before a unit, en dash in ranges, dates and times untouched', async () => {
+    const { tidy } = await import('../live/lib/text.js');
+    assert.equal(tidy('дължина 9.5 км и 2.18 промила'), 'дължина 9,5 км и 2,18 промила');
+    assert.equal(tidy('с 5-10 млрд. евро'), 'с 5–10 млрд. евро');
+    assert.equal(tidy('на 28.11 в 9.30 ч.'), 'на 28.11 в 9.30 ч.');
+    assert.equal(tidy('„Симеоново - Алеко“'), '„Симеоново – Алеко“');
+    assert.equal(tidy('22-рия пакет, АМ-1'), '22-рия пакет, АМ-1');
+});
+
+test('clip cuts at a word, never mid-word', async () => {
+    const { clip } = await import('../live/lib/text.js');
+    assert.equal(clip('кратко', 60), 'кратко');
+    const long = 'Българска федерация по волейбол, Българска федерация по лека атлетика';
+    const c = clip(long, 40);
+    assert.ok(c.length <= 40 && c.endsWith('…'));
+    assert.ok(long.startsWith(c.slice(0, -1)));
+    assert.match(c, /\p{L}…$/u);
+});
+
+test('tidyState reaches every text the model wrote, not outlet headlines', async () => {
+    const { tidyState } = await import('../live/lib/text.js');
+    const state = {
+        stories: [
+            {
+                title: 'Лифт 9.5 км',
+                summary: '"Стандарт"',
+                disputed: '',
+                items: [{ title: 'Очкават сняг 9.5 км', cites: 'БТА' }],
+                timeline: [{ actor: 'СО', who: 'кмет', what: 'А - Б' }],
+            },
+        ],
+        overview: { lines: [{ text: 'до 5-10 см' }] },
+    };
+    tidyState(state);
+    const s = state.stories[0];
+    assert.equal(s.title, 'Лифт 9,5 км');
+    assert.equal(s.summary, '„Стандарт“');
+    assert.equal(s.timeline[0].what, 'А – Б');
+    assert.equal(state.overview.lines[0].text, 'до 5–10 см');
+    assert.equal(s.items[0].title, 'Очкават сняг 9.5 км', 'an outlet headline is theirs');
+});

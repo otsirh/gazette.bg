@@ -6,7 +6,7 @@ import { outletOf, SOURCE_BY_ID, tierOf } from '../sources.js';
 import { classifyPlaces, findSameStories, frameStory, parliamentQuotes, stillSensitive } from './ai.js';
 import { fetchText, toText } from './feeds.js';
 import { addContributions, rankStories } from './stories.js';
-import { tidy } from './text.js';
+import { clip, tidy } from './text.js';
 import { videoDetails, videoIdOf } from './youtube.js';
 
 const DAY = 24 * 3600 * 1000;
@@ -287,9 +287,9 @@ export async function readParliament(state, now, meter, canSpend, log, proof = [
                 if (!story || story.timeline.some((e) => e.quote === q.quote.trim().slice(0, 400))) continue;
                 const event = {
                     at,
-                    actor: nameCase(q.speaker).slice(0, 60),
-                    who: [nameCase(q.speaker), q.role.trim()].filter(Boolean).join(', ').slice(0, 120),
-                    what: tidy(q.what).slice(0, 300),
+                    actor: clip(nameCase(q.speaker), 100),
+                    who: clip(tidy([nameCase(q.speaker), q.role.trim()].filter(Boolean).join(', ')), 160),
+                    what: clip(tidy(q.what), 300),
                     quote: q.quote.trim().slice(0, 400),
                     items: [],
                     source: 'parliament',

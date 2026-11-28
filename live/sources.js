@@ -541,7 +541,7 @@ export const SOURCES = [
         feed: 'https://www.vesti.bg/rss',
         kind: 'article',
         tier: 3,
-        why: 'Новинарски сайт на Нетинфо (група „Нова“).',
+        why: 'Новинарски сайт на „Нетинфо“ (група „Нова“).',
         aliases: ['Vesti.bg', 'Вести'],
     },
     {
@@ -621,7 +621,7 @@ export const SOURCES = [
         feed: 'https://www.bgonair.bg/rss/news',
         kind: 'article',
         tier: 3,
-        why: 'Телевизия с лиценз от СЕМ, Инвестор Медиа Груп.',
+        why: 'Телевизия с лиценз от СЕМ, собственост на „Инвестор Медиа Груп“.',
         aliases: ['Bulgaria ON AIR', 'България Он Ер'],
     },
     {
@@ -631,7 +631,7 @@ export const SOURCES = [
         feed: 'https://www.investor.bg/rss/news',
         kind: 'article',
         tier: 3,
-        why: 'Икономически сайт, Инвестор Медиа Груп.',
+        why: 'Икономически сайт, собственост на „Инвестор Медиа Груп“.',
         aliases: ['Investor.bg', 'Инвестор'],
     },
     {
@@ -1105,7 +1105,7 @@ export const SOURCES = [
         feed: 'https://money.bg/services/rss/35',
         kind: 'article',
         tier: 3,
-        why: 'Икономически сайт на Нетинфо.',
+        why: 'Икономически сайт на „Нетинфо“.',
         aliases: ['Money.bg'],
     },
     {
