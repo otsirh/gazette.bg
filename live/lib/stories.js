@@ -10,11 +10,15 @@ const weightOf = (sourceId) =>
 
 const HOUR = 60 * 60 * 1000;
 
-// Each article counts half as much every HALF_LIFE: a story nobody writes
-// about any more cools down on its own, and a busy one stays up.
+// Each article counts half as much every HALF_LIFE of news time: a story
+// nobody writes about any more cools down on its own, and a busy one stays up.
 export const HALF_LIFE = 6 * HOUR;
-// A second, third… item from the same outlet adds less than a new outlet.
+// The second newest item from the same outlet adds REPEAT_WEIGHT, the third
+// half that, the fourth a third…: many outlets make a story loud, one outlet
+// writing a lot does not.
 const REPEAT_WEIGHT = 0.35;
+// At most this many stories are "hot" at once, however busy the day.
+export const MAX_HOT = 10;
 
 export const LEVELS = [
     { id: 'hot', min: 6, label: 'Гореща' },
@@ -25,16 +29,55 @@ export const LEVELS = [
 export const SHOW_HEAT = 0.4;
 export const DROP_HEAT = 0.12;
 
-export function heatAt(story, at) {
-    const seen = new Set();
-    let heat = 0;
-    for (const item of [...story.items].sort((a, b) => a.at - b.at)) {
+// News time. A story cools as the news moves on, not as the clock does: at
+// night, when almost nothing is published, the evening's big story keeps its
+// heat until morning instead of losing most of it while nobody writes. The
+// clock runs at a fifth of real time in silence and at about real time at
+// a usual daytime pace (items per hour over the last week's active hours).
+// Without stories to measure, it is the wall clock.
+const QUIET_SHARE = 0.2;
+const ACTIVE_SHARE_OF_DAY = 0.75;
+export const WALL_CLOCK = (t) => t / HOUR;
+
+export function newsClock(stories, now) {
+    const times = stories
+        .flatMap((s) => s.items.map((i) => i.at))
+        .filter((t) => t <= now && now - t < 7 * 24 * HOUR)
+        .sort((a, b) => a - b);
+    if (times.length < 50) return WALL_CLOCK;
+    const spanHours = Math.max(24, (now - times[0]) / HOUR);
+    const rate = times.length / (spanHours * ACTIVE_SHARE_OF_DAY);
+    const before = (t) => {
+        let lo = 0;
+        let hi = times.length;
+        while (lo < hi) {
+            const mid = (lo + hi) >> 1;
+            if (times[mid] <= t) lo = mid + 1;
+            else hi = mid;
+        }
+        return lo;
+    };
+    return (t) => (QUIET_SHARE * t) / HOUR + ((1 - QUIET_SHARE) * before(t)) / rate;
+}
+
+export function heatAt(story, at, clock = WALL_CLOCK) {
+    const byOutlet = new Map();
+    for (const item of story.items) {
         if (item.at > at) continue;
         const outlet = outletOf(item.source);
-        const repeat = seen.has(outlet);
-        seen.add(outlet);
-        const w = weightOf(item.source) * (repeat ? REPEAT_WEIGHT : 1);
-        heat += w * 0.5 ** ((at - item.at) / HALF_LIFE);
+        if (!byOutlet.has(outlet)) byOutlet.set(outlet, []);
+        byOutlet.get(outlet).push(item);
+    }
+    const nowT = clock(at);
+    let heat = 0;
+    for (const items of byOutlet.values()) {
+        // The outlet's newest item counts in full: it says the outlet is on
+        // the story now.
+        items.sort((a, b) => b.at - a.at);
+        items.forEach((item, k) => {
+            const w = weightOf(item.source) * (k === 0 ? 1 : REPEAT_WEIGHT / k);
+            heat += w * 0.5 ** ((nowT - clock(item.at)) / (HALF_LIFE / HOUR));
+        });
     }
     return heat;
 }
@@ -45,11 +88,11 @@ export function levelOf(heat) {
 
 // Rising, falling or steady: heat now against heat three hours ago. A story
 // younger than that is new, which says more.
-export function trendOf(story, now) {
+export function trendOf(story, now, clock = WALL_CLOCK) {
     const first = Math.min(...story.items.map((i) => i.at));
     if (now - first < 3 * HOUR) return 'new';
-    const before = heatAt(story, now - 3 * HOUR);
-    const current = heatAt(story, now);
+    const before = heatAt(story, now - 3 * HOUR, clock);
+    const current = heatAt(story, now, clock);
     if (current > before * 1.15) return 'up';
     if (current < before * 0.85) return 'down';
     return 'steady';
@@ -129,21 +172,28 @@ export function spreadTree(story) {
     return roots;
 }
 
-// Ranks stories for the page, hottest first, with what the page shows.
+// Ranks stories for the page, hottest first, with what the page shows. Only
+// the MAX_HOT hottest can be "hot"; the rest above the line are warm.
 export function rankStories(stories, now) {
-    return stories
+    const clock = newsClock(stories, now);
+    const ranked = stories
         .map((s) => {
-            const heat = heatAt(s, now);
-            return { story: s, heat, level: levelOf(heat), trend: trendOf(s, now), trust: trustOf(s) };
+            const heat = heatAt(s, now, clock);
+            return { story: s, heat, level: levelOf(heat), trend: trendOf(s, now, clock), trust: trustOf(s) };
         })
         .filter((r) => r.heat >= SHOW_HEAT)
         .sort((a, b) => b.heat - a.heat);
+    ranked.forEach((r, i) => {
+        if (r.level.id === 'hot' && i >= MAX_HOT) r.level = LEVELS[1];
+    });
+    return ranked;
 }
 
 // Stories nobody talks about any more leave the state; so does any story
 // older than a week, however it is kept alive.
 export function pruneStories(stories, now) {
-    return stories.filter((s) => heatAt(s, now) >= DROP_HEAT && now - s.createdAt < 7 * 24 * HOUR);
+    const clock = newsClock(stories, now);
+    return stories.filter((s) => heatAt(s, now, clock) >= DROP_HEAT && now - s.createdAt < 7 * 24 * HOUR);
 }
 
 export function lastAt(story) {

@@ -38,8 +38,8 @@ export const OVERVIEW_MODEL = 'claude-sonnet-5-5';
 // US$ per million tokens, to log and cap what an update costs. The bill
 // itself is the Console's.
 const PRICES = {
-    [FAST_MODEL]: { input: 0.1, output: 0.5, cacheWrite: 0.125, cacheRead: 0.01 },
-    [OVERVIEW_MODEL]: { input: 2, output: 10, cacheWrite: 2.5, cacheRead: 0.1 },
+    [FAST_MODEL]: { input: 0.1, output: 0.5, cacheWrite: 0.2, cacheRead: 0.01 },
+    [OVERVIEW_MODEL]: { input: 2, output: 10, cacheWrite: 4, cacheRead: 0.1 },
 };
 
 export function costOf(model, usage) {
@@ -54,8 +54,10 @@ export function costOf(model, usage) {
 }
 
 let client = null;
+// A few more retries than the default (busy hours bring 529s), and no call
+// may hang the ten-minute update.
 function getClient() {
-    client ??= new Anthropic();
+    client ??= new Anthropic({ maxRetries: 4, timeout: 120000 });
     return client;
 }
 
@@ -63,7 +65,9 @@ async function askJson({ model, system, user, schema, effort, meter, label }) {
     const params = {
         model,
         max_tokens: 16000,
-        system: [{ type: 'text', text: system, cache_control: { type: 'ephemeral' } }],
+        // Updates come every ten minutes: a one-hour cache lets the next
+        // update read the same instructions instead of paying for them again.
+        system: [{ type: 'text', text: system, cache_control: { type: 'ephemeral', ttl: '1h' } }],
         messages: [{ role: 'user', content: user }],
         output_config: { effort, format: { type: 'json_schema', schema } },
     };
@@ -82,8 +86,12 @@ async function askJson({ model, system, user, schema, effort, meter, label }) {
     const cost = costOf(model, message.usage);
     meter.usd += cost;
     meter.calls++;
+    const u = message.usage ?? {};
+    meter.cacheRead = (meter.cacheRead ?? 0) + (u.cache_read_input_tokens ?? 0);
+    meter.cacheWrite = (meter.cacheWrite ?? 0) + (u.cache_creation_input_tokens ?? 0);
+    meter.input = (meter.input ?? 0) + (u.input_tokens ?? 0);
     console.log(
-        `  [${label}] ${model} in=${message.usage?.input_tokens} out=${message.usage?.output_tokens} $${cost.toFixed(4)}`,
+        `  [${label}] ${model} in=${u.input_tokens} cache=${u.cache_read_input_tokens ?? 0}r/${u.cache_creation_input_tokens ?? 0}w out=${u.output_tokens} $${cost.toFixed(4)}`,
     );
     if (message.stop_reason === 'refusal') throw new Error(`${label}: declined by the model`);
     if (message.stop_reason === 'max_tokens') throw new Error(`${label}: answer cut off at max_tokens`);

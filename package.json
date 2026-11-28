@@ -27,7 +27,7 @@
     "live:build": "node live/build.js"
   },
   "dependencies": {
-    "@anthropic-ai/sdk": "^1.8.0",
+    "@anthropic-ai/sdk": "^1.14.0",
     "@resvg/resvg-wasm": "^2.6.2",
     "esbuild": "^0.28.2",
     "marked": "^18.2.0",
