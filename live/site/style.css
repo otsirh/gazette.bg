@@ -598,16 +598,15 @@ button {
     margin: 0 0 34px;
 }
 .group-title {
-    display: flex;
-    align-items: baseline;
-    gap: 12px;
+    display: block;
     margin: 0 0 14px;
-    font: 700 15px / 1 var(--display);
+    font: 700 15px / 1.4 var(--display);
     letter-spacing: 0.04em;
     text-transform: uppercase;
     color: var(--muted);
 }
 .group-title span {
+    margin-left: 10px;
     font: 400 14px var(--font);
     letter-spacing: 0;
     text-transform: none;
@@ -644,16 +643,6 @@ button {
     transition:
         transform 0.2s var(--ease),
         box-shadow 0.2s;
-    animation: rise 0.45s var(--ease) both;
-}
-.card:nth-child(2) {
-    animation-delay: 0.04s;
-}
-.card:nth-child(3) {
-    animation-delay: 0.08s;
-}
-.card:nth-child(n + 4) {
-    animation-delay: 0.12s;
 }
 @keyframes rise {
     from {
@@ -1191,17 +1180,21 @@ button {
     padding: 18px clamp(14px, 2.5vw, 24px) 20px;
     margin: 0 0 16px;
 }
+/* A title and its note read as one line of text that wraps naturally; a
+   flex row would stack the dot, the title and the note on long titles. */
 .panel-title {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: baseline;
-    gap: 4px 12px;
+    display: block;
     margin: 0 0 16px;
-    font: 700 17px / 1.2 var(--display);
+    font: 700 17px / 1.35 var(--display);
 }
-.panel-title span {
-    font: 400 13.5px var(--font);
+.panel-title > span {
+    margin-left: 8px;
+    font: 400 13.5px / 1.4 var(--font);
     color: var(--muted);
+}
+.panel-title > .kd {
+    margin-right: 8px;
+    vertical-align: 2px;
 }
 .quiet {
     margin: 0;
@@ -2122,4 +2115,222 @@ button {
         padding: 0 14px;
         font-size: 14px;
     }
+}
+
+/* ─── Visual review fixes ───────────────────────────── */
+
+/* The brief fills two columns like a newspaper, with no holes between
+   lines of different length. */
+.brief {
+    display: block;
+    columns: 2 380px;
+    column-gap: 28px;
+}
+.brief li {
+    break-inside: avoid;
+}
+.brief-temp {
+    text-align: left;
+}
+.brief-more {
+    display: none;
+}
+@media (max-width: 560px) {
+    .brief:not(.open) li:nth-child(n + 5) {
+        display: none;
+    }
+    .brief-more {
+        display: block;
+        margin: 6px 0 0 44px;
+        padding: 6px 0;
+        border: 0;
+        background: none;
+        color: var(--link);
+        font-weight: 650;
+        font-size: 14.5px;
+        cursor: pointer;
+    }
+}
+
+/* Marks for what is new since the last visit sit in the card's top row. */
+.card-top .badge-new {
+    position: static;
+    box-shadow: none;
+}
+.card-top {
+    padding-right: 30px;
+}
+
+.video-meta {
+    display: block;
+    line-height: 1.45;
+}
+.video-meta .kd {
+    vertical-align: 1px;
+}
+
+.tl-who {
+    display: block;
+    font-size: 14px;
+    color: var(--text);
+}
+.tl-what {
+    display: block;
+}
+
+.yt-tag {
+    display: inline-block;
+    padding: 0 6px;
+    border-radius: 4px;
+    background: var(--hot-wash);
+    color: var(--hot);
+    font-size: 11px;
+    font-weight: 700;
+    vertical-align: 1px;
+}
+
+.all-items summary::before,
+.tree-details summary::before,
+.headlines summary::before,
+.voice-more summary::before,
+.more summary::before,
+.context summary::before {
+    content: "▸ ";
+}
+.all-items[open] summary::before,
+.tree-details[open] summary::before,
+.headlines[open] summary::before,
+.voice-more[open] summary::before,
+.more[open] summary::before,
+.context details[open] summary::before {
+    content: "▾ ";
+}
+.tree-details summary,
+.headlines summary,
+.voice-more summary,
+.more summary,
+.context summary {
+    list-style: none;
+}
+.tree-details summary::-webkit-details-marker,
+.headlines summary::-webkit-details-marker,
+.voice-more summary::-webkit-details-marker,
+.more summary::-webkit-details-marker,
+.context summary::-webkit-details-marker {
+    display: none;
+}
+
+/* The media table becomes a card per outlet on a phone: every number
+   visible, none hidden off to the side. */
+@media (max-width: 640px) {
+    .table-panel {
+        overflow: visible;
+        padding: 0;
+        background: none;
+        box-shadow: none;
+    }
+    .dossier {
+        min-width: 0;
+    }
+    .dossier thead {
+        display: none;
+    }
+    .dossier,
+    .dossier tbody {
+        display: block;
+    }
+    .dossier tr {
+        display: grid;
+        grid-template-columns: 1fr 1fr 1fr;
+        gap: 8px 10px;
+        margin-bottom: 10px;
+        padding: 12px 14px;
+        border-radius: 14px;
+        background: var(--surface);
+        box-shadow: var(--shadow);
+    }
+    .dossier th,
+    .dossier td {
+        padding: 0;
+        border: 0;
+        text-align: left;
+        white-space: normal;
+    }
+    .dossier th[scope="row"] {
+        grid-column: 1 / -1;
+        font-size: 16px;
+    }
+    .dossier td::before {
+        content: attr(data-label);
+        display: block;
+        font-size: 10.5px;
+        font-weight: 700;
+        letter-spacing: 0.05em;
+        text-transform: uppercase;
+        color: var(--muted);
+    }
+    .dossier .bar {
+        display: none;
+    }
+}
+
+/* On a phone the trust tile, with its legend, takes the full row. */
+@media (max-width: 560px) {
+    .stats .stat:first-child {
+        grid-column: 1 / -1;
+    }
+    .stat .cov-legend {
+        gap: 2px 14px;
+    }
+}
+
+/* ─── Outlet icons ──────────────────────────────────── */
+
+.src-ico {
+    display: inline-block;
+    width: 16px;
+    height: 16px;
+    margin-right: 7px;
+    border-radius: 4px;
+    object-fit: cover;
+    vertical-align: -3px;
+    background: var(--surface-2);
+    box-shadow:
+        0 0 0 1.5px var(--surface),
+        0 0 0 3px var(--k-editorial);
+    flex: none;
+}
+.kr-first {
+    box-shadow:
+        0 0 0 1.5px var(--surface),
+        0 0 0 3px var(--k-first);
+}
+.kr-public {
+    box-shadow:
+        0 0 0 1.5px var(--surface),
+        0 0 0 3px var(--k-public);
+}
+.kr-independent {
+    box-shadow:
+        0 0 0 1.5px var(--surface),
+        0 0 0 3px var(--k-independent);
+}
+.kr-partisan {
+    box-shadow:
+        0 0 0 1.5px var(--surface),
+        0 0 0 3px var(--k-partisan);
+}
+.kr-unverified {
+    box-shadow:
+        0 0 0 1.5px var(--surface),
+        0 0 0 3px var(--k-unverified);
+}
+.origin .src-ico {
+    width: 14px;
+    height: 14px;
+    margin: 0 5px 0 2px;
+}
+.item-list .src-ico,
+.hl-group .src-ico {
+    margin-left: 2px;
 }

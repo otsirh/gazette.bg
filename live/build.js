@@ -25,7 +25,7 @@ export const SITE_ORIGIN = 'https://live.gazette.bg';
 const HOUR = 3600 * 1000;
 
 // Bumped by hand when style.css or live.js change, so browsers fetch them anew.
-const ASSET_VERSION = '8';
+const ASSET_VERSION = '10';
 
 const esc = (s) =>
     String(s ?? '')
@@ -66,7 +66,11 @@ function when(ms, now) {
 const timeEl = (ms, now, rel = false) =>
     `<time datetime="${new Date(ms).toISOString()}" data-ts="${ms}"${rel ? ' data-rel' : ''}>${esc(rel ? relTime(ms, now) : when(ms, now))}</time>`;
 
-const sourceLabel = (id) => esc(SOURCE_BY_ID.get(id)?.name ?? id);
+// The outlet's name; its YouTube channel is the same outlet, shown with ▶
+// where it matters rather than "(видео)" after every name.
+const displayName = (id) => (SOURCE_BY_ID.get(id)?.name ?? id).replace(/ \(видео\)$/, '');
+const sourceLabel = (id) => esc(displayName(id));
+const capFirst = (t) => String(t).replace(/^(\p{Ll})/u, (c) => c.toUpperCase());
 const plural = (n, one, many) => `${n} ${n === 1 ? one : many}`;
 
 // ─── What kind of voice a source is ─────────────────────────────────────
@@ -98,6 +102,26 @@ function kindOf(sourceId) {
     if (SOURCE_BY_ID.get(sourceId)?.partisan) return 'partisan';
     if (SOURCE_BY_ID.get(sourceId)?.independent) return 'independent';
     return ['first', 'first', 'public', 'editorial', 'unverified'][tierOf(sourceId)] ?? 'unverified';
+}
+
+// Outlets with an icon in site/icons/ (fetched by scripts/fetch-icons.js).
+const ICON_DIR = path.join(HERE, 'site', 'icons');
+const ICONS_FOUND = new Set(
+    fs.existsSync(ICON_DIR)
+        ? fs
+              .readdirSync(ICON_DIR)
+              .filter((f) => f.endsWith('.png'))
+              .map((f) => f.slice(0, -4))
+        : [],
+);
+
+// The outlet's icon, ringed in the colour of its kind; the plain dot when
+// it has no icon.
+function srcMark(sourceId) {
+    const o = outletOf(sourceId);
+    if (!ICONS_FOUND.has(o)) return kindDot(sourceId);
+    const k = kindOf(sourceId);
+    return `<img class="src-ico kr-${k}" src="/icons/${esc(o)}.png" alt="" width="16" height="16" loading="lazy" decoding="async" title="${esc(KINDS[k].long)}">`;
 }
 
 const kindDot = (sourceId) => {
@@ -167,8 +191,7 @@ function tempBadge(r) {
 function chips(r, now) {
     const t = TREND[r.trend];
     const lastHour = r.story.items.filter((i) => now - i.at < HOUR).length;
-    const place = placeOf(r.story.place);
-    return `<span class="lvl heat-${r.level.id}">${esc(r.level.label)}</span><span class="trend trend-${r.trend}">${t.sym} ${esc(t.label)}</span>${lastHour ? `<span class="fresh">+${lastHour} за последния час</span>` : ''}${place ? `<span class="place">${ICONS.pin}${esc(place.name)}</span>` : ''}`;
+    return `<span class="lvl heat-${r.level.id}">${esc(r.level.label)}</span><span class="trend trend-${r.trend}">${t.sym} ${esc(t.label)}</span>${lastHour ? `<span class="fresh">+${lastHour} за последния час</span>` : ''}`;
 }
 
 const videosOf = (story) =>
@@ -246,10 +269,14 @@ function cardMeta(r, now) {
     const s = r.story;
     const origin = originOf(s);
     const videos = videosOf(s).length;
+    const place = placeOf(s.place);
     return [
         `<span class="trust trust-${r.trust.id}">${esc(r.trust.label)}</span>`,
+        place ? `<span class="place">${ICONS.pin}${esc(place.name)}</span>` : '',
         `<span>${plural(r.trust.outlets, 'медия', 'медии')}</span>`,
-        origin ? `<span class="origin">първо: <b>${esc(origin.name)}</b> ${timeEl(origin.at, now)}</span>` : '',
+        origin
+            ? `<span class="origin">първо: ${origin.source ? srcMark(origin.source) : ''}<b>${esc(origin.name)}</b> ${timeEl(origin.at, now)}</span>`
+            : '',
         videos ? `<span class="has-video">▶ ${videos}</span>` : '',
         r.trust.disputed ? '<span class="has-dispute">⚠ противоречия</span>' : '',
     ]
@@ -287,12 +314,14 @@ function heroBlock(state, ranked, mainCount, now) {
         ranked.flatMap((r) => r.story.items.filter((i) => now - i.at < 24 * HOUR).map((i) => outletOf(i.source))),
     ).size;
     const brief = lines.length
-        ? `<ol class="brief">${lines
+        ? `<ol class="brief" data-brief>${lines
               .map((l) => {
                   const r = byId.get(l.story);
                   return `<li class="heat-${r.level.id}"><a href="/s/${esc(l.story)}/"><span class="brief-temp">${tempOf(r.heat)}°</span><span class="brief-text">${esc(l.text)}</span></a></li>`;
               })
-              .join('')}</ol>`
+              .join(
+                  '',
+              )}</ol>${lines.length > 4 ? `<button type="button" class="brief-more" data-brief-more>Още ${lines.length - 4} ↓</button>` : ''}`
         : '';
     return `<section class="hero" aria-labelledby="hero-title">
     <p class="hero-kicker"><span class="live-dot" aria-hidden="true"></span>${esc(fmtLongDay.format(now))}</p>
@@ -333,6 +362,7 @@ function filters() {
 
 function justIn(ranked, now) {
     const latest = ranked
+        .filter((r) => r.trust.outlets >= 2 || r.trust.firstHand)
         .flatMap((r) => r.story.items.map((it) => ({ it, r })))
         .sort((a, b) => b.it.at - a.it.at)
         .slice(0, 14);
@@ -342,7 +372,7 @@ function justIn(ranked, now) {
     <ol class="justin">${latest
         .map(
             ({ it, r }) =>
-                `<li><a href="/s/${esc(r.story.id)}/"><span class="ji-meta">${kindDot(it.source)}${sourceLabel(it.source)}${it.kind === 'video' ? ' ▶' : ''} · ${timeEl(it.at, now, true)}</span><span class="ji-title">${esc(it.title)}</span></a></li>`,
+                `<li><a href="/s/${esc(r.story.id)}/"><span class="ji-meta">${srcMark(it.source)}${sourceLabel(it.source)}${it.kind === 'video' ? ' ▶' : ''} · ${timeEl(it.at, now, true)}</span><span class="ji-title">${esc(it.title)}</span></a></li>`,
         )
         .join('')}</ol>
 </section>`;
@@ -531,7 +561,7 @@ function framingBlock(story, now) {
             const chipsHtml = [...outlets.values()]
                 .map(
                     (it) =>
-                        `<a class="src-chip" href="${href(it.url)}" target="_blank" rel="noopener" title="${esc(it.title)}">${kindDot(it.source)}${sourceLabel(it.source)}</a>`,
+                        `<a class="src-chip" href="${href(it.url)}" target="_blank" rel="noopener" title="${esc(it.title)}">${srcMark(it.source)}${sourceLabel(it.source)}</a>`,
                 )
                 .join('');
             return `<li class="angle"><b>${esc(a.label)}</b><p>${esc(a.summary)}</p><div class="src-chips">${chipsHtml}</div></li>`;
@@ -550,7 +580,10 @@ function framingBlock(story, now) {
         const list = firsts.filter((it) => kindOf(it.source) === k);
         if (!list.length) return '';
         return `<div class="hl-group"><h3><i class="kd k-${k}"></i>${esc(KINDS[k].many[0].toUpperCase() + KINDS[k].many.slice(1))}</h3><ul>${list
-            .map((it) => `<li><span>${sourceLabel(it.source)}</span>${ext(it.url, esc(it.title))}</li>`)
+            .map(
+                (it) =>
+                    `<li><span>${srcMark(it.source)}${sourceLabel(it.source)}</span>${ext(it.url, esc(it.title))}</li>`,
+            )
             .join('')}</ul></div>`;
     }).join('');
     return `<section class="panel" aria-labelledby="framing">
@@ -578,12 +611,12 @@ function actorsBlock(story, now) {
             a.events.length > 1
                 ? `<details class="voice-more"><summary>още ${a.events.length - 1}</summary><ul>${a.events
                       .slice(1)
-                      .map((e) => `<li>${timeEl(e.at, now)} ${esc(e.what)}</li>`)
+                      .map((e) => `<li>${timeEl(e.at, now)} ${esc(capFirst(e.what))}</li>`)
                       .join('')}</ul></details>`
                 : '';
         return `<li class="voice">
     <div class="voice-head"><span class="avatar" aria-hidden="true">${initials(a.name)}</span><span><b>${esc(a.name)}</b>${a.role ? `<small>${esc(a.role)}</small>` : ''}</span></div>
-    <p class="voice-what">${latest.quote ? `<q class="quote">${esc(latest.quote)}</q>` : esc(latest.what)}</p>
+    <p class="voice-what">${latest.quote ? `<q class="quote">${esc(latest.quote)}</q>` : esc(capFirst(latest.what))}</p>
     <p class="voice-src">${timeEl(latest.at, now)}${latest.source === 'parliament' ? ` · ${recordLinks(latest)}` : src ? ` · ${src}` : ''}</p>
     ${more}
 </li>`;
@@ -696,7 +729,7 @@ function treeHtml(nodes, now) {
                   : it.cites && it.citesKind === 'media'
                     ? `цитира ${esc(it.cites)}`
                     : '';
-            return `<li><span class="node"><span class="node-src">${kindDot(it.source)}${sourceLabel(it.source)}${it.kind === 'video' ? ' ▶' : ''} ${timeEl(it.at, now)}</span>${how ? `<span class="node-how">${how}</span>` : ''}${ext(it.url, esc(it.title))}</span>${kids}</li>`;
+            return `<li><span class="node"><span class="node-src">${srcMark(it.source)}${sourceLabel(it.source)}${it.kind === 'video' ? ' ▶' : ''} ${timeEl(it.at, now)}</span>${how ? `<span class="node-how">${how}</span>` : ''}${ext(it.url, esc(it.title))}</span>${kids}</li>`;
         })
         .join('')}</ul>`;
 }
@@ -718,7 +751,7 @@ function videoTile(v, now) {
         <span class="play" aria-hidden="true">${ICONS.play}</span>
     </button>
     <span class="video-title">${ext(v.url, esc(v.title))}</span>
-    <span class="video-meta">${kindDot(v.source)}${sourceLabel(v.source)} · ${timeEl(v.at, now)}</span>
+    <span class="video-meta">${srcMark(v.source)}${sourceLabel(v.source)} · ${timeEl(v.at, now)}</span>
 </li>`;
 }
 
@@ -760,7 +793,7 @@ function timelineBlock(story) {
             lastDay = day;
             return `${sep}<li class="tl tl-${kind}">
     <span class="tl-time">${esc(fmtClock.format(e.at))}</span>
-    <span class="tl-body"><b class="tl-who">${esc(e.who)}</b> ${esc(e.what)}${e.quote ? `<q class="quote">${esc(e.quote)}</q>` : ''}${links ? `<span class="tl-src">${links}</span>` : ''}</span>
+    <span class="tl-body"><b class="tl-who">${esc(capFirst(e.who))}</b><span class="tl-what">${esc(capFirst(e.what))}</span>${e.quote ? `<q class="quote">${esc(e.quote)}</q>` : ''}${links ? `<span class="tl-src">${links}</span>` : ''}</span>
 </li>`;
         });
     return `<section class="panel" aria-labelledby="timeline">
@@ -777,7 +810,7 @@ function sourcesBlock(story, now) {
         .slice(0, LIST_MAX)
         .map(
             (i) =>
-                `<li>${timeEl(i.at, now)} ${kindDot(i.source)}<b>${sourceLabel(i.source)}</b>${i.kind === 'video' ? ' ▶' : ''} ${ext(i.url, esc(i.title))}</li>`,
+                `<li>${timeEl(i.at, now)} ${srcMark(i.source)}<b>${sourceLabel(i.source)}</b>${i.kind === 'video' ? ' ▶' : ''} ${ext(i.url, esc(i.title))}</li>`,
         );
     return `<details class="panel all-items">
     <summary class="panel-title">Всички ${plural(sorted.length, 'материал', 'материала')} <span>най-старото първо</span></summary>
@@ -896,13 +929,13 @@ function mediaPage(state, now) {
             const delay = t.delaySum / t.stories;
             const k = outletKind(o);
             return `<tr>
-    <th scope="row"><i class="kd k-${k}" title="${esc(KINDS[k].long)}"></i>${esc(outletName(o))}</th>
-    <td data-v="${t.stories}">${t.stories}</td>
-    <td data-v="${pct(t.first, t.stories)}">${t.first}<small>${pct(t.first, t.stories)}%</small></td>
-    <td data-v="${Math.round(delay)}">${fmtDelay(delay)}</td>
-    <td data-v="${pct(t.attributed, t.items)}"><span class="bar"><i style="width:${pct(t.attributed, t.items)}%"></i></span>${pct(t.attributed, t.items)}%</td>
-    <td data-v="${pct(t.own, t.items)}">${pct(t.own, t.items)}%</td>
-    <td data-v="${t.citedBy}">${t.citedBy}</td>
+    <th scope="row">${ICONS_FOUND.has(o) ? `<img class="src-ico kr-${k}" src="/icons/${esc(o)}.png" alt="" width="16" height="16" loading="lazy" decoding="async">` : `<i class="kd k-${k}" title="${esc(KINDS[k].long)}"></i>`}${esc(outletName(o))}</th>
+    <td data-label="Истории" data-v="${t.stories}">${t.stories}</td>
+    <td data-label="Първа" data-v="${pct(t.first, t.stories)}">${t.first}<small>${pct(t.first, t.stories)}%</small></td>
+    <td data-label="Закъснение" data-v="${Math.round(delay)}">${fmtDelay(delay)}</td>
+    <td data-label="Посочва източник" data-v="${pct(t.attributed, t.items)}"><span class="bar"><i style="width:${pct(t.attributed, t.items)}%"></i></span>${pct(t.attributed, t.items)}%</td>
+    <td data-label="Собствени" data-v="${pct(t.own, t.items)}">${pct(t.own, t.items)}%</td>
+    <td data-label="Цитирана" data-v="${t.citedBy}">${t.citedBy}</td>
 </tr>`;
         })
         .join('');
@@ -956,7 +989,7 @@ function sourcesPage(state, now) {
             .map((s) => {
                 const st = state.sources?.[s.id];
                 const status = st && !st.ok ? ' <span class="down">не отговаря в момента</span>' : '';
-                return `<li>${ext(s.home, `<b>${esc(s.name)}</b>`)}${status} — ${esc(s.why)}</li>`;
+                return `<li>${srcMark(s.id)}${ext(s.home, `<b>${sourceLabel(s.id)}</b>`)}${s.kind === 'video' ? ' <span class="yt-tag">YouTube</span>' : ''}${status} — ${esc(s.why)}</li>`;
             })
             .join('');
         return `<section class="panel"><h2 class="panel-title"><i class="kd k-${k}"></i>${esc(KINDS[k].long)} <span>${list.length}</span></h2><ul class="item-list">${rows}</ul></section>`;
@@ -1104,6 +1137,7 @@ export async function buildSite(state, { now = Date.now(), outDir = OUT_DIR, ima
     for (const f of ['style.css', 'live.js', 'favicon.svg']) {
         fs.copyFileSync(path.join(HERE, 'site', f), path.join(outDir, f));
     }
+    if (ICONS_FOUND.size) fs.cpSync(ICON_DIR, path.join(outDir, 'icons'), { recursive: true });
     fs.mkdirSync(path.join(outDir, 'fonts'), { recursive: true });
     for (const [from, to] of FONTS) {
         fs.copyFileSync(require.resolve(`@fontsource/unbounded/files/${from}`), path.join(outDir, 'fonts', to));
