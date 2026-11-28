@@ -24,6 +24,7 @@ import { buildSite, OUT_DIR } from './build.js';
 import { clusterItems, OVERVIEW_MODEL, proofread, writeOverview, writeStory } from './lib/ai.js';
 import { fillPlaces, frameStories, mergeSame, pastFor, readParliament, recheckSensitive, retire } from './lib/depth.js';
 import { articleText, fetchText, isOffTopic, itemId, mapLimit, parseFeed, parseList, siteOf } from './lib/feeds.js';
+import { acceptCommitments, recordCommitments } from './lib/ledger.js';
 import {
     applyBlocklist,
     copiesSource,
@@ -462,6 +463,13 @@ export async function update({ now = Date.now() } = {}) {
             for (const q of checkQuotes(result, story, sources)) {
                 log(`${story.id}: not in any source, unquoted: ${q}`, 'WARN');
             }
+            // „Казано – направено“: deadlines and promises, collected quietly.
+            const proposed = result.commitments?.length ?? 0;
+            // Not during an election silence: no campaign promise goes in then.
+            const accepted = silence ? [] : acceptCommitments({ result, story, pending, texts, now });
+            const added = recordCommitments(state, accepted, now);
+            if (proposed) log(`${story.id}: ${proposed} deadlines proposed, ${added.length} new in the ledger.`);
+            for (const e of added) log(`  ledger: ${e.owner} · ${e.kind} · ${e.due} · ${e.quote.slice(0, 120)}`);
         } catch (err) {
             log(`Writing ${story.id} failed: ${err.message}`, 'WARN');
             for (const it of pending) {

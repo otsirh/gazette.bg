@@ -782,3 +782,82 @@ test('only a busy or unreachable API counts as passing trouble', () => {
     assert.equal(isTransient({ status: 400 }), false);
     assert.equal(isTransient(new SyntaxError('Unexpected token')), false);
 });
+
+test('a deadline enters the ledger only word for word, with a real future date and someone to answer for it', async () => {
+    const { acceptCommitments, recordCommitments } = await import('../live/lib/ledger.js');
+    const a = item('a', 'sega', 2, { title: 'Парното се връща' });
+    const b = item('b', 'bta', 1, { title: 'Топлофикация обеща парно' });
+    const texts = new Map([
+        ['a', 'Топлофикация София съобщи за аварии със заявено възстановяване на 29 ноември в Лозенец.'],
+        ['b', 'Дружеството обеща парно със заявено възстановяване на 29 ноември в Лозенец, каза говорителят.'],
+    ]);
+    const good = {
+        n: [0],
+        owner: 'Топлофикация София',
+        kind: 'deadline',
+        quote: 'със заявено възстановяване на 29 ноември в Лозенец',
+        due: '2026-11-29',
+        dueKind: 'on',
+    };
+    const result = {
+        commitments: [
+            good,
+            { ...good, quote: 'ще възстанови всичко до 29 ноември без изключение' }, // not in the text
+            { ...good, due: '2026-11-31' }, // no such day
+            { ...good, due: '2026-11-01' }, // before the article
+            { ...good, owner: '' }, // no one answers for it
+            { ...good, quote: 'аварии в Лозенец и Младост днес' }, // carries no date
+        ],
+    };
+    const s = story([a, b], { id: 'toplo123' });
+    const ok = acceptCommitments({ result, story: s, pending: [a, b], texts, now: NOW });
+    assert.equal(ok.length, 1);
+    assert.equal(ok[0].story, 'toplo123');
+    assert.equal(
+        acceptCommitments({ result, story: { ...s, sensitive: true }, pending: [a, b], texts, now: NOW }).length,
+        0,
+    );
+    // Flagged sensitive in this very write: none either.
+    const flagged = { ...result, sensitive: true };
+    assert.equal(acceptCommitments({ result: flagged, story: s, pending: [a, b], texts, now: NOW }).length, 0);
+    // Only the words with the date, not a paragraph.
+    const long = { ...good, quote: `${'дълго изречение '.repeat(12)}със заявено възстановяване на 29 ноември` };
+    const withLong = new Map([...texts, ['a', `${texts.get('a')} ${long.quote}`]]);
+    const longResult = { commitments: [long] };
+    assert.equal(
+        acceptCommitments({ result: longResult, story: s, pending: [a, b], texts: withLong, now: NOW }).length,
+        0,
+    );
+
+    const state = {};
+    assert.equal(recordCommitments(state, ok, NOW).length, 1);
+    // The same deadline from another outlet joins the entry.
+    const again = acceptCommitments({
+        result: { commitments: [{ ...good, n: [1] }] },
+        story: s,
+        pending: [a, b],
+        texts,
+        now: NOW,
+    });
+    assert.equal(recordCommitments(state, again, NOW).length, 0);
+    assert.equal(state.ledger.length, 1);
+    assert.equal(state.ledger[0].sources.length, 2);
+    assert.equal(state.ledger[0].status, 'open');
+});
+
+test('the blocklist reaches the ledger: a blocked story and a blocked name leave it', async () => {
+    const { applyBlocklist } = await import('../live/lib/policy.js');
+    const state = {
+        stories: [],
+        ledger: [
+            { story: 'blok1234', owner: 'МВР', quote: 'до 5 декември ще бъде готово' },
+            { story: 'keep1234', owner: 'Иван Секретов', quote: 'до 5 декември ще бъде готово' },
+            { story: 'keep1234', owner: 'МВР', quote: 'до 6 декември ще бъде готово' },
+        ],
+    };
+    applyBlocklist(state, { blocklist: { stories: ['blok1234'], items: [], outlets: [], names: ['Секретов'] } });
+    assert.deepEqual(
+        state.ledger.map((e) => e.quote),
+        ['до 6 декември ще бъде готово'],
+    );
+});
