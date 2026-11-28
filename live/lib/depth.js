@@ -5,7 +5,7 @@
 import { outletOf, SOURCE_BY_ID, tierOf } from '../sources.js';
 import { classifyPlaces, findSameStories, frameStory, parliamentQuotes, stillSensitive } from './ai.js';
 import { fetchText, toText } from './feeds.js';
-import { addContributions, rankStories } from './stories.js';
+import { rankStories } from './stories.js';
 import { clip, tidy } from './text.js';
 import { videoDetails, videoIdOf } from './youtube.js';
 
@@ -14,11 +14,10 @@ const MEMORY_DAYS = 90;
 const MEMORY_MAX = 600;
 
 // Stories leaving the page are remembered briefly (title, summary, dates)
-// so a new story can say what came before it, and their outlets' record is
-// added to the totals. Nothing else is kept: no archive.
+// so a new story can say what came before it. Nothing else is kept: no
+// archive.
 export function retire(state, dropped, now) {
     state.memory ??= [];
-    state.outletStats ??= { since: now, outlets: {} };
     for (const s of dropped) {
         if (s.summary) {
             state.memory.push({
@@ -29,7 +28,6 @@ export function retire(state, dropped, now) {
                 place: s.place || '',
             });
         }
-        addContributions(state.outletStats.outlets, s);
     }
     state.memory = state.memory.filter((m) => now - m.at < MEMORY_DAYS * DAY).slice(-MEMORY_MAX);
 }

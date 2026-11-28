@@ -1944,75 +1944,6 @@ button {
     color: var(--muted);
 }
 
-/* ─── Media dossier ─────────────────────────────────── */
-
-.table-panel {
-    overflow-x: auto;
-    padding: 6px 6px 8px;
-}
-.dossier {
-    width: 100%;
-    min-width: 680px;
-    border-collapse: collapse;
-    font-size: 14.5px;
-}
-.dossier th,
-.dossier td {
-    padding: 10px 12px;
-    text-align: right;
-    border-bottom: 1px solid var(--line);
-    white-space: nowrap;
-}
-.dossier th:first-child {
-    text-align: left;
-    font-weight: 650;
-}
-.dossier thead th {
-    font-size: 11.5px;
-    font-weight: 750;
-    letter-spacing: 0.06em;
-    text-transform: uppercase;
-    color: var(--muted);
-    position: sticky;
-    top: 0;
-    background: var(--surface);
-}
-.dossier th[data-sort] {
-    cursor: pointer;
-    user-select: none;
-}
-.dossier th[data-sort]:hover {
-    color: var(--text);
-}
-.dossier th[aria-sort="descending"]::after {
-    content: " ▼";
-}
-.dossier th[aria-sort="ascending"]::after {
-    content: " ▲";
-}
-.dossier small {
-    margin-left: 6px;
-    color: var(--muted);
-}
-.dossier tbody tr:hover {
-    background: var(--surface-2);
-}
-.bar {
-    display: inline-block;
-    width: 60px;
-    height: 6px;
-    margin-right: 8px;
-    border-radius: 3px;
-    background: var(--surface-2);
-    overflow: hidden;
-    vertical-align: middle;
-}
-.bar i {
-    display: block;
-    height: 100%;
-    background: var(--k-first);
-}
-
 /* The section buttons on a story scroll sideways on a phone, never wrap
    into a wall of buttons. */
 @media (max-width: 640px) {
@@ -2128,60 +2059,6 @@ button {
 .more summary::-webkit-details-marker,
 .context summary::-webkit-details-marker {
     display: none;
-}
-
-/* The media table becomes a card per outlet on a phone: every number
-   visible, none hidden off to the side. */
-@media (max-width: 640px) {
-    .table-panel {
-        overflow: visible;
-        padding: 0;
-        background: none;
-        box-shadow: none;
-    }
-    .dossier {
-        min-width: 0;
-    }
-    .dossier thead {
-        display: none;
-    }
-    .dossier,
-    .dossier tbody {
-        display: block;
-    }
-    .dossier tr {
-        display: grid;
-        grid-template-columns: 1fr 1fr 1fr;
-        gap: 8px 10px;
-        margin-bottom: 10px;
-        padding: 12px 14px;
-        border-radius: 14px;
-        background: var(--surface);
-        box-shadow: var(--shadow);
-    }
-    .dossier th,
-    .dossier td {
-        padding: 0;
-        border: 0;
-        text-align: left;
-        white-space: normal;
-    }
-    .dossier th[scope="row"] {
-        grid-column: 1 / -1;
-        font-size: 16px;
-    }
-    .dossier td::before {
-        content: attr(data-label);
-        display: block;
-        font-size: 10.5px;
-        font-weight: 700;
-        letter-spacing: 0.05em;
-        text-transform: uppercase;
-        color: var(--muted);
-    }
-    .dossier .bar {
-        display: none;
-    }
 }
 
 /* On a phone the trust tile, with its legend, takes the full row. */

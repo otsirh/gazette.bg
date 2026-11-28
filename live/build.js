@@ -15,7 +15,7 @@ import { isWebUrl } from './lib/feeds.js';
 import { homeImage, iconPng, storyImage } from './lib/og.js';
 import { MAP, OUTLINE, placeOf } from './lib/places.js';
 import { inElectionSilence, loadPolicy, POLL, silenceFilter } from './lib/policy.js';
-import { addContributions, lastAt, originOf, rankStories, sparkline } from './lib/stories.js';
+import { lastAt, originOf, rankStories, sparkline } from './lib/stories.js';
 import { outletOf, SOURCE_BY_ID, SOURCES, tierOf } from './sources.js';
 
 const require = createRequire(import.meta.url);
@@ -33,7 +33,7 @@ const CONTACT = /^[^\s@<>"]+@[^\s@<>"]+\.[a-z]{2,}$/i.test(process.env.LIVE_CONT
 const HOUR = 3600 * 1000;
 
 // Bumped by hand when style.css or live.js change, so browsers fetch them anew.
-const ASSET_VERSION = '20';
+const ASSET_VERSION = '21';
 
 const esc = (s) =>
     String(s ?? '')
@@ -290,7 +290,7 @@ function footer() {
         <div class="footer-brand"><span class="live-dot" aria-hidden="true"></span> live.gazette.bg</div>
         <ul class="legend">${KIND_ORDER.map((k) => `<li><i class="kd k-${k}"></i>${esc(KINDS[k].long)}</li>`).join('')}</ul>
         <p>Историите, обобщенията и хронологиите се съставят автоматично с изкуствен интелект (Claude на Anthropic) от ${SOURCES.length} източника и може да съдържат грешки. Всяко твърдение води към материала, от който е взето.</p>
-        <p><a href="/about/">За сайта, поправки и поверителност</a> · <a href="/corrections/">Поправки</a> · <a href="/sources/">Източници и как се оценяват</a> · <a href="/media/">Досие на медиите</a></p>
+        <p><a href="/about/">За сайта, поправки и поверителност</a> · <a href="/corrections/">Поправки</a> · <a href="/sources/">Източници и как се оценяват</a></p>
     </div>
 </footer>`;
 }
@@ -886,83 +886,6 @@ ${footer()}
 `;
 }
 
-// ─── The outlets' track record ──────────────────────────────────────────
-
-const outletName = (o) =>
-    SOURCE_BY_ID.get(o)?.name ?? SOURCE_BY_ID.get(`${o}-yt`)?.name.replace(/ \(видео\)$/, '') ?? o;
-
-export function outletTotals(state) {
-    const totals = structuredClone(state.outletStats?.outlets ?? {});
-    for (const s of state.stories) addContributions(totals, s);
-    return totals;
-}
-
-function fmtDelay(min) {
-    if (min < 60) return `${Math.round(min)} мин`;
-    if (min < 24 * 60) return `${(min / 60).toFixed(min < 600 ? 1 : 0).replace('.', ',')} ч`;
-    return '1+ ден';
-}
-
-const pct = (a, b) => (b ? Math.round((a / b) * 100) : 0);
-
-function mediaPage(state, now) {
-    const totals = outletTotals(state);
-    const rows = Object.entries(totals)
-        .filter(([, t]) => t.stories >= 2)
-        .sort((a, b) => b[1].stories - a[1].stories)
-        .map(([o, t]) => {
-            const delay = t.delaySum / t.stories;
-            return `<tr>
-    <th scope="row">${srcMark(SOURCE_BY_ID.has(o) ? o : `${o}-yt`)}${esc(outletName(o))}</th>
-    <td data-label="Истории" data-v="${t.stories}">${t.stories}</td>
-    <td data-label="Първа" data-v="${pct(t.first, t.stories)}">${t.first}<small>${pct(t.first, t.stories)}%</small></td>
-    <td data-label="Закъснение" data-v="${Math.round(delay)}">${fmtDelay(delay)}</td>
-    <td data-label="Посочва източник" data-v="${pct(t.attributed, t.items)}"><span class="bar"><i style="width:${pct(t.attributed, t.items)}%"></i></span>${pct(t.attributed, t.items)}%</td>
-    <td data-label="Собствени" data-v="${pct(t.own, t.items)}">${pct(t.own, t.items)}%</td>
-    <td data-label="Цитирана" data-v="${t.citedBy}">${t.citedBy}</td>
-</tr>`;
-        })
-        .join('');
-    const since = state.outletStats?.since ?? state.updatedAt;
-    return `${head({
-        title: 'Досие на медиите — live.gazette.bg',
-        description:
-            'Коя медия съобщава първа, коя посочва откъде знае и коя цитират другите — по данни, не по мнение.',
-        canonical: `${SITE_ORIGIN}/media/`,
-        image: `${SITE_ORIGIN}/og/home.png?v=${state.updatedAt}`,
-    })}
-<body class="media" data-version="${state.updatedAt}">
-${topbar(state, now)}
-<main id="main" class="wrap">
-<a class="back" href="/">← Всичко, което се случва сега</a>
-<header class="story-head"><h1>Досие на медиите</h1>
-<p class="lede">Как всяка медия се държи в новините, които следим: съобщава ли първа, посочва ли откъде знае, цитират ли я другите. Само данни, събирани от ${esc(fmtLongDay.format(since))}, насам, без мнение. С всеки ден картината е по-точна.</p></header>
-<div class="panel table-panel">
-<table class="dossier" data-sortable>
-    <thead><tr>
-        <th scope="col">Медия</th>
-        <th scope="col" data-sort title="В колко истории с поне 3 медии участва">Истории</th>
-        <th scope="col" data-sort title="Колко пъти е съобщила първа">Първа</th>
-        <th scope="col" data-sort title="Средно колко след първия материал по историята (до 6 часа)">Закъснение</th>
-        <th scope="col" data-sort title="Каква част от материалите ѝ казват откъде е информацията">Посочва източник</th>
-        <th scope="col" data-sort title="Собствен репортаж или разследване">Собствени</th>
-        <th scope="col" data-sort title="Колко пъти други медии я цитират">Цитирана</th>
-    </tr></thead>
-    <tbody>${rows || '<tr><td colspan="7" class="quiet">Още няма достатъчно данни.</td></tr>'}</tbody>
-</table>
-</div>
-<div class="prose panel">
-<p><b>Истории</b> — само истории, отразени от поне 3 медии: там има кой да е пръв. <b>Първа</b> — най-ранният материал по историята. <b>Закъснение</b> — средно колко след първия излиза нейният материал (бавно не е лошо, ако е проверено).</p>
-<p><b>Посочва източник</b> — материалите, които казват откъде е новината: друга медия, институция или човек, който говори. <b>Собствени</b> — собствен репортаж без чужд източник. <b>Цитирана</b> — колко пъти други материали я посочват като източник.</p>
-<p>Кой кого цитира, определя автоматично изкуствен интелект по текста на материалите, така че в отделни случаи може да греши. Подреди таблицата, като кликнеш върху заглавието на колона.</p>
-</div>
-</main>
-${footer()}
-</body>
-</html>
-`;
-}
-
 // ─── Sources page ───────────────────────────────────────────────────────
 
 function sourcesPage(state, now) {
@@ -1035,7 +958,7 @@ ${operator}
 <h2 class="panel-title">Как работи</h2>
 <p>На всеки 10 минути сайтът чете публичните емисии (RSS) на медиите и YouTube каналите от <a href="/sources/">списъка с източници</a>. Изкуствен интелект (Claude на Anthropic) подрежда материалите в истории и пише кратко обобщение, хронология и кой какво е казал. <b>Текстовете са генерирани от изкуствен интелект, без човешка редакция, и може да съдържат грешки.</b> Затова всяко твърдение води към материала, от който е взето, и показваме колко и какви медии потвърждават всяка история.</p>
 <p>Правилата, които изкуственият интелект спазва: всяко твърдение има източник; никой не се представя за виновен без окончателна присъда; не се назовават деца, пострадали, свидетели и заподозрени, които не са публични личности; не се цитират числа от социологически проучвания. При история, която засяга дете или пострадал от сексуално или домашно насилие, не показваме заглавията и видеата на медиите. В деня преди изборите и в изборния ден не показваме проучвания и партийни канали (Изборен кодекс, чл. 182 и 205).</p>
-<p>„Тежестта“ на източниците и „Досието на медиите“ са автоматична статистика по проверими признаци, а не оценка на медиите. Описанията на това как медиите представят една история казват само какво подчертават заглавията им.</p>
+<p>„Тежестта“ на източниците е автоматична статистика по проверими признаци, а не оценка на медиите. Описанията на това как медиите представят една история казват само какво подчертават заглавията им.</p>
 </div>
 <div class="prose panel">
 <h2 class="panel-title">Поправки, премахване и отговор</h2>
@@ -1201,13 +1124,17 @@ export async function buildSite(state, { now = Date.now(), outDir = OUT_DIR, ima
             );
         }
     }
-    const urls = ['/', '/about/', '/corrections/', '/sources/', '/media/', ...ranked.map((r) => `/s/${r.story.id}/`)];
+    const urls = ['/', '/about/', '/corrections/', '/sources/', ...ranked.map((r) => `/s/${r.story.id}/`)];
     write(
         path.join(outDir, 'sitemap.xml'),
         `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${urls.map((u) => `<url><loc>${SITE_ORIGIN}${u}</loc></url>`).join('\n')}\n</urlset>\n`,
     );
+    // The media dossier was removed; an old link leads to the front page.
+    write(
+        path.join(outDir, 'media', 'index.html'),
+        `<!DOCTYPE html><html lang="bg"><head><meta charset="UTF-8"><meta http-equiv="refresh" content="0; url=/"><link rel="canonical" href="${SITE_ORIGIN}/"><meta name="robots" content="noindex"><title>live.gazette.bg</title></head><body><a href="/">live.gazette.bg</a></body></html>\n`,
+    );
     write(path.join(outDir, 'sources', 'index.html'), sourcesPage(state, now));
-    write(path.join(outDir, 'media', 'index.html'), mediaPage(state, now));
     write(path.join(outDir, 'about', 'index.html'), aboutPage(state, now));
     write(path.join(outDir, 'corrections', 'index.html'), correctionsPage(state, now, policy.corrections));
     // During the silence the published state carries no polls either.
