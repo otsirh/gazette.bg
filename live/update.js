@@ -21,13 +21,13 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createLogger, isMain } from '../scripts/lib/cli.js';
 import { buildSite, OUT_DIR } from './build.js';
-import { clusterItems, proofread, writeOverview, writeStory } from './lib/ai.js';
+import { clusterItems, OVERVIEW_MODEL, proofread, writeOverview, writeStory } from './lib/ai.js';
 import { fillPlaces, frameStories, mergeSame, pastFor, readParliament, recheckSensitive, retire } from './lib/depth.js';
 import { articleText, fetchText, isOffTopic, itemId, mapLimit, parseFeed, parseList, siteOf } from './lib/feeds.js';
 import { applyBlocklist, copiesSource, inElectionSilence, loadPolicy } from './lib/policy.js';
 import { aiRefused, pathAllowed, tdmReserved } from './lib/robots.js';
 import { pruneStories, rankStories } from './lib/stories.js';
-import { tidy } from './lib/text.js';
+import { aiTexts, clip, recutOld, tidy, tidyState } from './lib/text.js';
 import { channelIdOf, channelUploads, madeForKids } from './lib/youtube.js';
 import { SOURCE_BY_ID, SOURCES, sourceIdForName } from './sources.js';
 
@@ -475,6 +475,28 @@ export async function update({ now = Date.now() } = {}) {
         }
     }
 
+    // Once: every text already on the site, proofread by the stronger model
+    // (the rules above came after some of them were written).
+    if ((state.fullProof ?? 0) < 1 && canSpend()) {
+        tidyState(state);
+        recutOld(state);
+        const all = aiTexts(state);
+        // Each distinct text once: actors repeat across a timeline.
+        const distinct = [...new Set(all.map(([o, f]) => o[f]))];
+        try {
+            const fixes = await proofread({ texts: distinct, meter, model: OVERVIEW_MODEL });
+            const fixed = new Map([...fixes].map(([i, text]) => [distinct[i], tidy(text)]));
+            for (const [o, f] of all) if (fixed.has(o[f])) o[f] = fixed.get(o[f]);
+            for (const [before, after] of fixed) log(`  full proof: ${before.slice(0, 100)} → ${after.slice(0, 100)}`);
+            log(`Full proofreading: ${distinct.length} texts, corrected ${fixed.size}.`);
+            state.fullProof = 1;
+        } catch (err) {
+            log(`Full proofreading failed: ${err.message}`, 'WARN');
+        }
+    }
+
+    tidyState(state);
+
     state.spend.usd = Math.round((state.spend.usd + meter.usd) * 10000) / 10000;
     // The time readers see is when this version was finished, not begun.
     state.updatedAt = Date.now();
@@ -489,9 +511,9 @@ export async function update({ now = Date.now() } = {}) {
 }
 
 export function applyWrite(story, pending, result, now, proof = []) {
-    if (result.title?.trim()) story.title = tidy(result.title).slice(0, 140);
-    if (result.summary?.trim()) story.summary = tidy(result.summary).slice(0, 600);
-    story.disputed = tidy(result.disputed ?? '').slice(0, 400);
+    if (result.title?.trim()) story.title = clip(tidy(result.title), 140);
+    if (result.summary?.trim()) story.summary = clip(tidy(result.summary), 600);
+    story.disputed = clip(tidy(result.disputed ?? ''), 400);
     proof.push([story, 'title'], [story, 'summary'], [story, 'disputed']);
     if (typeof result.place === 'string') story.place = result.place;
     // A story about a child or a victim of violence shows no outlet's
@@ -507,7 +529,7 @@ export function applyWrite(story, pending, result, now, proof = []) {
     const related = (result.related ?? []).map((n) => result.past?.[n]).filter(Boolean);
     if (related.length && result.background?.trim()) {
         story.context = {
-            background: tidy(result.background).slice(0, 500),
+            background: clip(tidy(result.background), 500),
             related: related.slice(0, 3).map((p) => ({ title: p.title, summary: p.summary, at: p.at })),
         };
         proof.push([story.context, 'background']);
@@ -515,7 +537,7 @@ export function applyWrite(story, pending, result, now, proof = []) {
     for (const r of result.items ?? []) {
         const it = pending[r.n];
         if (!it) continue;
-        const cites = (r.cites ?? '').trim().slice(0, 80);
+        const cites = clip(tidy(r.cites ?? ''), 80);
         it.cites = cites || null;
         it.citesKind = r.citesKind;
         const citesSource = r.citesKind === 'media' ? sourceIdForName(cites) : null;
@@ -526,9 +548,9 @@ export function applyWrite(story, pending, result, now, proof = []) {
         if (!refs.length || !e.what?.trim()) continue;
         const event = {
             at: Math.min(...refs.map((r) => r.at)),
-            actor: tidy(e.actor ?? '').slice(0, 60),
-            who: tidy(e.who ?? '').slice(0, 120),
-            what: tidy(e.what).slice(0, 400),
+            actor: clip(tidy(e.actor ?? ''), 100),
+            who: clip(tidy(e.who ?? ''), 160),
+            what: clip(tidy(e.what), 400),
             items: refs.map((r) => r.id),
         };
         story.timeline.push(event);
