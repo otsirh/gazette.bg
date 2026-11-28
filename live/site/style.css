@@ -1761,3 +1761,335 @@ button {
         line-height: 1.4;
     }
 }
+
+/* ─── Place, context, quotes ────────────────────────── */
+
+.place {
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    color: var(--text-2);
+    font-weight: 600;
+}
+.place svg {
+    width: 13px;
+    height: 13px;
+    color: var(--hot);
+}
+
+.context {
+    margin: 0 0 16px;
+    padding: 14px 18px;
+    border-radius: 16px;
+    background: color-mix(in srgb, var(--k-public) 9%, var(--surface));
+    box-shadow: inset 3px 0 0 var(--k-public);
+}
+.context-title {
+    margin: 0 0 6px;
+    font: 700 13px / 1 var(--display);
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    color: var(--k-public);
+}
+.context p {
+    margin: 0;
+    font-size: 15.5px;
+    color: var(--text-2);
+}
+.context details {
+    margin-top: 8px;
+    font-size: 14px;
+}
+.context summary {
+    cursor: pointer;
+    color: var(--link);
+    font-weight: 600;
+}
+.context ul {
+    list-style: none;
+    margin: 8px 0 0;
+    padding: 0;
+    display: grid;
+    gap: 8px;
+}
+.context li span {
+    display: block;
+    color: var(--muted);
+}
+.context time {
+    color: var(--muted);
+    margin-right: 6px;
+}
+
+.quote {
+    display: block;
+    margin: 6px 0 2px;
+    padding: 2px 0 2px 12px;
+    border-left: 3px solid var(--k-first);
+    font-style: italic;
+    color: var(--text);
+    quotes: "„" "“";
+}
+.voice-what .quote {
+    margin: 0;
+}
+
+/* ─── How each side tells it ────────────────────────── */
+
+.angles {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: grid;
+    gap: 12px;
+    grid-template-columns: repeat(auto-fill, minmax(min(100%, 300px), 1fr));
+}
+.angle {
+    padding: 14px 15px;
+    border-radius: 14px;
+    background: var(--surface-2);
+}
+.angle b {
+    display: block;
+    font-size: 15.5px;
+    line-height: 1.3;
+}
+.angle p {
+    margin: 6px 0 10px;
+    font-size: 14.5px;
+    color: var(--text-2);
+}
+.src-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+.src-chip {
+    display: inline-flex;
+    align-items: center;
+    padding: 3px 9px;
+    border-radius: 999px;
+    background: var(--surface);
+    box-shadow: inset 0 0 0 1px var(--line);
+    font-size: 12.5px;
+    font-weight: 600;
+    color: var(--text-2);
+}
+.src-chip:hover {
+    color: var(--text);
+    box-shadow: inset 0 0 0 1px var(--muted);
+}
+.missing {
+    margin: 14px 0 0;
+    padding: 10px 14px;
+    border-radius: 12px;
+    background: var(--warm-wash);
+    font-size: 14.5px;
+}
+.headlines {
+    margin-top: 14px;
+}
+.headlines summary {
+    cursor: pointer;
+    color: var(--link);
+    font-weight: 600;
+    font-size: 14px;
+}
+.hl-grid {
+    display: grid;
+    gap: 14px 24px;
+    grid-template-columns: repeat(auto-fill, minmax(min(100%, 320px), 1fr));
+    margin-top: 12px;
+}
+.hl-group h3 {
+    display: flex;
+    align-items: center;
+    margin: 0 0 6px;
+    font-size: 12px;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--muted);
+}
+.hl-group ul {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+.hl-group li {
+    padding: 6px 0;
+    border-top: 1px solid var(--line);
+    font-size: 14px;
+}
+.hl-group li span {
+    display: block;
+    font-size: 12px;
+    font-weight: 650;
+    color: var(--muted);
+}
+.hl-group a:hover {
+    color: var(--link);
+}
+.small {
+    margin-top: 10px;
+    font-size: 12.5px;
+}
+
+/* ─── Map ───────────────────────────────────────────── */
+
+.map-wrap {
+    display: grid;
+    gap: 16px;
+    grid-template-columns: minmax(0, 1fr);
+    padding: 16px;
+    border-radius: var(--radius);
+    background: var(--surface);
+    box-shadow: var(--shadow);
+}
+@media (min-width: 820px) {
+    .map-wrap {
+        grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr);
+        align-items: start;
+    }
+    .map {
+        position: sticky;
+        top: 120px;
+    }
+}
+.map {
+    display: block;
+    width: 100%;
+    height: auto;
+}
+.map-land {
+    fill: var(--surface-2);
+    stroke: var(--line);
+    stroke-width: 3;
+}
+.map-dot {
+    fill: var(--cool);
+    fill-opacity: 0.75;
+    stroke: var(--surface);
+    stroke-width: 4;
+    transition: transform 0.2s var(--ease);
+    transform-box: fill-box;
+    transform-origin: center;
+}
+.map-dot.heat-hot {
+    fill: var(--hot);
+}
+.map-dot.heat-warm {
+    fill: var(--warm);
+}
+.map a:hover .map-dot {
+    transform: scale(1.15);
+    fill-opacity: 1;
+}
+.map-label {
+    font: 600 22px var(--font);
+    fill: var(--text-2);
+}
+.map-list {
+    max-height: 520px;
+    overflow: auto;
+    scrollbar-width: thin;
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+.map-list li + li {
+    border-top: 1px solid var(--line);
+}
+.map-list a {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 0 10px;
+    padding: 8px 0;
+    font-size: 14px;
+}
+.map-place {
+    grid-column: 1 / -1;
+    font-size: 11.5px;
+    font-weight: 750;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    color: var(--muted);
+}
+.map-title {
+    font-weight: 600;
+}
+.map-list a:hover .map-title {
+    color: var(--hot);
+}
+.map-list time {
+    font-size: 12.5px;
+    color: var(--muted);
+}
+
+/* ─── Media dossier ─────────────────────────────────── */
+
+.table-panel {
+    overflow-x: auto;
+    padding: 6px 6px 8px;
+}
+.dossier {
+    width: 100%;
+    min-width: 680px;
+    border-collapse: collapse;
+    font-size: 14.5px;
+}
+.dossier th,
+.dossier td {
+    padding: 10px 12px;
+    text-align: right;
+    border-bottom: 1px solid var(--line);
+    white-space: nowrap;
+}
+.dossier th:first-child {
+    text-align: left;
+    font-weight: 650;
+}
+.dossier thead th {
+    font-size: 11.5px;
+    font-weight: 750;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--muted);
+    position: sticky;
+    top: 0;
+    background: var(--surface);
+}
+.dossier th[data-sort] {
+    cursor: pointer;
+    user-select: none;
+}
+.dossier th[data-sort]:hover {
+    color: var(--text);
+}
+.dossier th[aria-sort="descending"]::after {
+    content: " ▼";
+}
+.dossier th[aria-sort="ascending"]::after {
+    content: " ▲";
+}
+.dossier small {
+    margin-left: 6px;
+    color: var(--muted);
+}
+.dossier tbody tr:hover {
+    background: var(--surface-2);
+}
+.bar {
+    display: inline-block;
+    width: 60px;
+    height: 6px;
+    margin-right: 8px;
+    border-radius: 3px;
+    background: var(--surface-2);
+    overflow: hidden;
+    vertical-align: middle;
+}
+.bar i {
+    display: block;
+    height: 100%;
+    background: var(--k-first);
+}

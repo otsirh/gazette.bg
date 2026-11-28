@@ -229,3 +229,26 @@ test('spreadSvg draws a lane per outlet and links a citing item to its source', 
     assert.equal((svg.match(/class="sp-lane"/g) ?? []).length, 3);
     assert.equal((svg.match(/class="sp-link"/g) ?? []).length, 1);
 });
+
+test('the track record counts who was first and who cites whom', async () => {
+    const { outletContributions, addContributions } = await import('../live/lib/stories.js');
+    const s = story([
+        item('a', 'bta', 5, { citesKind: 'own' }),
+        item('b', 'dnevnik', 4, { citesKind: 'media', citesSource: 'bta' }),
+        item('c', 'sega', 3, { citesKind: 'media', citesSource: 'bta' }),
+    ]);
+    const c = outletContributions(s);
+    assert.equal(c.get('bta').first, 1);
+    assert.equal(c.get('bta').citedBy, 2);
+    assert.equal(c.get('dnevnik').delayMin, 60);
+    assert.equal(c.get('dnevnik').attributed, 1);
+    const totals = addContributions(addContributions({}, s), s);
+    assert.equal(totals.bta.stories, 2);
+    assert.equal(outletContributions(story([item('x', 'bta', 1), item('y', 'sega', 1)])).size, 0);
+});
+
+test('speaker names from the record lose their capitals', async () => {
+    const { nameCase } = await import('../live/lib/depth.js');
+    assert.equal(nameCase('НИКОЛАЙ ДЕНКОВ'), 'Николай Денков');
+    assert.equal(nameCase('Иван Иванов'), 'Иван Иванов');
+});
