@@ -18,17 +18,19 @@ import { createHash } from 'node:crypto';
 //                         the Mac mini answers. Without it they go direct.
 import fs from 'node:fs';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { createLogger, isMain } from '../scripts/lib/cli.js';
 import { buildSite, OUT_DIR } from './build.js';
-import { clusterItems, writeOverview, writeStory } from './lib/ai.js';
-import { fillPlaces, frameStories, pastFor, readParliament, retire } from './lib/depth.js';
-import { articleText, fetchText, isOffTopic, itemId, mapLimit, parseFeed } from './lib/feeds.js';
+import { clusterItems, proofread, writeOverview, writeStory } from './lib/ai.js';
+import { fillPlaces, frameStories, mergeSame, pastFor, readParliament, retire } from './lib/depth.js';
+import { articleText, fetchText, isOffTopic, itemId, mapLimit, parseFeed, siteOf } from './lib/feeds.js';
 import { pruneStories, rankStories } from './lib/stories.js';
+import { tidy } from './lib/text.js';
 import { SOURCE_BY_ID, SOURCES, sourceIdForName } from './sources.js';
 
 const log = createLogger('live');
 const HOUR = 60 * 60 * 1000;
-const LOCAL_STATE = path.join(path.dirname(new URL(import.meta.url).pathname), '..', '.live-state.json');
+const LOCAL_STATE = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', '.live-state.json');
 
 // Older than this when first seen, an article is history, not news.
 const MAX_AGE = 36 * HOUR;
@@ -132,11 +134,24 @@ function monthOf(ms) {
 export async function update({ now = Date.now() } = {}) {
     const state = await loadState();
     const meter = { usd: 0, calls: 0 };
+    // Every text the model writes in this update, to be proofread at the end.
+    const proof = [];
     const month = monthOf(now);
     if (state.spend.month !== month) state.spend = { month, usd: 0 };
     const monthly = Number(process.env.LIVE_MONTHLY_BUDGET ?? 40);
     const perRun = Number(process.env.LIVE_RUN_BUDGET ?? 1.5);
+    // A state older than three hours means the last updates did not publish
+    // (a broken token, an outage). Writing on top of it would pay again for
+    // everything since, every ten minutes, so Claude waits until a plain
+    // update has published and the state is fresh again.
+    const stale = state.updatedAt > 0 && now - state.updatedAt > 3 * HOUR && !process.env.LIVE_IGNORE_STALE;
+    if (stale)
+        log(
+            `The published state is ${Math.round((now - state.updatedAt) / HOUR)} h old; Claude is off until it publishes.`,
+            'ERROR',
+        );
     const canSpend = () =>
+        !stale &&
         !process.env.LIVE_NO_AI &&
         Boolean(process.env.ANTHROPIC_API_KEY) &&
         state.spend.usd + meter.usd < monthly &&
@@ -184,8 +199,10 @@ export async function update({ now = Date.now() } = {}) {
         try {
             decisions = await clusterItems({ stories: active, items: batch, sourceName, meter });
         } catch (err) {
-            // Left unseen, these items are tried again next update.
+            // Asked once more next update, then let go, like an unanswered item;
+            // otherwise the same failing batch would come back for 36 hours.
             log(`Sorting failed: ${err.message}`, 'WARN');
+            for (const it of batch) state.seen[state.seen[`?${it.id}`] ? it.id : `?${it.id}`] = now;
             continue;
         }
         const created = new Map();
@@ -247,7 +264,10 @@ export async function update({ now = Date.now() } = {}) {
             4,
             async (it) => {
                 try {
-                    const page = await fetchSmart(it.url, it.source, { timeoutMs: 12000, accept: 'text/html' });
+                    // Only the source's own site: a feed cannot send the job
+                    // (or the Mac mini) to any other address.
+                    const site = siteOf(SOURCE_BY_ID.get(it.source)?.home);
+                    const page = await fetchSmart(it.url, it.source, { timeoutMs: 12000, accept: 'text/html', site });
                     texts.set(it.id, articleText(page));
                 } catch {
                     // The feed's own excerpt stands in.
@@ -264,23 +284,24 @@ export async function update({ now = Date.now() } = {}) {
             log(`Writing ${story.id} failed: ${err.message}`, 'WARN');
             for (const it of pending) {
                 it.tries = (it.tries ?? 0) + 1;
-                if (it.tries >= MAX_TRIES) delete it.pending;
+                if (it.tries >= MAX_TRIES) {
+                    delete it.pending;
+                    delete it.description;
+                }
             }
             return;
         }
-        applyWrite(story, pending, result, now);
+        applyWrite(story, pending, result, now, proof);
     });
-    // An item the writer never got to (too many at once) still counts for heat.
-    for (const s of state.stories) {
-        for (const it of s.items) {
-            if (it.pending && (it.tries ?? 0) >= MAX_TRIES) delete it.pending;
-        }
-    }
+    // A story keeps its newest 400 items: enough for any page, and the state
+    // stays small however long a big story runs.
+    for (const s of state.stories) if (s.items.length > 400) s.items = s.items.sort((a, b) => a.at - b.at).slice(-400);
 
     // ─── Depth: places, how each side tells it, parliament ──────────────
+    if (canSpend()) await mergeSame(state, now, meter, log);
     if (canSpend()) await fillPlaces(state, meter, log);
-    await frameStories(state, now, meter, canSpend, log);
-    await readParliament(state, now, meter, canSpend, log);
+    await frameStories(state, now, meter, canSpend, log, proof);
+    await readParliament(state, now, meter, canSpend, log, proof);
 
     // ─── Overview ────────────────────────────────────────────────────────
     const ranked = rankStories(state.stories, now)
@@ -295,9 +316,31 @@ export async function update({ now = Date.now() } = {}) {
     if (ranked.length && due && canSpend()) {
         try {
             const lines = await writeOverview({ ranked, meter });
-            if (lines.length) state.overview = { at: now, topKey, lines };
+            if (lines.length) {
+                for (const l of lines) {
+                    l.text = tidy(l.text);
+                    proof.push([l, 'text']);
+                }
+                state.overview = { at: now, topKey, lines };
+            }
         } catch (err) {
             log(`Overview failed: ${err.message}`, 'WARN');
+        }
+    }
+
+    // ─── Proofreading: one pass over everything written in this update ───
+    const queued = proof.filter(([o, f]) => typeof o[f] === 'string' && o[f].trim());
+    if (queued.length && canSpend()) {
+        try {
+            const fixes = await proofread({ texts: queued.map(([o, f]) => o[f]), meter });
+            for (const [i, text] of fixes) {
+                const [o, f] = queued[i];
+                log(`  proof: ${o[f].slice(0, 120)} → ${text.slice(0, 120)}`);
+                o[f] = tidy(text);
+            }
+            log(`Proofread ${queued.length} texts, corrected ${fixes.size}.`);
+        } catch (err) {
+            log(`Proofreading failed: ${err.message}`, 'WARN');
         }
     }
 
@@ -314,17 +357,19 @@ export async function update({ now = Date.now() } = {}) {
     return state;
 }
 
-export function applyWrite(story, pending, result, now) {
-    if (result.title?.trim()) story.title = result.title.trim().slice(0, 140);
-    if (result.summary?.trim()) story.summary = result.summary.trim().slice(0, 600);
-    story.disputed = (result.disputed ?? '').trim().slice(0, 400);
+export function applyWrite(story, pending, result, now, proof = []) {
+    if (result.title?.trim()) story.title = tidy(result.title).slice(0, 140);
+    if (result.summary?.trim()) story.summary = tidy(result.summary).slice(0, 600);
+    story.disputed = tidy(result.disputed ?? '').slice(0, 400);
+    proof.push([story, 'title'], [story, 'summary'], [story, 'disputed']);
     if (typeof result.place === 'string') story.place = result.place;
     const related = (result.related ?? []).map((n) => result.past?.[n]).filter(Boolean);
     if (related.length && result.background?.trim()) {
         story.context = {
-            background: result.background.trim().slice(0, 500),
+            background: tidy(result.background).slice(0, 500),
             related: related.slice(0, 3).map((p) => ({ title: p.title, summary: p.summary, at: p.at })),
         };
+        proof.push([story.context, 'background']);
     }
     for (const r of result.items ?? []) {
         const it = pending[r.n];
@@ -338,16 +383,19 @@ export function applyWrite(story, pending, result, now) {
     for (const e of result.events ?? []) {
         const refs = (e.n ?? []).map((n) => pending[n]).filter(Boolean);
         if (!refs.length || !e.what?.trim()) continue;
-        story.timeline.push({
+        const event = {
             at: Math.min(...refs.map((r) => r.at)),
-            actor: (e.actor ?? '').trim().slice(0, 60),
-            who: (e.who ?? '').trim().slice(0, 120),
-            what: e.what.trim().slice(0, 400),
+            actor: tidy(e.actor ?? '').slice(0, 60),
+            who: tidy(e.who ?? '').slice(0, 120),
+            what: tidy(e.what).slice(0, 400),
             items: refs.map((r) => r.id),
-        });
+        };
+        story.timeline.push(event);
+        proof.push([event, 'who'], [event, 'what']);
     }
     story.timeline.sort((a, b) => a.at - b.at);
-    if (story.timeline.length > 60) story.timeline = story.timeline.slice(-60);
+    // Long timelines keep how it began and the latest 70 steps.
+    if (story.timeline.length > 80) story.timeline = [...story.timeline.slice(0, 10), ...story.timeline.slice(-70)];
     for (const it of pending) {
         delete it.pending;
         delete it.tries;

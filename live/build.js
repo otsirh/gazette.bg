@@ -25,7 +25,7 @@ export const SITE_ORIGIN = 'https://live.gazette.bg';
 const HOUR = 3600 * 1000;
 
 // Bumped by hand when style.css or live.js change, so browsers fetch them anew.
-const ASSET_VERSION = '6';
+const ASSET_VERSION = '8';
 
 const esc = (s) =>
     String(s ?? '')
@@ -229,7 +229,7 @@ function footer() {
     <div class="wrap footer-inner">
         <div class="footer-brand"><span class="live-dot" aria-hidden="true"></span> live.gazette.bg</div>
         <ul class="legend">${KIND_ORDER.map((k) => `<li><i class="kd k-${k}"></i>${esc(KINDS[k].long)}</li>`).join('')}</ul>
-        <p>Историите, обобщенията и хронологиите се съставят автоматично с изкуствен интелект (Claude на Anthropic) от ${SOURCES.length} медии, телевизии и официални канала и може да съдържат грешки. Всяко твърдение води към материала, от който е взето.</p>
+        <p>Историите, обобщенията и хронологиите се съставят автоматично с изкуствен интелект (Claude на Anthropic) от ${SOURCES.length} източника и може да съдържат грешки. Всяко твърдение води към материала, от който е взето.</p>
         <p><a href="/sources/">Източници и как се оценяват</a> · <a href="/media/">Досие на медиите</a></p>
     </div>
 </footer>`;
@@ -297,7 +297,7 @@ function heroBlock(state, ranked, mainCount, now) {
     return `<section class="hero" aria-labelledby="hero-title">
     <p class="hero-kicker"><span class="live-dot" aria-hidden="true"></span>${esc(fmtLongDay.format(now))}</p>
     <h1 id="hero-title" class="hero-title">Какво се случва<br>в България сега</h1>
-    <p class="hero-stats"><span><b>${mainCount}</b> актуални истории</span><span><b class="t-hot">${hot}</b> горещи</span><span><b>${outletsToday}</b> медии днес</span><span>обновено ${timeEl(state.updatedAt || now, now, true)}</span></p>
+    <p class="hero-stats"><span><b>${mainCount}</b> ${mainCount === 1 ? 'актуална история' : 'актуални истории'}</span><span><b class="t-hot">${hot}</b> ${hot === 1 ? 'гореща' : 'горещи'}</span><span><b>${outletsToday}</b> ${outletsToday === 1 ? 'медия' : 'медии'} днес</span><span>обновено ${timeEl(state.updatedAt || now, now, true)}</span></p>
     ${brief}
 </section>`;
 }
@@ -707,7 +707,7 @@ function spreadBlock(story, now) {
     return `<section class="panel" aria-labelledby="spread">
     <h2 id="spread" class="panel-title">Как тръгна и как се разнесе <span>всяка точка е материал; линията води към този, когото цитира</span></h2>
     ${svg}
-    <details class="tree-details"><summary>Като дърво, с всички заглавия</summary><div class="tree">${treeHtml(spreadTree(story), now)}</div></details>
+    ${story.items.length <= LIST_MAX ? `<details class="tree-details"><summary>Като дърво, с всички заглавия</summary><div class="tree">${treeHtml(spreadTree(story), now)}</div></details>` : ''}
 </section>`;
 }
 
@@ -726,7 +726,7 @@ function videoBlock(story, now) {
     const vids = videosOf(story);
     if (!vids.length) return '';
     return `<section class="panel panel-video" aria-labelledby="videos">
-    <h2 id="videos" class="panel-title">▶ Чуйте сами <span>${plural(vids.length, 'видео', 'видеа')}, най-новото първо</span></h2>
+    <h2 id="videos" class="panel-title">▶ Чуй какво казват <span>${plural(vids.length, 'видео', 'видеа')}, най-новото първо</span></h2>
     <ul class="videos">${vids
         .slice(0, 4)
         .map((v) => videoTile(v, now))
@@ -769,16 +769,20 @@ function timelineBlock(story) {
 </section>`;
 }
 
+const LIST_MAX = 120;
+
 function sourcesBlock(story, now) {
-    const rows = [...story.items]
-        .sort((a, b) => a.at - b.at)
+    const sorted = [...story.items].sort((a, b) => a.at - b.at);
+    const rows = sorted
+        .slice(0, LIST_MAX)
         .map(
             (i) =>
                 `<li>${timeEl(i.at, now)} ${kindDot(i.source)}<b>${sourceLabel(i.source)}</b>${i.kind === 'video' ? ' ▶' : ''} ${ext(i.url, esc(i.title))}</li>`,
         );
     return `<details class="panel all-items">
-    <summary class="panel-title">Всички ${plural(rows.length, 'материал', 'материала')} <span>най-старото първо</span></summary>
+    <summary class="panel-title">Всички ${plural(sorted.length, 'материал', 'материала')} <span>най-старото първо</span></summary>
     <ul class="item-list">${rows.join('')}</ul>
+    ${sorted.length > LIST_MAX ? `<p class="quiet small">Показани са първите ${LIST_MAX} от ${sorted.length}.</p>` : ''}
 </details>`;
 }
 
@@ -798,6 +802,24 @@ function storyPage(state, r, ranked, now) {
     const origin = originOf(s);
     const videos = videosOf(s).length;
     const url = `${SITE_ORIGIN}/s/${s.id}/`;
+    const blocks = {
+        context: contextBlock(s, now),
+        videos: videoBlock(s, now),
+        framing: framingBlock(s, now),
+        voices: actorsBlock(s, now),
+        spread: spreadBlock(s, now),
+        timeline: timelineBlock(s),
+    };
+    const nav = [
+        ['videos', `▶ ${plural(videos, 'видео', 'видеа')}`],
+        ['framing', 'Как го представят'],
+        ['voices', 'Кой какво казва'],
+        ['spread', 'Разпространение'],
+        ['timeline', 'Хронология'],
+    ]
+        .filter(([id]) => blocks[id] && (id !== 'timeline' || s.timeline.length))
+        .map(([id, label]) => `<a class="btn btn-ghost" href="#${id}">${label}</a>`)
+        .join('');
     const originStat = origin
         ? stat(
               'Първи съобщи',
@@ -820,8 +842,7 @@ ${topbar(state, now)}
     ${s.summary ? `<p class="lede">${esc(s.summary)}</p>` : ''}
     <div class="actions">
         <button type="button" class="btn" data-share data-share-title="${esc(s.title)}" data-share-url="${url}">${ICONS.share} Сподели</button>
-        ${videos ? `<a class="btn btn-ghost" href="#videos">▶ ${plural(videos, 'видео', 'видеа')}</a>` : ''}
-        <a class="btn btn-ghost" href="#timeline">Хронология</a>
+        ${nav}
     </div>
     <dl class="stats">
         ${stat('Достоверност', `<span class="trust trust-${r.trust.id}">${esc(r.trust.label)}</span>${coverageBar(s, { legend: true })}`)}
@@ -831,12 +852,12 @@ ${topbar(state, now)}
     </dl>
     ${r.trust.disputed ? `<p class="disputed"><b>⚠ Спорно:</b> ${esc(r.trust.disputed)}</p>` : ''}
 </header>
-${contextBlock(s, now)}
-${videoBlock(s, now)}
-${framingBlock(s, now)}
-${actorsBlock(s, now)}
-${spreadBlock(s, now)}
-${timelineBlock(s)}
+${blocks.context}
+${blocks.videos}
+${blocks.framing}
+${blocks.voices}
+${blocks.spread}
+${blocks.timeline}
 ${sourcesBlock(s, now)}
 ${moreBlock(r, ranked, now)}
 </main>
@@ -898,7 +919,7 @@ ${topbar(state, now)}
 <main class="wrap">
 <a class="back" href="/">← Всичко, което се случва сега</a>
 <header class="story-head"><h1>Досие на медиите</h1>
-<p class="lede">Как всяка медия се държи в новините, които следим: съобщава ли първа, посочва ли откъде знае, цитират ли я другите. Само данни, събирани от ${esc(fmtLongDay.format(since))} насам, без мнение. С всеки ден картината е по-точна.</p></header>
+<p class="lede">Как всяка медия се държи в новините, които следим: съобщава ли първа, посочва ли откъде знае, цитират ли я другите. Само данни, събирани от ${esc(fmtLongDay.format(since))}, насам, без мнение. С всеки ден картината е по-точна.</p></header>
 <div class="panel table-panel">
 <table class="dossier" data-sortable>
     <thead><tr>
@@ -916,7 +937,7 @@ ${topbar(state, now)}
 <div class="prose panel">
 <p><b>Истории</b> — само истории, отразени от поне 3 медии: там има кой да е пръв. <b>Първа</b> — най-ранният материал по историята. <b>Закъснение</b> — средно колко след първия излиза нейният материал (бавно не е лошо, ако е проверено).</p>
 <p><b>Посочва източник</b> — материалите, които казват откъде е новината: друга медия, институция или човек, който говори. <b>Собствени</b> — собствен репортаж без чужд източник. <b>Цитирана</b> — колко пъти други материали я посочват като източник.</p>
-<p>Кой какво цитира, определя автоматично изкуствен интелект по текста на материалите и може да греши в отделни случаи. Сортирай с клик върху заглавие на колона.</p>
+<p>Кой кого цитира, определя автоматично изкуствен интелект по текста на материалите, така че в отделни случаи може да греши. Подреди таблицата, като кликнеш върху заглавието на колона.</p>
 </div>
 </main>
 ${footer()}
@@ -942,7 +963,7 @@ function sourcesPage(state, now) {
     }).join('\n');
     return `${head({
         title: 'Източници и как се оценяват — live.gazette.bg',
-        description: `Кои ${SOURCES.length} медии, телевизии и официални канала чете live.gazette.bg и колко тежи думата на всеки.`,
+        description: `Кои ${SOURCES.length} източника чете live.gazette.bg и колко тежи думата на всеки.`,
         canonical: `${SITE_ORIGIN}/sources/`,
         image: `${SITE_ORIGIN}/og/home.png?v=${state.updatedAt}`,
     })}
@@ -951,7 +972,7 @@ ${topbar(state, now)}
 <main class="wrap narrow">
 <a class="back" href="/">← Всичко, което се случва сега</a>
 <header class="story-head"><h1>Източници и как се оценяват</h1>
-<p class="lede">Четем ${SOURCES.length} медии, телевизии и официални канала от всички страни: колкото повече гледни точки, толкова по-ясна картина.</p></header>
+<p class="lede">Четем ${SOURCES.length} източника от всички страни: медии, телевизии, независими автори, институции и партии. Колкото повече гледни точки, толкова по-ясна картина.</p></header>
 <div class="prose panel">
 <p><b>Тежестта на източника</b> идва от проверими неща, не от политическата му линия: дали говори самата институция или човек, дали медията отговаря по закон за точността си, дали има известен собственик и подписани материали.</p>
 <p><b>Независимите автори</b> са журналисти, коментатори и малки екипи без медия зад тях: известен човек отговаря за казаното, но няма редакция, която да го проверява. Тежат малко по-малко от редакционните медии.</p>
@@ -970,6 +991,7 @@ ${footer()}
 // ─── Output ─────────────────────────────────────────────────────────────
 
 const HEADERS = `/*
+  Strict-Transport-Security: max-age=31536000
   X-Frame-Options: DENY
   X-Content-Type-Options: nosniff
   Referrer-Policy: strict-origin-when-cross-origin
@@ -978,10 +1000,13 @@ const HEADERS = `/*
   Cache-Control: public, max-age=60
 
 /state.json
+  ! Cache-Control
   Cache-Control: no-cache
 /version.json
+  ! Cache-Control
   Cache-Control: no-cache
 /fonts/*
+  ! Cache-Control
   Cache-Control: public, max-age=31536000, immutable
 `;
 
@@ -1044,17 +1069,36 @@ export async function buildSite(state, { now = Date.now(), outDir = OUT_DIR, ima
     fs.rmSync(outDir, { recursive: true, force: true });
     const ranked = rankStories(state.stories, now);
     write(path.join(outDir, 'index.html'), frontPage(state, ranked, now));
-    for (const r of ranked) write(path.join(outDir, 's', r.story.id, 'index.html'), storyPage(state, r, ranked, now));
+    for (const r of ranked) {
+        write(path.join(outDir, 's', r.story.id, 'index.html'), storyPage(state, r, ranked, now));
+        // A story merged into this one keeps its address: it points here.
+        for (const alias of r.story.aliases ?? []) {
+            if (!/^[a-z0-9]{4,16}$/.test(alias)) continue;
+            const to = `/s/${r.story.id}/`;
+            write(
+                path.join(outDir, 's', alias, 'index.html'),
+                `<!DOCTYPE html><html lang="bg"><head><meta charset="UTF-8"><meta http-equiv="refresh" content="0; url=${to}"><link rel="canonical" href="${SITE_ORIGIN}${to}"><meta name="robots" content="noindex"><title>${esc(r.story.title)}</title></head><body><a href="${to}">${esc(r.story.title)}</a></body></html>\n`,
+            );
+        }
+    }
+    const urls = ['/', '/sources/', '/media/', ...ranked.map((r) => `/s/${r.story.id}/`)];
+    write(
+        path.join(outDir, 'sitemap.xml'),
+        `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${urls.map((u) => `<url><loc>${SITE_ORIGIN}${u}</loc></url>`).join('\n')}\n</urlset>\n`,
+    );
     write(path.join(outDir, 'sources', 'index.html'), sourcesPage(state, now));
     write(path.join(outDir, 'media', 'index.html'), mediaPage(state, now));
     write(path.join(outDir, 'state.json'), JSON.stringify(state));
     write(path.join(outDir, 'version.json'), JSON.stringify({ updatedAt: state.updatedAt }));
     write(path.join(outDir, '_headers'), HEADERS);
     write(path.join(outDir, 'manifest.webmanifest'), JSON.stringify(MANIFEST, null, 2));
-    write(path.join(outDir, 'robots.txt'), 'User-agent: *\nAllow: /\nDisallow: /state.json\n');
+    write(
+        path.join(outDir, 'robots.txt'),
+        `User-agent: *\nAllow: /\nDisallow: /state.json\n\nSitemap: ${SITE_ORIGIN}/sitemap.xml\n`,
+    );
     write(
         path.join(outDir, '404.html'),
-        `${head({ title: 'Няма я — live.gazette.bg', description: 'Тази история вече не е актуална.', canonical: `${SITE_ORIGIN}/`, image: `${SITE_ORIGIN}/og/home.png` })}
+        `${head({ title: 'Няма такава страница — live.gazette.bg', description: 'Тази история вече не е актуална.', canonical: `${SITE_ORIGIN}/`, image: `${SITE_ORIGIN}/og/home.png` })}
 <body data-version="${state.updatedAt}">${topbar(state, now)}<main class="wrap narrow"><header class="story-head"><h1>Тази история изстина</h1><p class="lede">За нея отдавна не се пише, затова е махната. Но точно сега се случва друго.</p><p><a class="btn" href="/">Виж какво се случва сега →</a></p></header></main>${footer()}</body></html>\n`,
     );
     for (const f of ['style.css', 'live.js', 'favicon.svg']) {

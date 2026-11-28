@@ -258,3 +258,40 @@ test('an independent author is its own kind and weighs a little less', () => {
     assert.ok(Math.abs(one - 0.8) < 1e-9);
     assert.equal(trustOf(story([item('a', 'karbovski-yt', 1), item('b', 'indzhev', 1)])).firstHand, false);
 });
+
+test('tidy fixes what a rule can fix in Bulgarian text', async () => {
+    const { tidy } = await import('../live/lib/text.js');
+    assert.equal(
+        tidy('Той  заяви ,че "всичко е наред" - и си тръгна...'),
+        'Той заяви, че „всичко е наред“ – и си тръгна…',
+    );
+    assert.equal(tidy('тpaнcпopт и iPhone-а'), 'транспорт и iPhone-а');
+    assert.equal(tidy('В 14:05 ч. на https://x.bg'), 'В 14:05 ч. на https://x.bg');
+});
+
+test('the proofreader may correct, not rewrite', async () => {
+    const { isSmallFix } = await import('../live/lib/ai.js');
+    assert.equal(isSmallFix('Министъра заяви че ще подаде оставка.', 'Министърът заяви, че ще подаде оставка.'), true);
+    assert.equal(isSmallFix('Министърът заяви, че ще подаде оставка.', 'Премиерът подаде оставка.'), false);
+});
+
+test('merging two stories keeps both sets of items and the old address', async () => {
+    const { mergeInto } = await import('../live/lib/depth.js');
+    const a = story([item('a', 'bta', 2)], {
+        id: 'aaaa1111',
+        timeline: [{ at: NOW, who: 'X', what: 'каза', items: ['a'] }],
+    });
+    const b = story([item('a', 'bta', 2), item('b', 'sega', 1)], {
+        id: 'bbbb2222',
+        createdAt: NOW - 20 * HOUR,
+        timeline: [{ at: NOW, who: 'X', what: 'каза', items: ['a'] }],
+    });
+    mergeInto(a, [b]);
+    assert.deepEqual(
+        a.items.map((i) => i.id),
+        ['a', 'b'],
+    );
+    assert.equal(a.timeline.length, 1);
+    assert.deepEqual(a.aliases, ['bbbb2222']);
+    assert.equal(a.createdAt, NOW - 20 * HOUR);
+});

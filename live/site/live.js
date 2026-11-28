@@ -135,7 +135,9 @@ function applyFilter(id) {
         if (ok) shown++;
     }
     for (const group of document.querySelectorAll('.feed .group')) {
-        group.hidden = !group.querySelector('[data-story]:not([hidden])');
+        // A group without cards (the map) shows only under "all".
+        if (group.querySelector('[data-story]')) group.hidden = !group.querySelector('[data-story]:not([hidden])');
+        else group.hidden = id !== 'all';
     }
     for (const b of document.querySelectorAll('[data-filter]')) {
         const on = b.dataset.filter === id;
@@ -198,6 +200,10 @@ async function swapIn() {
         return;
     }
     document.querySelector('main').replaceWith(main);
+    document.querySelector('.fresh-bar')?.remove();
+    // A story page's own data (heat, level) lives on <body>.
+    for (const [k, v] of Object.entries(doc.body.dataset)) document.body.dataset[k] = v;
+    document.body.className = doc.body.className;
     const status = doc.querySelector('[data-status]');
     if (status) document.querySelector('[data-status]')?.replaceWith(status);
     document.body.dataset.version = doc.body.dataset.version;
@@ -214,8 +220,10 @@ async function checkForUpdate() {
         if (!res.ok) return;
         const { updatedAt } = await res.json();
         if (!updatedAt || String(updatedAt) === version()) return;
-        // Nothing to lose at the top of the page: just swap it in.
-        if (scrollY < 120) {
+        // Nothing to lose at the top of the page: just swap it in, unless a
+        // video is playing or the reader has opened something.
+        const busy = document.querySelector('main iframe, main details[open]');
+        if (scrollY < 120 && !busy) {
             await swapIn();
             return;
         }
@@ -224,9 +232,9 @@ async function checkForUpdate() {
         bar.type = 'button';
         bar.className = 'fresh-bar';
         bar.textContent = '↻ Има нови развития — покажи';
-        bar.addEventListener('click', async () => {
+        bar.addEventListener('click', () => {
             bar.remove();
-            await swapIn();
+            swapIn().catch(() => location.reload());
         });
         document.body.append(bar);
     } catch {

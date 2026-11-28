@@ -112,37 +112,77 @@ function decode(buf, contentType) {
     }
 }
 
+const MAX_BYTES = 5 * 1024 * 1024;
+
+// The registrable part of a host ("www.dnevnik.bg" → "dnevnik.bg"), to keep
+// fetches on the source's own site.
+export function siteOf(url) {
+    try {
+        return new URL(url).hostname.split('.').slice(-2).join('.');
+    } catch {
+        return null;
+    }
+}
+
+function onSite(url, site) {
+    if (!site) return true;
+    try {
+        const host = new URL(url).hostname;
+        return host === site || host.endsWith(`.${site}`);
+    } catch {
+        return false;
+    }
+}
+
 // Through a SOCKS5 proxy, which Node's fetch cannot use: curl can, and is on
-// every runner. The status and type come after the body, on a line of their own.
-function fetchViaProxy(url, { timeoutMs, accept, proxy }) {
+// every runner. Status, final address and type come after the body, on a line
+// of their own.
+function fetchViaProxy(url, { timeoutMs, accept, proxy, site }) {
     const { host } = new URL(proxy);
-    const args = ['-sS', '-L', '--max-time', String(Math.ceil(timeoutMs / 1000)), '--socks5-hostname', host];
-    args.push('-A', USER_AGENT, '-H', `Accept: ${accept}`, '-H', 'Accept-Language: bg,en;q=0.5');
-    args.push('-w', '\n%{http_code} %{content_type}', '--', url);
+    const args = ['-sS', '-L', '--max-redirs', '5', '--max-time', String(Math.ceil(timeoutMs / 1000))];
+    args.push('--proto', '=http,https', '--proto-redir', '=http,https', '--max-filesize', String(MAX_BYTES));
+    args.push(
+        '--socks5-hostname',
+        host,
+        '-A',
+        USER_AGENT,
+        '-H',
+        `Accept: ${accept}`,
+        '-H',
+        'Accept-Language: bg,en;q=0.5',
+    );
+    args.push('-w', '\n%{http_code} %{url_effective} %{content_type}', '--', url);
     return new Promise((resolve, reject) => {
-        execFile('curl', args, { encoding: 'buffer', maxBuffer: 32 * 1024 * 1024 }, (err, stdout) => {
+        execFile('curl', args, { encoding: 'buffer', maxBuffer: MAX_BYTES + 65536 }, (err, stdout) => {
             if (err) return reject(new Error(`via proxy: ${String(err.message).split('\n')[0]}`));
             const cut = stdout.lastIndexOf(10);
-            const [code, ...type] = stdout
+            const [code, finalUrl, ...type] = stdout
                 .subarray(cut + 1)
                 .toString('latin1')
                 .split(' ');
             if (code !== '200') return reject(new Error(`HTTP ${code} via proxy`));
+            if (!onSite(finalUrl, site)) return reject(new Error('redirected off the source site'));
             resolve(decode(new Uint8Array(stdout.subarray(0, cut)), type.join(' ')));
         });
     });
 }
 
 // `proxy` (socks5://host:port) is used when given; otherwise a direct fetch.
-export async function fetchText(url, { timeoutMs = 15000, accept = '*/*', proxy = null } = {}) {
-    if (proxy) return fetchViaProxy(url, { timeoutMs, accept, proxy });
+// `site`, when given, is the only site the request may end up on.
+export async function fetchText(url, { timeoutMs = 15000, accept = '*/*', proxy = null, site = null } = {}) {
+    if (!onSite(url, site)) throw new Error('not on the source site');
+    if (proxy) return fetchViaProxy(url, { timeoutMs, accept, proxy, site });
     const res = await fetch(url, {
         headers: { 'User-Agent': USER_AGENT, Accept: accept, 'Accept-Language': 'bg,en;q=0.5' },
         redirect: 'follow',
         signal: AbortSignal.timeout(timeoutMs),
     });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    return decode(new Uint8Array(await res.arrayBuffer()), res.headers.get('content-type'));
+    if (!onSite(res.url, site)) throw new Error('redirected off the source site');
+    if (Number(res.headers.get('content-length') ?? 0) > MAX_BYTES) throw new Error('too large');
+    const buf = new Uint8Array(await res.arrayBuffer());
+    if (buf.length > MAX_BYTES) throw new Error('too large');
+    return decode(buf, res.headers.get('content-type'));
 }
 
 // Runs fn over items, at most `limit` at a time.
