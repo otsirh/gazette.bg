@@ -530,3 +530,16 @@ test('tidyState reaches every text the model wrote, not outlet headlines', async
     assert.equal(state.overview.lines[0].text, 'до 5–10 см');
     assert.equal(s.items[0].title, 'Очкават сняг 9.5 км', 'an outlet headline is theirs');
 });
+
+test('originOf: an institution broke the news, a quoted person did not', async () => {
+    const { originOf } = await import('../live/lib/stories.js');
+    const byInst = originOf(
+        story([item('a', 'bta', 2, { cites: 'МВР', citesKind: 'institution' }), item('b', 'sega', 1)]),
+    );
+    assert.equal(byInst.name, 'МВР');
+    const byPerson = originOf(
+        story([item('a', 'mediapool', 2, { cites: 'Бойко Борисов', citesKind: 'person' }), item('b', 'sega', 1)]),
+    );
+    assert.equal(byPerson.name, 'Медиапул');
+    assert.equal(byPerson.words, 'Бойко Борисов');
+});

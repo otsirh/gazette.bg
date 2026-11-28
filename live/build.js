@@ -33,7 +33,7 @@ const CONTACT = /^[^\s@<>"]+@[^\s@<>"]+\.[a-z]{2,}$/i.test(process.env.LIVE_CONT
 const HOUR = 3600 * 1000;
 
 // Bumped by hand when style.css or live.js change, so browsers fetch them anew.
-const ASSET_VERSION = '19';
+const ASSET_VERSION = '20';
 
 const esc = (s) =>
     String(s ?? '')
@@ -211,6 +211,13 @@ function tempBadge(r) {
     return `<span class="temp heat-${r.level.id}" title="Нажеженост: колко се говори в момента"><b>${tempOf(r.heat)}°</b></span>`;
 }
 
+// On a card: only which way it is going. The level ("Гореща") is the group
+// the card sits in, and the details are on the story page.
+function cardTrend(r) {
+    const t = TREND[r.trend];
+    return `<span class="trend trend-${r.trend}">${t.sym} ${esc(t.label)}</span>`;
+}
+
 function chips(r, now) {
     const t = TREND[r.trend];
     const lastHour = r.story.items.filter((i) => now - i.at < HOUR).length;
@@ -295,19 +302,15 @@ function cardData(r) {
     return `data-story="${esc(s.id)}" data-first="${Math.min(...s.items.map((i) => i.at))}" data-last="${lastAt(s)}" data-level="${r.level.id}" data-trust="${r.trust.id}" data-video="${videosOf(s).length ? 1 : 0}"`;
 }
 
-function cardMeta(r, now) {
+function cardMeta(r) {
     const s = r.story;
-    const origin = originOf(s);
     const videos = videosOf(s).length;
     const place = placeOf(s.place);
     return [
         `<span class="trust trust-${r.trust.id}">${esc(r.trust.label)}</span>`,
-        place ? `<span class="place">${ICONS.pin}${esc(place.name)}</span>` : '',
         `<span>${plural(r.trust.outlets, 'медия', 'медии')}</span>`,
-        origin
-            ? `<span class="origin">първо: ${origin.source ? srcMark(origin.source) : ''}<b>${esc(origin.name)}</b> ${timeEl(origin.at, now)}</span>`
-            : '',
-        videos ? `<span class="has-video">▶ ${videos}</span>` : '',
+        videos ? `<span class="has-video">▶ ${plural(videos, 'видео', 'видеа')}</span>` : '',
+        place ? `<span class="place">${ICONS.pin}${esc(place.name)}</span>` : '',
         r.trust.disputed ? '<span class="has-dispute">⚠ противоречия</span>' : '',
     ]
         .filter(Boolean)
@@ -335,11 +338,10 @@ function storyCard(r, now, { big = false, wide = false } = {}) {
     <a class="card-link" href="/s/${esc(s.id)}/">
         ${video ? `<span class="card-thumb"><img src="${thumb(video.videoId)}" alt="" loading="lazy" width="320" height="180" /><span class="play" aria-hidden="true">${ICONS.play}</span><span class="thumb-src">YouTube</span></span>` : ''}
         <span class="card-body">
-            <span class="card-top">${tempBadge(r)}${chips(r, now)}<span class="ago">${timeEl(lastAt(s), now, true)}</span></span>
+            <span class="card-top">${tempBadge(r)}${cardTrend(r)}<span class="ago">${timeEl(lastAt(s), now, true)}</span></span>
             <span class="card-title">${esc(s.title)}</span>
             ${s.summary ? `<span class="card-summary">${esc(s.summary)}</span>` : ''}
-            ${coverageBar(s)}
-            <span class="card-foot"><span class="meta">${cardMeta(r, now)}</span>${sparkSvg(sparkline(s, now))}</span>
+            <span class="card-foot"><span class="meta">${cardMeta(r)}</span></span>
         </span>
     </a>
     <button type="button" class="icon-btn card-share" data-share data-share-title="${esc(s.title)}" data-share-url="${SITE_ORIGIN}/s/${esc(s.id)}/" aria-label="Сподели">${ICONS.share}</button>
@@ -352,7 +354,10 @@ function rowItem(r, now, note = '') {
 
 function heroBlock(state, ranked, mainCount, now) {
     const byId = new Map(ranked.map((r) => [r.story.id, r]));
-    const lines = (state.overview?.lines ?? []).filter((l) => byId.has(l.story));
+    // Hottest first, like the rest of the page.
+    const lines = (state.overview?.lines ?? [])
+        .filter((l) => byId.has(l.story))
+        .sort((a, b) => byId.get(b.story).heat - byId.get(a.story).heat);
     const hot = ranked.filter((r) => r.level.id === 'hot').length;
     const outletsToday = new Set(
         ranked.flatMap((r) => r.story.items.filter((i) => now - i.at < 24 * HOUR).map((i) => outletOf(i.source))),
@@ -377,15 +382,15 @@ function heroBlock(state, ranked, mainCount, now) {
 
 function welcomeBlock() {
     // Shown by live.js on a first visit only.
-    return `<section class="welcome" data-welcome hidden aria-label="Как се чете страницата">
-    <p class="welcome-title">Тук за минута виждаш какво става в държавата.</p>
+    return `<details class="welcome" data-welcome hidden>
+    <summary><span>Нов си тук? <b>Как се чете страницата</b></span></summary>
     <ul class="welcome-points">
         <li><span class="wp-icon wp-hot">87°</span><span><b>Горещото е отгоре.</b> Колкото повече медии пишат, толкова по-високо. Щом спрат, историята изстива и изчезва.</span></li>
         <li><span class="wp-icon wp-ok">✓</span><span><b>Знаеш на кого да вярваш.</b> Кой пръв е съобщил новината, колко медии я потвърждават и какви са.</span></li>
         <li><span class="wp-icon wp-vid">▶</span><span><b>Чуваш хората сами.</b> Видеата от телевизиите, институциите и партиите, на едно място.</span></li>
     </ul>
-    <button type="button" class="btn" data-welcome-close>Ясно, покажи ми</button>
-</section>`;
+    <button type="button" class="btn" data-welcome-close>Ясно, скрий</button>
+</details>`;
 }
 
 function filters() {
@@ -406,6 +411,7 @@ function filters() {
 }
 
 function justIn(ranked, now) {
+    // An item without its own headline (a protected story) shows the story's.
     const latest = ranked
         .filter((r) => r.trust.outlets >= 2 || r.trust.firstHand)
         .flatMap((r) => r.story.items.map((it) => ({ it, r })))
@@ -417,7 +423,7 @@ function justIn(ranked, now) {
     <ol class="justin">${latest
         .map(
             ({ it, r }) =>
-                `<li><a href="/s/${esc(r.story.id)}/"><span class="ji-meta">${srcMark(it.source)}${sourceLabel(it.source)}${it.kind === 'video' ? ' ▶' : ''} · ${timeEl(it.at, now, true)}</span><span class="ji-title">${esc(itemTitle(it))}</span></a></li>`,
+                `<li><a href="/s/${esc(r.story.id)}/"><span class="ji-meta">${srcMark(it.source)}${sourceLabel(it.source)}${it.kind === 'video' ? ' ▶' : ''} · ${timeEl(it.at, now, true)}</span><span class="ji-title">${esc(it.title?.trim() ? itemTitle(it) : r.story.title)}</span></a></li>`,
         )
         .join('')}</ol>
 </section>`;
@@ -537,9 +543,9 @@ function frontPage(state, ranked, now) {
 <body class="home" data-version="${state.updatedAt}">
 ${topbar(state, now)}
 <main id="main" class="wrap">
-${welcomeBlock()}
 ${state.silence ? '<p class="silence">Изборен ден: до края на гласуването не показваме социологически проучвания и партийни канали (Изборен кодекс, чл. 182 и 205).</p>' : ''}
 ${heroBlock(state, ranked, main.length, now)}
+${welcomeBlock()}
 <div class="since" data-since hidden></div>
 <div class="layout">
     <div class="feed">
@@ -819,7 +825,7 @@ function storyPage(state, r, ranked, now) {
     const originStat = origin
         ? stat(
               'Първи съобщи',
-              `${esc(origin.name)}<small>${timeEl(origin.at, now)}${origin.via && sourceLabel(origin.via) !== esc(origin.name) ? ` · по материал на ${sourceLabel(origin.via)}` : ''}</small>`,
+              `${esc(origin.name)}<small>${timeEl(origin.at, now)}${origin.via && sourceLabel(origin.via) !== esc(origin.name) ? ` · по материал на ${sourceLabel(origin.via)}` : ''}${origin.words ? ` · по думите на ${esc(origin.words)}` : ''}</small>`,
           )
         : '';
     return `${head({
