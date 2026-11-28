@@ -60,7 +60,8 @@ export function newsClock(stories, now) {
     return (t) => (QUIET_SHARE * t) / HOUR + ((1 - QUIET_SHARE) * before(t)) / rate;
 }
 
-export function heatAt(story, at, clock = WALL_CLOCK) {
+// How much each outlet adds to the story's heat at a moment: outlet → heat.
+export function heatByOutlet(story, at, clock = WALL_CLOCK) {
     const byOutlet = new Map();
     for (const item of story.items) {
         if (item.at > at) continue;
@@ -69,16 +70,24 @@ export function heatAt(story, at, clock = WALL_CLOCK) {
         byOutlet.get(outlet).push(item);
     }
     const nowT = clock(at);
-    let heat = 0;
-    for (const items of byOutlet.values()) {
+    const out = new Map();
+    for (const [outlet, items] of byOutlet) {
         // The outlet's newest item counts in full: it says the outlet is on
         // the story now.
         items.sort((a, b) => b.at - a.at);
+        let heat = 0;
         items.forEach((item, k) => {
             const w = weightOf(item.source) * (k === 0 ? 1 : REPEAT_WEIGHT / k);
             heat += w * 0.5 ** ((nowT - clock(item.at)) / (HALF_LIFE / HOUR));
         });
+        out.set(outlet, heat);
     }
+    return out;
+}
+
+export function heatAt(story, at, clock = WALL_CLOCK) {
+    let heat = 0;
+    for (const h of heatByOutlet(story, at, clock).values()) heat += h;
     return heat;
 }
 
