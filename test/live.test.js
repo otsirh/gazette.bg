@@ -785,7 +785,7 @@ test('only a busy or unreachable API counts as passing trouble', () => {
 
 test('a card says when its story last gained a step; the trend never reads like the group', async () => {
     const out = fs.mkdtempSync(path.join(os.tmpdir(), 'live-'));
-    const s = story([item('a', 'bta', 9), item('b', 'sega', 8), item('c', 'mediapool', 7)], {
+    const s = story([item('a', 'bta', 0.5), item('b', 'sega', 0.5), item('c', 'mediapool', 0.5)], {
         id: 'step1234',
         timeline: [{ at: NOW - 8 * HOUR, who: 'МВР', what: 'съобщи', items: ['b'] }],
     });

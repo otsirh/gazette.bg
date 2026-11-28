@@ -895,66 +895,6 @@ button {
 .badge-new.upd {
     background: var(--k-public);
     box-shadow: 0 0 0 3px color-mix(in srgb, var(--k-public) 25%, transparent);
-}
-.row .badge-new {
-    position: static;
-    margin-left: 8px;
-    flex: none;
-}
-
-/* ─── Rows: cooling and single-source stories ───────── */
-
-.rows {
-    list-style: none;
-    margin: 0;
-    padding: 0;
-    background: var(--surface);
-    border-radius: var(--radius);
-    box-shadow: var(--shadow);
-    overflow: hidden;
-}
-.row + .row {
-    border-top: 1px solid var(--line);
-}
-.row a {
-    display: flex;
-    align-items: baseline;
-    gap: 14px;
-    padding: 12px 16px;
-    transition: background 0.15s;
-}
-.row a:hover {
-    background: var(--surface-2);
-}
-.row .temp {
-    flex: 0 0 34px;
-}
-.row .temp b {
-    font-size: 13px;
-}
-.row-title {
-    flex: 1;
-    font-size: 15px;
-    color: var(--text-2);
-}
-.row-meta {
-    flex: none;
-    font-size: 13px;
-    color: var(--muted);
-    white-space: nowrap;
-}
-.rows-single .row-title {
-    color: var(--muted);
-}
-@media (max-width: 560px) {
-    .row a {
-        flex-wrap: wrap;
-        gap: 4px 12px;
-    }
-    .row-meta {
-        flex-basis: 100%;
-        padding-left: 46px;
-    }
 } /* ─── Rail ──────────────────────────────────────────── */
 
 .rail-box {
@@ -1441,19 +1381,6 @@ button {
 }
 
 /* ─── Place, context, quotes ────────────────────────── */
-
-.place {
-    display: inline-flex;
-    align-items: center;
-    gap: 3px;
-    color: var(--text-2);
-    font-weight: 600;
-}
-.place svg {
-    width: 13px;
-    height: 13px;
-    color: var(--hot);
-}
 
 .quote {
     display: block;

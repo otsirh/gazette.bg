@@ -35,7 +35,7 @@ const CONTACT = /^[^\s@<>"]+@[^\s@<>"]+\.[a-z]{2,}$/i.test(process.env.LIVE_CONT
 const HOUR = 3600 * 1000;
 
 // Bumped by hand when style.css or live.js change, so browsers fetch them anew.
-const ASSET_VERSION = '33';
+const ASSET_VERSION = '34';
 
 const shortHash = (t) => createHash('sha1').update(String(t)).digest('base64url').slice(0, 8);
 
@@ -246,7 +246,6 @@ const thumb = (videoId) => `https://i.ytimg.com/vi/${esc(videoId)}/mqdefault.jpg
 
 const ICONS = {
     play: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5.5v13l11-6.5z" fill="currentColor"/></svg>',
-    pin: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 22s7-6.2 7-12a7 7 0 1 0-14 0c0 5.8 7 12 7 12zm0-9.5a2.5 2.5 0 1 1 0-5 2.5 2.5 0 0 1 0 5z" fill="currentColor"/></svg>',
 };
 
 // ─── Page frame ─────────────────────────────────────────────────────────
@@ -339,12 +338,9 @@ function whyLine(s) {
 function cardMeta(r) {
     const s = r.story;
     const videos = videosOf(s).length;
-    const place = placeOf(s.place);
     return [
-        `<span class="trust trust-${r.trust.id}">${esc(r.trust.label)}</span>`,
         `<span>${plural(r.trust.outlets, 'медия', 'медии')}</span>`,
         videos ? `<span class="has-video">▶ ${plural(videos, 'видео', 'видеа')}</span>` : '',
-        place ? `<span class="place">${ICONS.pin}${esc(place.name)}</span>` : '',
     ]
         .filter(Boolean)
         .join('');
@@ -379,10 +375,6 @@ function storyCard(r, now, { big = false, wide = false } = {}) {
         </span>
     </a>
 </li>`;
-}
-
-function rowItem(r, now, note = '') {
-    return `<li class="row heat-${r.level.id}" ${cardData(r)}><a href="/s/${esc(r.story.id)}/">${tempBadge(r)}<span class="row-title">${esc(r.story.title)}</span><span class="row-meta">${note}${timeEl(lastAt(r.story), now, true)}</span></a></li>`;
 }
 
 function heroBlock(state, ranked, mainCount, now) {
@@ -470,11 +462,6 @@ function frontPage(state, ranked, now) {
         .slice(0, 6);
     const inQuiet = new Set(quiet.map((r) => r.story.id));
     const warm = main.filter((r) => r.level.id === 'warm' && !inQuiet.has(r.story.id));
-    const cool = main.filter((r) => r.level.id === 'cool' && !inQuiet.has(r.story.id)).slice(0, 24);
-    const singles = ranked
-        .filter((r) => !isMain(r))
-        .sort((a, b) => lastAt(b.story) - lastAt(a.story))
-        .slice(0, 15);
     const groups = [];
     if (hot.length) {
         groups.push(`<section class="group" aria-labelledby="g-hot"><h2 id="g-hot" class="group-title t-hot">Горещо <span>за това се пише най-много сега</span></h2>
@@ -490,14 +477,6 @@ function frontPage(state, ranked, now) {
     if (warm.length) {
         groups.push(`<section class="group" aria-labelledby="g-warm"><h2 id="g-warm" class="group-title t-warm">Още новини <span>пише се за тях, но не колкото за горещите</span></h2>
 <ol class="cards">${warm.map((r) => storyCard(r, now)).join('')}</ol></section>`);
-    }
-    if (cool.length) {
-        groups.push(`<section class="group" aria-labelledby="g-cool"><h2 id="g-cool" class="group-title">По-тихо <span>за тези новини вече се пише рядко</span></h2>
-<ol class="rows">${cool.map((r) => rowItem(r, now, `${plural(r.trust.outlets, 'медия', 'медии')} · `)).join('')}</ol></section>`);
-    }
-    if (singles.length) {
-        groups.push(`<section class="group" aria-labelledby="g-single"><h2 id="g-single" class="group-title">Пише само една медия <span>още не е потвърдено</span></h2>
-<ol class="rows rows-single">${singles.map((r) => rowItem(r, now, `${sourceLabel(r.story.items[0].source)} · `)).join('')}</ol></section>`);
     }
     const body = groups.length
         ? groups.join('\n')
@@ -532,7 +511,7 @@ function frontPage(state, ranked, now) {
 ${topbar(state, now)}
 <main id="main" class="wrap">
 ${state.silence ? '<p class="silence">Изборен ден: до края на гласуването не показваме социологически проучвания и партийни канали (Изборен кодекс, чл. 182 и 205).</p>' : ''}
-${heroBlock(state, ranked, main.length, now)}
+${heroBlock(state, ranked, hot.length + quiet.length + warm.length, now)}
 ${welcomeBlock()}
 <div class="since" data-since hidden></div>
 <div class="layout">
