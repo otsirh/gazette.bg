@@ -458,10 +458,10 @@ test('built pages: counts agree with their nouns', async () => {
             else if (f.name.endsWith('.html')) {
                 const text = fs.readFileSync(p, 'utf8').replace(/<[^>]+>/g, ' ');
                 for (const m of text.matchAll(
-                    /(?<![\d,])(\d+)\s+(видео|видеа|медия|медии|материал|материала|история|истории)(?![а-я])/g,
+                    /(?<![\d,])(\d+)\s+(видео|видеа|медия|медии|материал|материала|история|истории|новина|новини|публикация|публикации)(?![а-я])/g,
                 )) {
                     const n = Number(m[1]);
-                    const one = ['видео', 'медия', 'материал', 'история'].includes(m[2]);
+                    const one = ['видео', 'медия', 'материал', 'история', 'новина', 'публикация'].includes(m[2]);
                     if ((n === 1) !== one) bad.push(`${path.relative(out, p)}: ${m[0]}`);
                 }
             }
@@ -698,7 +698,7 @@ test('a cold story and a remembered one keep their pages; „Никой не к�
     };
     await buildSite(state, { now: NOW, outDir: out, images: false });
     const coldPage = fs.readFileSync(path.join(out, 's', 'cold1234', 'index.html'), 'utf8');
-    assert.match(coldPage, /Тази история изстина/);
+    assert.match(coldPage, /Тази новина изстина/);
     assert.match(coldPage, /<meta name="robots" content="noindex"/);
     const gonePage = fs.readFileSync(path.join(out, 's', 'gone1234', 'index.html'), 'utf8');
     assert.match(gonePage, /Забравена история/);
@@ -952,5 +952,16 @@ test('a story that weighs much but is little written about is shown under „Т�
     );
     assert.ok(section.includes('quiet123') && section.includes('нов данък за всички'));
     assert.ok(!section.includes('loud1234'));
+    fs.rmSync(out, { recursive: true, force: true });
+});
+
+test('plain words: a name with a number gets quotes, kinds and trust in everyday words', async () => {
+    const out = fs.mkdtempSync(path.join(os.tmpdir(), 'live-'));
+    const s = story([item('a', '24chasa', 1), item('b', 'sega', 1)], { id: 'plain123' });
+    await buildSite({ updatedAt: NOW, stories: [s], sources: {} }, { now: NOW, outDir: out, images: false });
+    const page = fs.readFileSync(path.join(out, 's', 'plain123', 'index.html'), 'utf8');
+    assert.ok(page.includes('„24 часа“'));
+    assert.ok(page.includes('Още не е потвърдено'));
+    assert.ok(page.includes('частни медии') || page.includes('частна медия'));
     fs.rmSync(out, { recursive: true, force: true });
 });
