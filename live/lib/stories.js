@@ -83,15 +83,19 @@ export function trustOf(story) {
     return { ...level, outlets: outlets.size, firstHand, disputed: story.disputed || '' };
 }
 
-// Who broke the story: the earliest item, or the institution it cites.
+// Who broke the story: the institution the earliest item reports from, or
+// else the outlet that published it first. A person quoted in that item
+// (a politician commenting) did not break the news: they are shown as whose
+// words it carries ("words").
 export function originOf(story) {
     const first = [...story.items].sort((a, b) => a.at - b.at)[0];
     if (!first) return null;
-    if ((first.citesKind === 'institution' || first.citesKind === 'person') && first.cites) {
-        return { name: first.cites, kind: first.citesKind, at: first.at, via: first.source };
+    if (first.citesKind === 'institution' && first.cites) {
+        return { name: first.cites, kind: 'institution', at: first.at, via: first.source };
     }
     const name = (SOURCE_BY_ID.get(first.source)?.name ?? first.source).replace(/ \(видео\)$/, '');
-    return { name, kind: 'media', at: first.at, via: null, source: first.source, video: first.kind === 'video' };
+    const words = first.citesKind === 'person' && first.cites ? first.cites : null;
+    return { name, kind: 'media', at: first.at, via: null, source: first.source, words, video: first.kind === 'video' };
 }
 
 // The spread as a tree: an item hangs under the earlier item of the outlet it
