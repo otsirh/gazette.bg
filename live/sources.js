@@ -27,6 +27,8 @@
 // feed), Alfa.bg (the site now redirects elsewhere).
 // YouTube channels are read through the YouTube Data API (YOUTUBE_API_KEY),
 // never through youtube.com's feeds, which its robots.txt disallows.
+// outlet: channels of one outlet share it ("nova"), so a story told on two
+// of its channels still counts as one outlet, never as confirmation.
 // viaBulgaria: the site turns away addresses outside Bulgaria (GitHub's
 // servers are in the US), so in Actions it is read through the Mac mini.
 
@@ -512,6 +514,28 @@ export const SOURCES = [
         tier: 3,
         why: 'Частна телевизия с лиценз от СЕМ; емисиите и интервютата ѝ.',
         aliases: ['NOVA', 'Нова телевизия', 'Нова', 'nova.bg'],
+    },
+    {
+        id: 'nova-official-yt',
+        outlet: 'nova',
+        name: 'NOVA Official (видео)',
+        home: 'https://www.youtube.com/channel/UCKe2NUqtkmsbnaNG63L7hCQ',
+        feed: yt('UCKe2NUqtkmsbnaNG63L7hCQ'),
+        kind: 'video',
+        tier: 3,
+        why: 'Основният канал на NOVA: репортажи и предавания („Пресечна точка“, „Темата на NOVA“).',
+        aliases: ['NOVA Official'],
+    },
+    {
+        id: 'tvoyatden-yt',
+        outlet: 'nova',
+        name: 'Твоят ден, NOVA NEWS (видео)',
+        home: 'https://www.youtube.com/channel/UCeP-kV07lH5MKeKkvLKVJaQ',
+        feed: yt('UCeP-kV07lH5MKeKkvLKVJaQ'),
+        kind: 'video',
+        tier: 3,
+        why: 'Сутрешният блок на NOVA NEWS: интервюта с политици, експерти и институции.',
+        aliases: ['Твоят ден', 'NOVA NEWS'],
     },
     {
         id: 'bloomberg-yt',
@@ -1499,5 +1523,5 @@ export function sourceIdForName(name) {
 // The outlet a video channel belongs to, so "according to BNT" points at BNT
 // whether we read it from its site or its channel.
 export function outletOf(sourceId) {
-    return sourceId.replace(/-yt$/, '');
+    return SOURCE_BY_ID.get(sourceId)?.outlet ?? sourceId.replace(/-yt$/, '');
 }
