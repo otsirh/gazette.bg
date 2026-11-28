@@ -13,7 +13,17 @@ import { aiRefused } from '../lib/robots.js';
 import { WANTED } from '../watchlist.js';
 import { checkChannel, checkSite } from './check-sources.js';
 
+// Only a refusal a machine can see is rechecked here. A source that cannot
+// be read for another reason (its terms, no usable feed, a channel not yet
+// confirmed) is listed as a reminder, never reported as readable.
+const AUTOMATIC = new Set(['robots', 'ai-input', 'tdm', 'outlet', 'bot-wall']);
+
 async function check(w) {
+    if (w.check.page) {
+        // A bot wall: readable once the page itself answers us.
+        await fetchText(w.check.page, { timeoutMs: 15000 });
+        return { ok: true, note: 'the page answers now' };
+    }
     if (w.check.robotsOf) {
         let robots = '';
         try {
@@ -38,10 +48,10 @@ for (const w of WANTED) {
     } catch (err) {
         r = { ok: false, note: err.message };
     }
-    const manual = w.why === 'terms';
+    const manual = !AUTOMATIC.has(w.why);
     const now = r.ok
         ? manual
-            ? `техническият достъп е отворен; провери условията на ръка — ${r.note}`
+            ? `провери на ръка (${w.why}) — ${r.note}`
             : `✅ вече може — ${r.note}`
         : `❌ ${r.note}`;
     lines.push(`| ${w.name} | ${w.why} | ${now.replace(/\|/g, '/')} |`);

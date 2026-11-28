@@ -1460,6 +1460,7 @@ export const SOURCES = [
     },
     {
         id: 'kfn',
+        viaBulgaria: true,
         name: 'КФН',
         home: 'https://www.fsc.bg',
         feed: 'https://www.fsc.bg/feed/',
@@ -1816,6 +1817,7 @@ export const SOURCES = [
     },
     {
         id: 'silistra-briag',
+        viaBulgaria: true,
         headlinesOnly: true,
         onlyHost: 'silistra.briag.bg',
         name: 'Силистренски бряг',
