@@ -2105,3 +2105,21 @@ button {
     height: 100%;
     background: var(--k-first);
 }
+
+/* The section buttons on a story scroll sideways on a phone, never wrap
+   into a wall of buttons. */
+@media (max-width: 640px) {
+    .actions {
+        flex-wrap: nowrap;
+        overflow-x: auto;
+        scrollbar-width: none;
+        margin-right: -16px;
+        padding-right: 16px;
+    }
+    .actions .btn {
+        flex: none;
+        height: 38px;
+        padding: 0 14px;
+        font-size: 14px;
+    }
+}

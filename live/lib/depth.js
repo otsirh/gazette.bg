@@ -3,9 +3,10 @@
 // it in parliament, and the outlets' track record once it is over.
 
 import { outletOf, SOURCE_BY_ID, tierOf } from '../sources.js';
-import { classifyPlaces, frameStory, parliamentQuotes } from './ai.js';
+import { classifyPlaces, findSameStories, frameStory, parliamentQuotes } from './ai.js';
 import { fetchText, toText } from './feeds.js';
 import { addContributions, rankStories } from './stories.js';
+import { tidy } from './text.js';
 
 const DAY = 24 * 3600 * 1000;
 const MEMORY_DAYS = 90;
@@ -61,7 +62,7 @@ const KIND_LABEL = (id) => {
 
 // How each side tells it: for the busiest stories, again once two more
 // outlets have joined since the last look.
-export async function frameStories(state, now, meter, canSpend, log) {
+export async function frameStories(state, now, meter, canSpend, log, proof = []) {
     const due = rankStories(state.stories, now)
         .filter((r) => r.trust.outlets >= 4)
         .filter((r) => !r.story.framing || r.trust.outlets - r.story.framing.outlets >= 2)
@@ -83,10 +84,70 @@ export async function frameStories(state, now, meter, canSpend, log) {
         }
         try {
             const framing = await frameStory({ story: r.story, lines: lines.slice(0, 60), meter });
+            for (const a of framing.angles) {
+                a.label = tidy(a.label);
+                a.summary = tidy(a.summary);
+                proof.push([a, 'label'], [a, 'summary']);
+            }
+            framing.missing = tidy(framing.missing);
             r.story.framing = { ...framing, outlets: r.trust.outlets, at: now };
+            proof.push([r.story.framing, 'missing']);
         } catch (err) {
             log(`Framing ${r.story.id} failed: ${err.message}`, 'WARN');
         }
+    }
+}
+
+// ─── One event, two stories ─────────────────────────────────────────────
+
+// Folds `others` into `keep`: their items, timeline and context, and their
+// ids, so links to the old pages still find the story.
+export function mergeInto(keep, others) {
+    const itemIds = new Set(keep.items.map((i) => i.id));
+    const quotes = new Set(keep.timeline.map((e) => `${e.who}|${e.what}`));
+    for (const o of others) {
+        for (const it of o.items) {
+            if (itemIds.has(it.id)) continue;
+            keep.items.push(it);
+            itemIds.add(it.id);
+        }
+        for (const e of o.timeline) {
+            const key = `${e.who}|${e.what}`;
+            if (quotes.has(key)) continue;
+            keep.timeline.push(e);
+            quotes.add(key);
+        }
+        keep.createdAt = Math.min(keep.createdAt, o.createdAt);
+        keep.aliases = [...new Set([...(keep.aliases ?? []), o.id, ...(o.aliases ?? [])])];
+        keep.context ??= o.context;
+        if (!keep.place && o.place) keep.place = o.place;
+    }
+    keep.timeline.sort((a, b) => a.at - b.at);
+    if (keep.timeline.length > 80) keep.timeline = keep.timeline.slice(-80);
+    // The angles were read from fewer outlets; look again.
+    delete keep.framing;
+}
+
+export async function mergeSame(state, now, meter, log) {
+    const active = rankStories(state.stories, now)
+        .filter((r) => r.story.summary && (r.trust.outlets >= 2 || r.trust.firstHand))
+        .slice(0, 100)
+        .map((r) => r.story);
+    if (active.length < 2) return;
+    let groups;
+    try {
+        groups = await findSameStories({ stories: active, meter });
+    } catch (err) {
+        log(`Same-story check failed: ${err.message}`, 'WARN');
+        return;
+    }
+    for (const g of groups) {
+        const keep = state.stories.find((s) => s.id === g.keep);
+        const others = state.stories.filter((s) => g.merge.includes(s.id));
+        if (!keep || !others.length) continue;
+        mergeInto(keep, others);
+        state.stories = state.stories.filter((s) => !g.merge.includes(s.id));
+        log(`Merged ${g.merge.join(', ')} into ${g.keep}: ${keep.title}`);
     }
 }
 
@@ -115,7 +176,7 @@ function monthsBack(now, n) {
 // One stenogram per update, oldest unread first. The record is published up
 // to a week after the sitting, so a sitting is retried until its text is
 // there, and given up on after two weeks.
-export async function readParliament(state, now, meter, canSpend, log) {
+export async function readParliament(state, now, meter, canSpend, log, proof = []) {
     state.parliament ??= { done: [] };
     const done = new Set(state.parliament.done);
     const list = [];
@@ -154,14 +215,19 @@ export async function readParliament(state, now, meter, canSpend, log) {
             .filter((r) => r.trust.outlets >= 2)
             .slice(0, 40)
             .map((r) => r.story);
-        const at = Date.parse(`${sitting.t_date}T10:00:00+02:00`);
+        // The sitting's morning; the record gives no hours.
+        const at = Date.parse(`${sitting.t_date}T08:00:00Z`);
         const video =
             rec.video?.default && /^https:\/\/(www\.)?parliament\.bg\//.test(rec.video.default)
                 ? rec.video.default
                 : null;
         let added = 0;
+        let incomplete = false;
         for (let i = 0; i < text.length; i += CHUNK) {
-            if (!canSpend()) break;
+            if (!canSpend()) {
+                incomplete = true;
+                break;
+            }
             let quotes;
             try {
                 quotes = await parliamentQuotes({
@@ -172,29 +238,33 @@ export async function readParliament(state, now, meter, canSpend, log) {
                 });
             } catch (err) {
                 log(`Parliament quotes: ${err.message}`, 'WARN');
+                incomplete = true;
                 continue;
             }
             for (const q of quotes) {
                 const story = state.stories.find((s) => s.id === q.story);
-                if (!story || story.timeline.some((e) => e.quote === q.quote)) continue;
-                story.timeline.push({
+                if (!story || story.timeline.some((e) => e.quote === q.quote.trim().slice(0, 400))) continue;
+                const event = {
                     at,
                     actor: nameCase(q.speaker).slice(0, 60),
                     who: [nameCase(q.speaker), q.role.trim()].filter(Boolean).join(', ').slice(0, 120),
-                    what: q.what.trim().slice(0, 300),
+                    what: tidy(q.what).slice(0, 300),
                     quote: q.quote.trim().slice(0, 400),
                     items: [],
                     source: 'parliament',
                     url: 'https://www.parliament.bg/bg/plenaryst',
                     label: `Стенограма, ${sitting.t_date.split('-').reverse().join('.')}`,
                     video,
-                });
+                };
+                story.timeline.push(event);
+                proof.push([event, 'what']);
                 story.timeline.sort((a, b) => a.at - b.at);
                 added++;
             }
         }
-        state.parliament.done.push(sitting.t_id);
-        log(`Parliament ${sitting.t_date}: ${added} quotes.`);
+        // A sitting read only in part is read again next time, whole.
+        if (!incomplete) state.parliament.done = [...state.parliament.done, sitting.t_id].slice(-200);
+        log(`Parliament ${sitting.t_date}: ${added} quotes${incomplete ? ', incomplete' : ''}.`);
         return; // one sitting per update
     }
 }
