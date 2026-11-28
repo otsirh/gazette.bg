@@ -145,7 +145,7 @@ test('sourceIdForName finds an outlet by any of its names', () => {
     assert.equal(sourceIdForName('БТА'), 'bta');
     assert.equal(sourceIdForName('„Сега“'), 'sega');
     assert.equal(sourceIdForName('Нова телевизия'), 'nova-yt');
-    assert.equal(sourceIdForName('Прокуратурата'), null);
+    assert.equal(sourceIdForName('Сметната палата'), null);
 });
 
 test('applyWrite fills in cites and timeline and clears the pending marks', () => {
@@ -413,4 +413,30 @@ test('YouTube uploads come from the Data API, never the feed, and the key is not
     } finally {
         globalThis.fetch = real;
     }
+});
+
+test('one refusing Anthropic group is enough, even if another allows', async () => {
+    const { aiRefused } = await import('../live/lib/robots.js');
+    assert.equal(aiRefused('User-agent: Claude-User\nAllow: /\n\nUser-agent: ClaudeBot\nDisallow: /\n'), true);
+});
+
+test('a news list page gives dated items with clean headlines', async () => {
+    const { parseList, parseBgDate } = await import('../live/lib/feeds.js');
+    const html = `<ul>
+<li><span class="date">27.11.2026</span><a href="/bg/news/101-statement">Прокуратурата повдигна обвинение на кмета на общината</a></li>
+<li><a href="/bg/news/102-old" title="Министърът откри новата сграда на агенцията">Министърът откри</a><time datetime="2026-11-20T10:00">20 ноември</time></li>
+<li><a href="/bg/about">За нас и нашата история от години насам</a></li>
+<li><a href="/bg/news/103-undated">Съобщение без дата никъде около него в страницата</a></li></ul>`;
+    const items = parseList(html, 'https://example.bg/bg/news', '^/bg/news/\\d+', NOW);
+    assert.deepEqual(
+        items.map((i) => [i.url.split('/').pop(), i.dated]),
+        [
+            ['101-statement', true],
+            ['102-old', true],
+            ['103-undated', true],
+        ].slice(0, 3),
+    );
+    assert.equal(items[1].title, 'Министърът откри новата сграда на агенцията');
+    assert.equal(parseBgDate('23 Ное 2026'), Date.parse('2026-11-23T12:00:00+02:00'));
+    assert.equal(parseBgDate('ноември 17, 2026'), Date.parse('2026-11-17T12:00:00+02:00'));
 });
