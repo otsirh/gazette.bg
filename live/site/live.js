@@ -188,44 +188,6 @@ async function checkForUpdate() {
 
 // ─── What is new in a story for you ──────────────────────────────────────
 
-const json = (key, fallback) => {
-    try {
-        return JSON.parse(store.get(key)) ?? fallback;
-    } catch {
-        return fallback;
-    }
-};
-// When you last opened each story, so its page can mark what came after.
-const storySeen = json('live:storySeen', {});
-
-// On a story page: mark the steps since your last visit, then remember now.
-function markStoryNews() {
-    const id = document.body.classList.contains('story') ? document.body.dataset.story : null;
-    if (!id) return;
-    const since = storySeen[id] ?? 0;
-    let fresh = 0;
-    if (since) {
-        for (const li of document.querySelectorAll('.timeline .tl[data-at]')) {
-            if (Number(li.dataset.at) > since) {
-                li.classList.add('is-new');
-                fresh++;
-            }
-        }
-    }
-    if (fresh && !document.querySelector('.story-news')) {
-        const note = document.createElement('a');
-        note.className = 'story-news';
-        note.href = '#timeline';
-        note.textContent = `${fresh} ${fresh === 1 ? 'нова стъпка' : 'нови стъпки'}, откакто я видя за последно ↓`;
-        document.querySelector('.story-head h1')?.after(note);
-    }
-    storySeen[id] = Date.now();
-    const keep = Object.entries(storySeen)
-        .sort((a, b) => b[1] - a[1])
-        .slice(0, 200);
-    store.set('live:storySeen', JSON.stringify(Object.fromEntries(keep)));
-}
-
 // ─── Keyboard: J and K move between stories, Enter opens ────────────────
 
 document.addEventListener('keydown', (e) => {
@@ -284,7 +246,6 @@ document.addEventListener('click', (e) => {
 });
 
 decorate();
-markStoryNews();
 setInterval(tick, MINUTE);
 
 // Read without a connection: pages you opened stay readable offline.
