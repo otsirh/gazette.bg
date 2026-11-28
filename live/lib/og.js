@@ -85,9 +85,11 @@ export function titleSize(text) {
     return 38;
 }
 
-// One story: level and temperature on top, the headline, then the evidence.
-export async function storyImage({ title, level, levelLabel, temp, outlets, videos, trust }) {
-    const color = levelColor(level);
+// One story: the headline, and nothing that changes by the hour (no
+// temperature, level or counts), so the picture a shared link shows stays
+// true, and the same picture is made on every update.
+export async function storyImage({ title }) {
+    const color = C.hot;
     return render(
         el(
             'div',
@@ -101,35 +103,15 @@ export async function storyImage({ title, level, levelLabel, temp, outlets, vide
                 color: C.text,
             },
             [
-                el('div', { justifyContent: 'space-between', alignItems: 'center' }, [
-                    brand(),
-                    el('div', { alignItems: 'baseline', gap: 10, color }, [
-                        el('div', { fontSize: 64, fontWeight: 700 }, `${temp}°`),
-                        el('div', { fontSize: 24, fontWeight: 700, letterSpacing: 2 }, levelLabel.toUpperCase()),
-                    ]),
-                ]),
+                el('div', { justifyContent: 'space-between', alignItems: 'center' }, [brand()]),
                 el(
                     'div',
                     { fontSize: titleSize(title), fontWeight: 700, lineHeight: 1.18, letterSpacing: -1, lineClamp: 4 },
                     title,
                 ),
                 el('div', { gap: 34, fontSize: 26, color: C.muted, borderTop: `2px solid ${C.line}`, paddingTop: 24 }, [
-                    el('div', { color: C.text }, `${outlets} ${outlets === 1 ? 'медия' : 'медии'}`),
-                    el('div', {}, trust),
+                    el('div', { color: C.text }, 'Какво се случва в България сега'),
                     el('div', {}, 'обобщено с AI'),
-                    videos
-                        ? el('div', { alignItems: 'center', gap: 12, color: C.hot }, [
-                              // Unbounded has no ▶; a drawn triangle stands in.
-                              el('div', {
-                                  width: 0,
-                                  height: 0,
-                                  borderTop: '11px solid transparent',
-                                  borderBottom: '11px solid transparent',
-                                  borderLeft: `18px solid ${C.hot}`,
-                              }),
-                              el('div', {}, `${videos} ${videos === 1 ? 'видео' : 'видеа'}`),
-                          ])
-                        : el('div', {}, ''),
                 ]),
             ],
         ),

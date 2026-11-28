@@ -6,6 +6,7 @@
 // (who carries it, who said it first). A story page then lets you hear the
 // people themselves, and see who said what.
 // Every value from a feed or the model is escaped.
+import { createHash } from 'node:crypto';
 import fs from 'node:fs';
 import { createRequire } from 'node:module';
 import path from 'node:path';
@@ -34,7 +35,9 @@ const CONTACT = /^[^\s@<>"]+@[^\s@<>"]+\.[a-z]{2,}$/i.test(process.env.LIVE_CONT
 const HOUR = 3600 * 1000;
 
 // Bumped by hand when style.css or live.js change, so browsers fetch them anew.
-const ASSET_VERSION = '26';
+const ASSET_VERSION = '27';
+
+const shortHash = (t) => createHash('sha1').update(String(t)).digest('base64url').slice(0, 8);
 
 const esc = (s) =>
     String(s ?? '')
@@ -268,6 +271,7 @@ function head({ title, description, canonical, image, ld = null, noindex = false
     <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
     <link rel="apple-touch-icon" href="/icon-180.png" />
     <link rel="manifest" href="/manifest.webmanifest" />
+    <link rel="alternate" type="application/rss+xml" title="live.gazette.bg" href="/rss.xml" />
     <link rel="preload" as="font" type="font/woff2" href="/fonts/unbounded-cyrillic-700.woff2" crossorigin />
     <link rel="stylesheet" href="/style.css?v=${ASSET_VERSION}" />
     <script type="module" src="/live.js?v=${ASSET_VERSION}"></script>
@@ -345,7 +349,7 @@ function storyCard(r, now, { big = false, wide = false } = {}) {
         ${video ? `<span class="card-thumb"><img src="${thumb(video.videoId)}" alt="" loading="lazy" width="320" height="180" /><span class="play" aria-hidden="true">${ICONS.play}</span><span class="thumb-src">YouTube</span></span>` : ''}
         <span class="card-body">
             <span class="card-top">${tempBadge(r)}${cardTrend(r)}<span class="ago">${timeEl(lastAt(s), now, true)}</span></span>
-            <span class="card-title">${esc(s.title)}</span>
+            <h3 class="card-title">${esc(s.title)}</h3>
             ${s.summary ? `<span class="card-summary">${esc(s.summary)}</span>` : ''}
             <span class="card-foot"><span class="meta">${cardMeta(r)}</span></span>
         </span>
@@ -864,7 +868,8 @@ function storyPage(state, r, ranked, now, { cold = false } = {}) {
             isBasedOn: s.items.slice(0, 30).map((i) => i.url),
             ...(placeOf(s.place) ? { contentLocation: { '@type': 'Place', name: placeOf(s.place).name } } : {}),
         },
-        image: cold ? image : `${image}?v=${tempOf(r.heat)}-${r.trust.outlets}`,
+        // A new headline is a new picture for the networks that cache them.
+        image: cold ? image : `${image}?v=${shortHash(s.title)}`,
     })}
 <body class="story heat-${r.level.id}" data-version="${state.updatedAt}" ${cardData(r)}>
 ${topbar(state, now)}
@@ -933,6 +938,32 @@ ${topbar({}, m.at, { status: false })}
 ${footer()}
 </body>
 </html>
+`;
+}
+
+// The stories on the page as a feed, the ones that changed last first: for
+// readers and apps that follow sites by RSS.
+function rssFeed(state, ranked, now) {
+    const stories = ranked
+        .filter(isMain)
+        .sort((a, b) => lastAt(b.story) - lastAt(a.story))
+        .slice(0, 40);
+    const items = stories
+        .map((r) => {
+            const s = r.story;
+            const url = `${SITE_ORIGIN}/s/${s.id}/`;
+            return `<item><title>${esc(s.title)}</title><link>${url}</link><guid isPermaLink="true">${url}</guid><pubDate>${new Date(lastAt(s)).toUTCString()}</pubDate><description>${esc(s.summary || s.title)}</description></item>`;
+        })
+        .join('\n');
+    return `<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0"><channel>
+<title>live.gazette.bg — какво се случва в България сега</title>
+<link>${SITE_ORIGIN}/</link>
+<description>Актуалните новини в България, подредени по това колко се говори за тях. Обобщено автоматично с изкуствен интелект.</description>
+<language>bg</language>
+<lastBuildDate>${new Date(state.updatedAt || now).toUTCString()}</lastBuildDate>
+${items}
+</channel></rss>
 `;
 }
 
@@ -1134,15 +1165,7 @@ async function writeImages(ranked, outDir) {
         const top = main.slice(0, 3).map((r) => ({ title: r.story.title, temp: tempOf(r.heat), level: r.level.id }));
         write(path.join(outDir, 'og', 'home.png'), await homeImage(top));
         for (const r of ranked) {
-            const png = await storyImage({
-                title: r.story.title,
-                level: r.level.id,
-                levelLabel: r.level.label,
-                temp: tempOf(r.heat),
-                outlets: r.trust.outlets,
-                videos: videosOf(r.story).length,
-                trust: r.trust.label,
-            });
+            const png = await storyImage({ title: r.story.title });
             write(path.join(outDir, 'og', `${r.story.id}.png`), png);
         }
         write(path.join(outDir, 'icon-192.png'), await iconPng(192));
@@ -1204,6 +1227,7 @@ export async function buildSite(state, { now = Date.now(), outDir = OUT_DIR, ima
         built.add(m.id);
         write(path.join(outDir, 's', m.id, 'index.html'), memoryPage(m));
     }
+    write(path.join(outDir, 'rss.xml'), rssFeed(state, ranked, now));
     const urls = ['/', '/about/', '/corrections/', '/sources/', ...ranked.map((r) => `/s/${r.story.id}/`)];
     write(
         path.join(outDir, 'sitemap.xml'),
@@ -1231,9 +1255,13 @@ export async function buildSite(state, { now = Date.now(), outDir = OUT_DIR, ima
         `${head({ title: 'Няма такава страница — live.gazette.bg', description: 'Тази история вече не е актуална.', canonical: `${SITE_ORIGIN}/`, image: `${SITE_ORIGIN}/og/home.png` })}
 <body data-version="${state.updatedAt}">${topbar(state, now)}<main id="main" class="wrap narrow"><header class="story-head"><h1>Тази история изстина</h1><p class="lede">За нея отдавна не се пише, затова е махната. Но точно сега се случва друго.</p><p><a class="btn" href="/">Виж какво се случва сега →</a></p></header></main>${footer()}</body></html>\n`,
     );
-    for (const f of ['style.css', 'live.js', 'sw.js', 'favicon.svg']) {
+    for (const f of ['style.css', 'live.js', 'favicon.svg']) {
         fs.copyFileSync(path.join(HERE, 'site', f), path.join(outDir, f));
     }
+    write(
+        path.join(outDir, 'sw.js'),
+        fs.readFileSync(path.join(HERE, 'site', 'sw.js'), 'utf8').replace('__ASSET_VERSION__', ASSET_VERSION),
+    );
     if (ICONS_FOUND.size) fs.cpSync(ICON_DIR, path.join(outDir, 'icons'), { recursive: true });
     fs.mkdirSync(path.join(outDir, 'fonts'), { recursive: true });
     for (const [from, to] of FONTS) {

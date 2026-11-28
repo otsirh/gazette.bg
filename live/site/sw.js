@@ -2,11 +2,14 @@
 // first, so a reader online always sees the newest version; the copy kept
 // here is used only when there is no connection. Fonts, styles, scripts and
 // icons never change under the same address, so they come from the cache.
-const CACHE = 'live-v1';
+// The build writes the asset version in: a new version is a new cache, and
+// the old one is dropped when this worker takes over.
+const VERSION = '__ASSET_VERSION__';
+const CACHE = `live-${VERSION}`;
 const OFFLINE_PAGES = 40;
 
 self.addEventListener('install', (e) => {
-    e.waitUntil(caches.open(CACHE).then((c) => c.addAll(['/', '/style.css', '/live.js'])));
+    e.waitUntil(caches.open(CACHE).then((c) => c.addAll(['/', `/style.css?v=${VERSION}`, `/live.js?v=${VERSION}`])));
     self.skipWaiting();
 });
 
