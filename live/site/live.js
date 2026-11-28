@@ -421,24 +421,6 @@ document.addEventListener('click', (e) => {
     }
 });
 
-// Sortable tables: a click on a column header sorts by it, again reverses.
-document.addEventListener('click', (e) => {
-    const th = e.target.closest('table[data-sortable] th[data-sort]');
-    if (!th) return;
-    const table = th.closest('table');
-    const col = [...th.parentNode.children].indexOf(th);
-    const desc = th.getAttribute('aria-sort') !== 'descending';
-    for (const h of th.parentNode.children) h.removeAttribute('aria-sort');
-    th.setAttribute('aria-sort', desc ? 'descending' : 'ascending');
-    const body = table.tBodies[0];
-    const rows = [...body.rows].sort((a, b) => {
-        const va = Number(a.cells[col]?.dataset.v ?? 0);
-        const vb = Number(b.cells[col]?.dataset.v ?? 0);
-        return desc ? vb - va : va - vb;
-    });
-    body.append(...rows);
-});
-
 decorate();
 markStoryNews();
 setInterval(tick, MINUTE);

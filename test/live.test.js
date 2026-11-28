@@ -219,23 +219,6 @@ test("a party's own channel never confirms a story on its own", () => {
     assert.equal(t.id, 'several');
 });
 
-test('the track record counts who was first and who cites whom', async () => {
-    const { outletContributions, addContributions } = await import('../live/lib/stories.js');
-    const s = story([
-        item('a', 'bta', 5, { citesKind: 'own' }),
-        item('b', 'mediapool', 4, { citesKind: 'media', citesSource: 'bta' }),
-        item('c', 'sega', 3, { citesKind: 'media', citesSource: 'bta' }),
-    ]);
-    const c = outletContributions(s);
-    assert.equal(c.get('bta').first, 1);
-    assert.equal(c.get('bta').citedBy, 2);
-    assert.equal(c.get('mediapool').delayMin, 60);
-    assert.equal(c.get('mediapool').attributed, 1);
-    const totals = addContributions(addContributions({}, s), s);
-    assert.equal(totals.bta.stories, 2);
-    assert.equal(outletContributions(story([item('x', 'bta', 1), item('y', 'sega', 1)])).size, 0);
-});
-
 test('speaker names from the record lose their capitals', async () => {
     const { nameCase } = await import('../live/lib/depth.js');
     assert.equal(nameCase('НИКОЛАЙ ДЕНКОВ'), 'Николай Денков');

@@ -66,7 +66,6 @@ export function emptyState() {
         overview: null,
         sources: {},
         memory: [],
-        outletStats: null,
         parliament: { done: [] },
     };
 }
@@ -496,6 +495,7 @@ export async function update({ now = Date.now() } = {}) {
     }
 
     tidyState(state);
+    delete state.outletStats;
 
     state.spend.usd = Math.round((state.spend.usd + meter.usd) * 10000) / 10000;
     // The time readers see is when this version was finished, not begun.
