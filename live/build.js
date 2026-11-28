@@ -35,7 +35,7 @@ const CONTACT = /^[^\s@<>"]+@[^\s@<>"]+\.[a-z]{2,}$/i.test(process.env.LIVE_CONT
 const HOUR = 3600 * 1000;
 
 // Bumped by hand when style.css or live.js change, so browsers fetch them anew.
-const ASSET_VERSION = '31';
+const ASSET_VERSION = '32';
 
 const shortHash = (t) => createHash('sha1').update(String(t)).digest('base64url').slice(0, 8);
 
@@ -86,7 +86,6 @@ const sourceLabel = (id) => esc(displayName(id));
 // An outlet's headline, or, where a story touches a child or a victim and the
 // headline is withheld, just whose material it is.
 const itemTitle = (it) => it.title || `Материал на ${displayName(it.source)}`;
-const capFirst = (t) => String(t).replace(/^(\p{Ll})/u, (c) => c.toUpperCase());
 const plural = (n, one, many) => `${n} ${n === 1 ? one : many}`;
 
 // ─── What kind of voice a source is ─────────────────────────────────────
@@ -294,7 +293,7 @@ function footer() {
     <div class="wrap footer-inner">
         <div class="footer-brand"><span class="live-dot" aria-hidden="true"></span> live.gazette.bg</div>
         <ul class="legend">${KIND_ORDER.map((k) => `<li><i class="kd k-${k}"></i>${esc(KINDS[k].long)}</li>`).join('')}</ul>
-        <p>Историите, обобщенията и хронологиите се съставят автоматично с изкуствен интелект (Claude на Anthropic) от ${SOURCES.length} източника и може да съдържат грешки. Всяко твърдение води към материала, от който е взето.</p>
+        <p>Историите и обобщенията се съставят автоматично с изкуствен интелект (Claude на Anthropic) от ${SOURCES.length} източника и може да съдържат грешки. Всяко твърдение води към материала, от който е взето.</p>
         <p><a href="/about/">За сайта, поправки и поверителност</a> · <a href="/corrections/">Поправки</a> · <a href="/sources/">Източници и как се оценяват</a></p>
     </div>
 </footer>`;
@@ -544,14 +543,6 @@ ${footer()}
 
 // ─── Story page ─────────────────────────────────────────────────────────
 
-// A quote from the parliament's verbatim record: where it is, and the
-// sitting's video.
-function recordLinks(e) {
-    const parts = [ext(e.url, `🏛 ${esc(e.label || 'Стенограма')}`)];
-    if (e.video) parts.push(ext(e.video, '▶ запис на заседанието'));
-    return parts.join(' · ');
-}
-
 function videoTile(v, now) {
     return `<li class="video">
     <button type="button" class="video-play" data-video="${esc(v.videoId)}" aria-label="Пусни: ${esc(v.title)}">
@@ -582,33 +573,6 @@ function videoBlock(story, now) {
                   .join('')}</ul></details>`
             : ''
     }
-</section>`;
-}
-
-function timelineBlock(story) {
-    if (!story.timeline.length) {
-        return `<section class="panel" aria-labelledby="timeline"><h2 id="timeline" class="panel-title">Хронология</h2><p class="quiet">Хронологията се попълва при следващото обновяване.</p></section>`;
-    }
-    const byId = new Map(story.items.map((i) => [i.id, i]));
-    let lastDay = '';
-    const rows = [...story.timeline]
-        .sort((a, b) => b.at - a.at)
-        .map((e) => {
-            const refs = e.items.map((id) => byId.get(id)).filter(Boolean);
-            const kind = e.source === 'parliament' ? 'first' : refs.length ? kindOf(refs[0].source) : 'editorial';
-            let links = refs.map((i) => ext(i.url, sourceLabel(i.source))).join(', ');
-            if (e.source === 'parliament') links = recordLinks(e);
-            const day = dayKey.format(e.at);
-            const sep = day !== lastDay ? `<li class="tl-day">${esc(fmtLongDay.format(e.at))}</li>` : '';
-            lastDay = day;
-            return `${sep}<li class="tl tl-${kind}" data-at="${e.at}">
-    <span class="tl-time">${esc(fmtClock.format(e.at))}</span>
-    <span class="tl-body"><b class="tl-who">${esc(capFirst(e.who))}</b><span class="tl-what">${esc(capFirst(e.what))}</span>${e.quote ? `<q class="quote">${esc(e.quote)}</q>` : ''}${links ? `<span class="tl-src">${links}</span>` : ''}</span>
-</li>`;
-        });
-    return `<section class="panel" aria-labelledby="timeline">
-    <h2 id="timeline" class="panel-title">Хронология <span>най-новото отгоре · часът е на материала, който го съобщава</span></h2>
-    <ol class="timeline">${rows.join('')}</ol>
 </section>`;
 }
 
@@ -663,7 +627,6 @@ function storyPage(state, r, ranked, now, { cold = false } = {}) {
     const url = `${SITE_ORIGIN}/s/${s.id}/`;
     const blocks = {
         videos: videoBlock(s, now),
-        timeline: timelineBlock(s),
     };
     const originStat = origin
         ? stat(
@@ -715,7 +678,6 @@ ${cold ? '<p class="cold-note">Тази история изстина: за не
 </header>
 ${blocks.videos}
 ${repliesBlock(s)}
-${blocks.timeline}
 ${sourcesBlock(s, now)}
 ${moreBlock(r, ranked, now)}
 </main>
@@ -846,7 +808,7 @@ ${topbar(state, now)}
 <main id="main" class="wrap narrow">
 <a class="back" href="/">← Всичко, което се случва сега</a>
 <header class="story-head"><h1>За сайта</h1>
-<p class="lede">live.gazette.bg показва какво се случва в България сега: новините от ${SOURCES.length} източника, подредени по това колко се говори за тях, с първоизточника, хронологията и видеата.</p></header>
+<p class="lede">live.gazette.bg показва какво се случва в България сега: новините от ${SOURCES.length} източника, подредени по това колко се говори за тях, с първоизточника и видеата.</p></header>
 <div class="prose panel">
 <h2 class="panel-title">Кой стои зад сайта</h2>
 ${operator}
@@ -854,7 +816,7 @@ ${operator}
 </div>
 <div class="prose panel">
 <h2 class="panel-title">Как работи</h2>
-<p>На всеки 10 минути през деня и на всеки 30 през нощта сайтът чете публичните емисии (RSS) на медиите и YouTube каналите от <a href="/sources/">списъка с източници</a>. Изкуствен интелект (Claude на Anthropic) подрежда материалите в истории и пише кратко обобщение, хронология и кой какво е казал. <b>Текстовете са генерирани от изкуствен интелект, без човешка редакция, и може да съдържат грешки.</b> Затова всяко твърдение води към материала, от който е взето, и показваме колко и какви медии потвърждават всяка история.</p>
+<p>На всеки 10 минути през деня и на всеки 30 през нощта сайтът чете публичните емисии (RSS) на медиите и YouTube каналите от <a href="/sources/">списъка с източници</a>. Изкуствен интелект (Claude на Anthropic) подрежда материалите в истории и пише кратко обобщение. <b>Текстовете са генерирани от изкуствен интелект, без човешка редакция, и може да съдържат грешки.</b> Затова всяко твърдение води към материала, от който е взето, и показваме колко и какви медии потвърждават всяка история.</p>
 <p>Правилата, които изкуственият интелект спазва: всяко твърдение има източник; никой не се представя за виновен без окончателна присъда; не се назовават деца, пострадали, свидетели и заподозрени, които не са публични личности; не се цитират числа от социологически проучвания. При история, която засяга дете или пострадал от сексуално или домашно насилие, не показваме заглавията и видеата на медиите. В деня преди изборите и в изборния ден не показваме проучвания и партийни канали (Изборен кодекс, чл. 182 и 205).</p>
 <p>„Тежестта“ на източниците е автоматична статистика по проверими признаци, а не оценка на медиите. Описанията на това как медиите представят една история казват само какво подчертават заглавията им.</p>
 </div>
