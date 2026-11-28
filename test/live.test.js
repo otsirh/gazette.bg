@@ -997,5 +997,25 @@ test('plain words: a role gets its name, a name with a number gets quotes', asyn
     assert.ok(page.includes('Никола Минчев, евродепутат'));
     assert.ok(!page.includes('МВР, МВР'));
     assert.ok(page.includes('„24 часа“'));
+    // „Кой какво казва“: the role keeps a comma of its own, a lone role is the role
+    const s2 = story([item('c', 'bta', 1), item('d', 'sega', 1)], {
+        id: 'roles123',
+        timeline: [
+            {
+                at: NOW - HOUR,
+                actor: 'Ивайло Мирчев',
+                who: 'Ивайло Мирчев, съпредседател на „Да, България“',
+                what: 'каза',
+                items: ['c'],
+            },
+            { at: NOW - HOUR, actor: 'Мирчев', who: 'Мирчев', what: 'добави', items: ['d'] },
+            { at: NOW - HOUR, actor: 'Никола Минчев', who: 'Евродепутат', what: 'заяви', items: ['c'] },
+        ],
+    });
+    await buildSite({ updatedAt: NOW, stories: [s2], sources: {} }, { now: NOW, outDir: out, images: false });
+    const p2 = fs.readFileSync(path.join(out, 's', 'roles123', 'index.html'), 'utf8');
+    assert.ok(p2.includes('<small>съпредседател на „Да, България“</small>'));
+    assert.ok(p2.includes('<small>евродепутат</small>'));
+    assert.ok(!p2.includes('<b>Мирчев</b>'), 'a surname alone is the same person');
     fs.rmSync(out, { recursive: true, force: true });
 });

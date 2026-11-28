@@ -658,6 +658,22 @@ ${footer()}
 
 // ─── Story page ─────────────────────────────────────────────────────────
 
+// The role in „Ивайло Мирчев, съпредседател на „Да, България““: what follows
+// the name (a comma inside the role is part of it), or the whole of „who“
+// when it does not carry the name at all („Евродепутат“).
+function roleOf(e, name) {
+    const who = String(e.who ?? '').trim();
+    if (!who || who.toLowerCase() === name.toLowerCase()) return '';
+    if (who.toLowerCase().startsWith(name.toLowerCase()))
+        return who
+            .slice(name.length)
+            .replace(/^\s*,\s*/, '')
+            .trim();
+    if (!who.toLowerCase().includes(name.toLowerCase()))
+        return /^\p{Lu}\p{Ll}/u.test(who) ? who[0].toLowerCase() + who.slice(1) : who;
+    return '';
+}
+
 function actorsOf(story) {
     const groups = new Map();
     for (const e of story.timeline) {
@@ -667,8 +683,7 @@ function actorsOf(story) {
         if (!groups.has(key)) groups.set(key, { name, role: '', events: [] });
         const g = groups.get(key);
         g.events.push(e);
-        const role = (e.who ?? '').includes(',') ? e.who.split(',').slice(1).join(',').trim() : '';
-        if (role && !g.role) g.role = role;
+        if (!g.role) g.role = roleOf(e, name);
     }
     // A surname alone joins the full name it ends: „Мирчев“ is „Ивайло Мирчев“.
     const all = [...groups.values()];
