@@ -145,7 +145,8 @@ test('sourceIdForName finds an outlet by any of its names', () => {
     assert.equal(sourceIdForName('БТА'), 'bta');
     assert.equal(sourceIdForName('„Сега“'), 'sega');
     assert.equal(sourceIdForName('Нова телевизия'), 'nova-yt');
-    assert.equal(sourceIdForName('Сметната палата'), null);
+    assert.equal(sourceIdForName('Сметната палата'), 'smetna');
+    assert.equal(sourceIdForName('Министерството на финансите'), null);
 });
 
 test('applyWrite fills in cites and timeline and clears the pending marks', () => {
@@ -534,4 +535,16 @@ test("one outlet's channels count as one outlet", async () => {
     assert.equal(outletOf('tvoyatden-yt'), 'nova');
     const s = story([item('a', 'nova-yt', 2), item('b', 'tvoyatden-yt', 1), item('c', 'nova-official-yt', 1)]);
     assert.equal(trustOf(s).outlets, 1);
+});
+
+test("robots: a group with only Crawl-delay does not take the next group's rules", async () => {
+    const { aiRefused } = await import('../live/lib/robots.js');
+    const robots =
+        'User-agent: *\nDisallow: /old/\n\nUser-agent: ClaudeBot\nCrawl-Delay: 10\n\nUser-agent: BadBot\nDisallow: /\n';
+    assert.equal(aiRefused(robots), false);
+    assert.equal(
+        aiRefused('User-agent: ClaudeBot\nUser-agent: GPTBot\nDisallow: /\n'),
+        true,
+        'consecutive agents share a group',
+    );
 });

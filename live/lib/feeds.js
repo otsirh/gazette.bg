@@ -256,9 +256,18 @@ export function parseBgDate(text) {
 export function parseList(html, baseUrl, pattern, now = Date.now()) {
     const re = new RegExp(pattern);
     const out = new Map();
+    // Links resolve against <base href> when the page sets one.
+    const base = html.match(/<base\b[^>]*href\s*=\s*["']([^"']+)["']/i)?.[1];
+    if (base) {
+        try {
+            baseUrl = new URL(decodeEntities(base), baseUrl).href;
+        } catch {}
+    }
     for (const m of html.matchAll(/<a\b([^>]*)>([\s\S]*?)<\/a>/gi)) {
         const attrs = m[1];
-        const href = attrs.match(/href\s*=\s*["']([^"'#]+)["']/i)?.[1];
+        // Quoted or not: some sites write href=/news/1.
+        const hm = attrs.match(/href\s*=\s*(?:["']([^"'#]+)["']|([^\s>"'#]+))/i);
+        const href = hm?.[1] ?? hm?.[2];
         if (!href) continue;
         let url;
         try {
@@ -272,6 +281,14 @@ export function parseList(html, baseUrl, pattern, now = Date.now()) {
         const titleAttr = decodeEntities(attrs.match(/title\s*=\s*["']([^"']+)["']/i)?.[1] ?? '');
         let title = toText(m[2]) || titleAttr;
         if (titleAttr.length > title.length) title = titleAttr;
+        // A "Прочети" or image link: the headline is the nearest heading
+        // just above it, in the same card.
+        if (title.length < 20) {
+            const before = html.slice(Math.max(0, m.index - 400), m.index);
+            const heads = [...before.matchAll(/<h[1-6]\b[^>]*>([\s\S]*?)<\/h[1-6]>/gi)];
+            const near = heads.at(-1);
+            if (near && !/<a\b/i.test(before.slice(near.index + near[0].length))) title = toText(near[1]);
+        }
         // Some lists print the date inside the link: keep it for the date,
         // drop it from the headline.
         const around = html.slice(Math.max(0, m.index - 500), m.index + m[0].length + 500);

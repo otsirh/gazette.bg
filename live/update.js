@@ -182,10 +182,13 @@ async function readFeeds(state, now, silence) {
             const xml = await fetchSmart(source.feed, source.id, { accept: FEED_ACCEPT });
             // A news list page instead of a feed: only items with a printed
             // date, so an old notice is never taken for news.
-            const entries = source.list
+            let entries = source.list
                 ? parseList(xml, source.feed, source.list, now).filter((e) => e.dated)
                 : parseFeed(xml, now);
-            state.sources[source.id] = { ok: true, at: now, count: entries.length };
+            // A feed shared by several papers of one publisher: only this one's.
+            if (source.onlyHost) entries = entries.filter((e) => siteHost(e.url) === source.onlyHost);
+            // Keep what the daily robots check knows (aiRefused, robotsAt).
+            state.sources[source.id] = { ...state.sources[source.id], ok: true, at: now, count: entries.length };
             return entries.map((e) => ({ ...e, source: source.id, kind: source.kind }));
         } catch (err) {
             const prev = state.sources[source.id] ?? {};
@@ -195,6 +198,14 @@ async function readFeeds(state, now, silence) {
         }
     });
     return results.flat();
+}
+
+function siteHost(url) {
+    try {
+        return new URL(url).host;
+    } catch {
+        return '';
+    }
 }
 
 function newStoryId(seed) {
