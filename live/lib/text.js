@@ -53,6 +53,8 @@ export function tidy(text) {
     // A decimal comma before a unit: "9.5 км" is "9,5 км" (dates and times,
     // "28.11" or "9.30 ч.", have no unit and are left alone).
     t = t.replace(UNIT_DECIMAL, '$1,$2');
+    // A percent sign sits right after the number: "40%".
+    t = t.replace(/(\d) %/g, '$1%');
     // A range of numbers takes an en dash without spaces: "5–10".
     t = t.replace(/(?<![\d.,–-])(\d{1,4})-(\d{1,4})(?![\d-])/g, '$1–$2');
     t = t.replace(/ {2,}/g, ' ');
