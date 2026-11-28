@@ -16,6 +16,7 @@ import { isWebUrl } from './lib/feeds.js';
 import { homeImage, iconPng, storyImage } from './lib/og.js';
 import { MAP, OUTLINE, placeOf } from './lib/places.js';
 import { inElectionSilence, isPollStory, loadPolicy, POLL, silenceFilter } from './lib/policy.js';
+import { riverData, riverJson, riverSay, riverSvg } from './lib/river.js';
 import { publicState } from './lib/seal.js';
 import { IMPORTANT, lastAt, originOf, rankStories, scoreStories, sparkline, storyWeight } from './lib/stories.js';
 import { outletOf, SOURCE_BY_ID, SOURCES, tierOf } from './sources.js';
@@ -35,7 +36,7 @@ const CONTACT = /^[^\s@<>"]+@[^\s@<>"]+\.[a-z]{2,}$/i.test(process.env.LIVE_CONT
 const HOUR = 3600 * 1000;
 
 // Bumped by hand when style.css or live.js change, so browsers fetch them anew.
-const ASSET_VERSION = '28';
+const ASSET_VERSION = '29';
 
 const shortHash = (t) => createHash('sha1').update(String(t)).digest('base64url').slice(0, 8);
 
@@ -381,6 +382,34 @@ function rowItem(r, now, note = '') {
     return `<li class="row heat-${r.level.id}" ${cardData(r)}><a href="/s/${esc(r.story.id)}/">${tempBadge(r)}<span class="row-title">${esc(r.story.title)}</span><span class="row-meta">${note}${timeEl(lastAt(r.story), now, true)}</span></a></li>`;
 }
 
+// The river of the day (lib/river.js): drawn wide for a screen and narrow
+// for a phone; the page's script reads out any half hour along it.
+const hourOf = (ms) =>
+    Number(
+        new Intl.DateTimeFormat('en-GB', { timeZone: 'Europe/Sofia', hour: 'numeric', hourCycle: 'h23' }).format(ms),
+    );
+
+function riverBlock(main, now) {
+    const data = riverData(main, now);
+    const total = data.series.reduce((sum, s) => sum + s.total, 0);
+    if (data.series.length < 3 || total < 20) return '';
+    const opts = {
+        isImportant: (s) => (storyWeight(s) ?? 0) >= IMPORTANT,
+        clock: (ms, hourOnly) => (hourOnly ? hourOf(ms) : fmtClock.format(ms)),
+    };
+    return `<section class="river-box" data-river aria-labelledby="g-river">
+    <h2 id="g-river" class="group-title">Денят <span>за какво се пише от сутринта досега</span></h2>
+    <p class="river-say">${riverSay(data)
+        .map((l) => `<span><b>${esc(l.when)}:</b> <a href="/s/${esc(l.id)}/">${esc(l.title)}</a></span>`)
+        .join('')}</p>
+    <p class="river-how">Всяка цветна лента е една история. Колкото е по-широка, толкова повече медии пишат за нея в този час. Сините засягат много хора. Плъзни пръст по реката, за да видиш всеки час.</p>
+    ${riverSvg(data, { ...opts, cls: 'river-wide' })}
+    ${riverSvg(data, { ...opts, w: 600, h: 400, labels: 3, every: 12, fs: 21, cls: 'river-narrow' })}
+    <div class="river-read" data-river-read aria-live="polite" tabindex="0" aria-label="Кой час: стрелките наляво и надясно местят по реката"></div>
+    <script type="application/json" data-river-json>${riverJson(data)}</script>
+</section>`;
+}
+
 function heroBlock(state, ranked, mainCount, now) {
     const byId = new Map(ranked.map((r) => [r.story.id, r]));
     // Hottest first, like the rest of the page.
@@ -593,6 +622,7 @@ ${topbar(state, now)}
 <main id="main" class="wrap">
 ${state.silence ? '<p class="silence">Изборен ден: до края на гласуването не показваме социологически проучвания и партийни канали (Изборен кодекс, чл. 182 и 205).</p>' : ''}
 ${heroBlock(state, ranked, main.length, now)}
+${riverBlock(main, now)}
 ${welcomeBlock()}
 <div class="since" data-since hidden></div>
 <div class="layout">
