@@ -33,7 +33,7 @@ const CONTACT = /^[^\s@<>"]+@[^\s@<>"]+\.[a-z]{2,}$/i.test(process.env.LIVE_CONT
 const HOUR = 3600 * 1000;
 
 // Bumped by hand when style.css or live.js change, so browsers fetch them anew.
-const ASSET_VERSION = '16';
+const ASSET_VERSION = '17';
 
 const esc = (s) =>
     String(s ?? '')
@@ -307,10 +307,24 @@ function cardMeta(r, now) {
         .join('');
 }
 
-function storyCard(r, now, { big = false } = {}) {
+// Which hot cards take the whole row in the two-column grid: the first, every
+// card with a video (it lies on its side), and a text card with no text card
+// next to it. Two text cards share a row, so no card is stretched to match a
+// taller neighbour. live.js does the same after a filter hides cards.
+export function wideCards(hasVideo) {
+    const wide = hasVideo.map(() => true);
+    for (let i = 1; i < hasVideo.length; i++) {
+        if (hasVideo[i] || i + 1 >= hasVideo.length || hasVideo[i + 1]) continue;
+        wide[i] = wide[i + 1] = false;
+        i++;
+    }
+    return wide;
+}
+
+function storyCard(r, now, { big = false, wide = false } = {}) {
     const s = r.story;
     const video = big ? videosOf(s)[0] : null;
-    return `<li class="card heat-${r.level.id}${big ? ' big' : ''}${video ? ' with-video' : ''}" ${cardData(r)}>
+    return `<li class="card heat-${r.level.id}${big ? ' big' : ''}${wide ? ' wide' : ''}${video ? ' with-video' : ''}" ${cardData(r)}>
     <a class="card-link" href="/s/${esc(s.id)}/">
         ${video ? `<span class="card-thumb"><img src="${thumb(video.videoId)}" alt="" loading="lazy" width="320" height="180" /><span class="play" aria-hidden="true">${ICONS.play}</span><span class="thumb-src">YouTube</span></span>` : ''}
         <span class="card-body">
@@ -465,7 +479,10 @@ function frontPage(state, ranked, now) {
     const groups = [];
     if (hot.length) {
         groups.push(`<section class="group" aria-labelledby="g-hot"><h2 id="g-hot" class="group-title t-hot">Горещо <span>за това се говори най-много</span></h2>
-<ol class="cards cards-big">${hot.map((r) => storyCard(r, now, { big: true })).join('')}</ol></section>`);
+<ol class="cards cards-big">${(() => {
+            const wide = wideCards(hot.map((r) => videosOf(r.story).length > 0));
+            return hot.map((r, i) => storyCard(r, now, { big: true, wide: wide[i] })).join('');
+        })()}</ol></section>`);
     }
     if (warm.length) {
         groups.push(`<section class="group" aria-labelledby="g-warm"><h2 id="g-warm" class="group-title t-warm">Актуално</h2>
