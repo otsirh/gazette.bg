@@ -374,3 +374,43 @@ test('copying twelve words in a row from a source is caught, quotes are not', as
         false,
     );
 });
+
+test('YouTube uploads come from the Data API, never the feed, and the key is not echoed', async () => {
+    const { channelUploads, madeForKids } = await import('../live/lib/youtube.js');
+    const real = globalThis.fetch;
+    const seen = [];
+    globalThis.fetch = async (url) => {
+        seen.push(String(url));
+        if (String(url).includes('/playlistItems')) {
+            return new Response(
+                JSON.stringify({
+                    items: [
+                        {
+                            snippet: { title: 'Интервю', description: 'д', publishedAt: '2026-11-28T08:00:00Z' },
+                            contentDetails: { videoId: 'abcDEF12345' },
+                        },
+                        { snippet: { title: 'Private video' }, contentDetails: { videoId: 'zzzzzzzzzzz' } },
+                    ],
+                }),
+            );
+        }
+        if (String(url).includes('/videos'))
+            return new Response(JSON.stringify({ items: [{ id: 'abcDEF12345', status: { madeForKids: true } }] }));
+        return new Response('', { status: 404 });
+    };
+    try {
+        const list = await channelUploads('UC1234567890123456789012', 'KEY', NOW);
+        assert.equal(list.length, 1);
+        assert.equal(list[0].url, 'https://www.youtube.com/watch?v=abcDEF12345');
+        assert.ok(seen[0].includes('playlistId=UU1234567890123456789012'));
+        assert.ok(!seen.some((u) => u.includes('feeds/videos.xml')));
+        assert.ok((await madeForKids(['abcDEF12345'], 'KEY')).has('abcDEF12345'));
+        globalThis.fetch = async () => new Response('', { status: 403 });
+        await assert.rejects(
+            channelUploads('UC1234567890123456789012', 'SECRETKEY'),
+            (e) => !e.message.includes('SECRETKEY'),
+        );
+    } finally {
+        globalThis.fetch = real;
+    }
+});

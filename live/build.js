@@ -33,7 +33,7 @@ const CONTACT = /^[^\s@<>"]+@[^\s@<>"]+\.[a-z]{2,}$/i.test(process.env.LIVE_CONT
 const HOUR = 3600 * 1000;
 
 // Bumped by hand when style.css or live.js change, so browsers fetch them anew.
-const ASSET_VERSION = '14';
+const ASSET_VERSION = '16';
 
 const esc = (s) =>
     String(s ?? '')
@@ -130,15 +130,20 @@ const ICONS_FOUND = new Set(
 // it has no icon.
 function srcMark(sourceId) {
     const o = outletOf(sourceId);
-    if (!ICONS_FOUND.has(o)) return kindDot(sourceId);
     const k = kindOf(sourceId);
+    if (!ICONS_FOUND.has(o)) {
+        // No icon to show: the outlet's initials, in the same frame.
+        const ini = displayName(sourceId)
+            .replace(/[„“"«»()]/g, '')
+            .split(/[\s,.-]+/)
+            .filter((w) => w && /\p{L}/u.test(w[0]))
+            .slice(0, 2)
+            .map((w) => w[0].toUpperCase())
+            .join('');
+        return `<span class="src-ico src-ini kr-${k}" aria-hidden="true" title="${esc(KINDS[k].long)}">${esc(ini || '•')}</span>`;
+    }
     return `<img class="src-ico kr-${k}" src="/icons/${esc(o)}.png" alt="" width="16" height="16" loading="lazy" decoding="async" title="${esc(KINDS[k].long)}">`;
 }
-
-const kindDot = (sourceId) => {
-    const k = kindOf(sourceId);
-    return `<i class="kd k-${k}" title="${esc(KINDS[k].long)}"></i>`;
-};
 
 // Separate outlets per kind: the shape of who carries a story.
 function coverage(story) {
@@ -206,7 +211,9 @@ function chips(r, now) {
 }
 
 const videosOf = (story) =>
-    story.items.filter((i) => i.kind === 'video' && /^[\w-]{6,20}$/.test(i.videoId ?? '')).sort((a, b) => b.at - a.at);
+    story.items
+        .filter((i) => i.kind === 'video' && !i.forKids && /^[\w-]{6,20}$/.test(i.videoId ?? ''))
+        .sort((a, b) => b.at - a.at);
 
 const thumb = (videoId) => `https://i.ytimg.com/vi/${esc(videoId)}/mqdefault.jpg`;
 
@@ -305,7 +312,7 @@ function storyCard(r, now, { big = false } = {}) {
     const video = big ? videosOf(s)[0] : null;
     return `<li class="card heat-${r.level.id}${big ? ' big' : ''}${video ? ' with-video' : ''}" ${cardData(r)}>
     <a class="card-link" href="/s/${esc(s.id)}/">
-        ${video ? `<span class="card-thumb"><img src="${thumb(video.videoId)}" alt="" loading="lazy" width="320" height="180" /><span class="play" aria-hidden="true">${ICONS.play}</span></span>` : ''}
+        ${video ? `<span class="card-thumb"><img src="${thumb(video.videoId)}" alt="" loading="lazy" width="320" height="180" /><span class="play" aria-hidden="true">${ICONS.play}</span><span class="thumb-src">YouTube</span></span>` : ''}
         <span class="card-body">
             <span class="card-top">${tempBadge(r)}${chips(r, now)}<span class="ago">${timeEl(lastAt(s), now, true)}</span></span>
             <span class="card-title">${esc(s.title)}</span>
@@ -787,7 +794,7 @@ function videoTile(v, now) {
         <span class="play" aria-hidden="true">${ICONS.play}</span>
     </button>
     <span class="video-title">${ext(v.url, esc(v.title))}</span>
-    <span class="video-meta">${srcMark(v.source)}${sourceLabel(v.source)} · ${timeEl(v.at, now)}</span>
+    <span class="video-meta">${srcMark(v.source)}${sourceLabel(v.source)} · ${timeEl(v.at, now)} · <span class="yt-src">YouTube</span></span>
 </li>`;
 }
 
@@ -797,7 +804,7 @@ function videoBlock(story, now) {
     if (!vids.length) return '';
     return `<section class="panel panel-video" aria-labelledby="videos">
     <h2 id="videos" class="panel-title">▶ Чуй какво казват <span>${plural(vids.length, 'видео', 'видеа')}, най-новото първо</span></h2>
-    <p class="quiet small yt-note">Видеото се зарежда от YouTube едва при пускане; тогава YouTube (Google) получава данни за посещението.</p>
+    <p class="quiet small yt-note">Видеата са от YouTube и се зареждат едва при пускане; тогава важат <a href="https://www.youtube.com/t/terms" rel="noopener" target="_blank">Условията на YouTube</a> и <a href="https://policies.google.com/privacy" rel="noopener" target="_blank">Политиката за поверителност на Google</a>.</p>
     <ul class="videos">${vids
         .slice(0, 4)
         .map((v) => videoTile(v, now))
@@ -973,7 +980,6 @@ ${footer()}
 
 const outletName = (o) =>
     SOURCE_BY_ID.get(o)?.name ?? SOURCE_BY_ID.get(`${o}-yt`)?.name.replace(/ \(видео\)$/, '') ?? o;
-const outletKind = (o) => kindOf(SOURCE_BY_ID.has(o) ? o : `${o}-yt`);
 
 export function outletTotals(state) {
     const totals = structuredClone(state.outletStats?.outlets ?? {});
@@ -996,9 +1002,8 @@ function mediaPage(state, now) {
         .sort((a, b) => b[1].stories - a[1].stories)
         .map(([o, t]) => {
             const delay = t.delaySum / t.stories;
-            const k = outletKind(o);
             return `<tr>
-    <th scope="row">${ICONS_FOUND.has(o) ? `<img class="src-ico kr-${k}" src="/icons/${esc(o)}.png" alt="" width="16" height="16" loading="lazy" decoding="async">` : `<i class="kd k-${k}" title="${esc(KINDS[k].long)}"></i>`}${esc(outletName(o))}</th>
+    <th scope="row">${srcMark(SOURCE_BY_ID.has(o) ? o : `${o}-yt`)}${esc(outletName(o))}</th>
     <td data-label="Истории" data-v="${t.stories}">${t.stories}</td>
     <td data-label="Първа" data-v="${pct(t.first, t.stories)}">${t.first}<small>${pct(t.first, t.stories)}%</small></td>
     <td data-label="Закъснение" data-v="${Math.round(delay)}">${fmtDelay(delay)}</td>
@@ -1131,7 +1136,9 @@ ${operator}
 <div class="prose panel">
 <h2 class="panel-title">Авторски права</h2>
 <p>Правата върху материалите, заглавията, видеата и логата принадлежат на техните собственици. Показваме само заглавие и връзка към оригинала, а видеата — чрез официалния плейър на YouTube; не публикуваме текстове на статии. Обобщенията са със свои думи, по фактите от няколко източника.</p>
-<p>Четем само сайтове, които позволяват съдържанието им да се анализира автоматично: всеки ден проверяваме техния robots.txt, Content-Signal и TDM резервация (ЗАПСП, чл. 26е, ал. 4) и спираме да четем сайт, който откаже. Текстът на статиите се използва само за анализа и не се пази.</p>
+<p>Четем само сайтове, които позволяват съдържанието им да се анализира автоматично: всеки ден проверяваме техния robots.txt (за целия сайт и за емисията), Content-Signal и TDM резервация (ЗАПСП, чл. 26е, ал. 4) и спираме да четем сайт, който откаже. Сайтове, чиито условия забраняват роботи или извличане на текст, ползваме само със заглавие и връзка, без да отваряме статиите. Текстът на статиите се използва само за анализа и не се пази.</p>
+<p>Видеата от YouTube четем през официалния YouTube Data API и ги показваме с официалния плейър на YouTube; за тях важат <a href="https://www.youtube.com/t/terms" rel="noopener" target="_blank">Условията на YouTube</a> и <a href="https://policies.google.com/privacy" rel="noopener" target="_blank">Политиката за поверителност на Google</a>. Видео, отбелязано от YouTube като „за деца“, не вграждаме.</p>
+<p>Логата и иконите са на съответните медии и служат само да се разпознае източникът; сайтът не е свързан с тях. Махаме лого при поискване.</p>
 </div>
 <div class="prose panel">
 <h2 class="panel-title">Лични данни</h2>

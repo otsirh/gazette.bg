@@ -8,6 +8,9 @@
 //   3 — editorial outlet with a known owner and signed articles.
 //   4 — not verified by us, or mostly unsigned or re-posted text. Still read:
 //       it shows what a part of the public is told, and it counts less.
+// headlinesOnly: the site's terms forbid robots or text mining of its pages
+// (or its host's do, like Substack's), so only its feed's headline and link
+// are used; its article pages are never fetched.
 // independent: a known journalist, commentator or small team without an
 // outlet behind them. A named person answers for it, but no editor checks it.
 // partisan: a party's or politician's own channel. First-hand for what they
@@ -17,7 +20,11 @@
 // Anthropic's agents (ClaudeBot, anthropic-ai, Claude-User) nor say
 // ai-input=no. update.js checks this every day and skips a source that
 // changes its mind. Removed for that reason (Nov 2026): Дневник, Капитал,
-// Novinite, Plovdiv24, Varna24, Frognews, Блиц, and BGNES's channel.
+// Novinite, Plovdiv24, Varna24, Frognews, Блиц, and BGNES's channel; and
+// News.bg (its terms forbid aggregation), Заистината (robots.txt forbids its
+// feed), Alfa.bg (the site now redirects elsewhere).
+// YouTube channels are read through the YouTube Data API (YOUTUBE_API_KEY),
+// never through youtube.com's feeds, which its robots.txt disallows.
 // viaBulgaria: the site turns away addresses outside Bulgaria (GitHub's
 // servers are in the US), so in Actions it is read through the Mac mini.
 
@@ -154,6 +161,7 @@ export const SOURCES = [
     },
     {
         id: 'bnt',
+        headlinesOnly: true,
         name: 'БНТ',
         home: 'https://bntnews.bg',
         feed: 'https://bntnews.bg/bg/rss/news',
@@ -298,6 +306,7 @@ export const SOURCES = [
     },
     {
         id: 'actualno',
+        headlinesOnly: true,
         name: 'Actualno',
         home: 'https://www.actualno.com',
         feed: 'https://www.actualno.com/rss/novini-new',
@@ -345,16 +354,6 @@ export const SOURCES = [
         tier: 3,
         why: 'Национален новинарски сайт с редакция.',
         aliases: ['Fakti.bg', 'Факти'],
-    },
-    {
-        id: 'newsbg',
-        name: 'News.bg',
-        home: 'https://news.bg',
-        feed: 'https://news.bg/services/rss/1',
-        kind: 'article',
-        tier: 3,
-        why: 'Новинарски сайт на Нетинфо (група „Нова“).',
-        aliases: ['News.bg'],
     },
     {
         id: 'dnes',
@@ -721,6 +720,7 @@ export const SOURCES = [
     },
     {
         id: 'kanev',
+        headlinesOnly: true,
         name: 'Евгени Канев',
         home: 'https://evgenikanev.substack.com',
         feed: 'https://evgenikanev.substack.com/feed',
@@ -732,6 +732,7 @@ export const SOURCES = [
     },
     {
         id: 'manolov',
+        headlinesOnly: true,
         name: 'Калин Манолов',
         home: 'https://kalinmanolov.substack.com',
         feed: 'https://kalinmanolov.substack.com/feed',
@@ -743,6 +744,7 @@ export const SOURCES = [
     },
     {
         id: 'tagarev',
+        headlinesOnly: true,
         name: 'Тодор Тагарев',
         home: 'https://tagarev.substack.com',
         feed: 'https://tagarev.substack.com/feed',
@@ -754,6 +756,7 @@ export const SOURCES = [
     },
     {
         id: 'valkov',
+        headlinesOnly: true,
         name: 'Константин Вълков (Substack)',
         home: 'https://konstantinvalkov.substack.com',
         feed: 'https://konstantinvalkov.substack.com/feed',
@@ -909,26 +912,6 @@ export const SOURCES = [
         tier: 4,
         why: 'Не сме проверили собствеността и авторите.',
         aliases: ['Петел', 'petel.bg'],
-    },
-    {
-        id: 'zaistinata',
-        name: 'Заистината',
-        home: 'https://zaistinata.com',
-        feed: 'https://zaistinata.com/feed/',
-        kind: 'article',
-        tier: 4,
-        why: 'Не сме проверили собствеността и авторите.',
-        aliases: ['Заистината'],
-    },
-    {
-        id: 'alfa',
-        name: 'Alfa.bg',
-        home: 'https://www.alfa.bg',
-        feed: 'https://www.alfa.bg/rss',
-        kind: 'article',
-        tier: 4,
-        why: 'Сайтът на ТВ „Алфа“. Не сме проверили собствеността и авторите.',
-        aliases: ['Alfa.bg'],
     },
     {
         id: 'moreto',

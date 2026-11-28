@@ -28,6 +28,7 @@ import { applyBlocklist, copiesSource, inElectionSilence, loadPolicy } from './l
 import { aiRefused, pathAllowed, tdmReserved } from './lib/robots.js';
 import { pruneStories, rankStories } from './lib/stories.js';
 import { tidy } from './lib/text.js';
+import { channelIdOf, channelUploads, madeForKids } from './lib/youtube.js';
 import { SOURCE_BY_ID, SOURCES, sourceIdForName } from './sources.js';
 
 const log = createLogger('live');
@@ -100,7 +101,9 @@ async function checkRobots(state, now) {
                 headers: { 'User-Agent': 'Mozilla/5.0 (compatible; live.gazette.bg/1.0; +https://live.gazette.bg)' },
                 signal: AbortSignal.timeout(12000),
             });
-            let refused = res.ok ? aiRefused(await res.text()) : false;
+            const robots = res.ok ? await res.text() : '';
+            // Refused for the whole site, or just for the feed we read.
+            let refused = res.ok ? aiRefused(robots) || !pathAllowed(robots, new URL(source.feed).pathname) : false;
             const tdm = await fetch(new URL('/.well-known/tdmrep.json', source.home), {
                 signal: AbortSignal.timeout(12000),
             }).catch(() => null);
@@ -158,6 +161,20 @@ async function readFeeds(state, now, silence) {
     const results = await mapLimit(SOURCES, 8, async (source) => {
         if (state.sources[source.id]?.aiRefused) return [];
         if (silence && source.partisan) return [];
+        if (source.kind === 'video') {
+            // Only through the YouTube Data API; without a key, not at all.
+            const key = process.env.YOUTUBE_API_KEY;
+            if (!key) return [];
+            try {
+                const entries = await channelUploads(channelIdOf(source.feed), key, now);
+                state.sources[source.id] = { ...state.sources[source.id], ok: true, at: now, count: entries.length };
+                return entries.map((e) => ({ ...e, source: source.id, kind: source.kind }));
+            } catch (err) {
+                state.sources[source.id] = { ...state.sources[source.id], ok: false, at: now, error: err.message };
+                log(`${source.id}: ${err.message}`, 'WARN');
+                return [];
+            }
+        }
         try {
             const xml = await fetchSmart(source.feed, source.id, { accept: FEED_ACCEPT });
             const entries = parseFeed(xml, now);
@@ -189,6 +206,7 @@ function toItem(e) {
         pending: true,
     };
     if (e.videoId) item.videoId = e.videoId;
+    if (e.forKids) item.forKids = true;
     if (e.thumb) item.thumb = e.thumb;
     return item;
 }
@@ -258,6 +276,18 @@ export async function update({ now = Date.now() } = {}) {
         fresh.push(toItem(e));
     }
     fresh.sort((a, b) => a.at - b.at);
+    // A video YouTube marks "made for kids" is linked, never embedded.
+    const newVideos = fresh.filter((i) => i.kind === 'video').map((i) => i.videoId);
+    if (newVideos.length && process.env.YOUTUBE_API_KEY) {
+        try {
+            const kids = await madeForKids(newVideos, process.env.YOUTUBE_API_KEY);
+            for (const i of fresh) if (kids.has(i.videoId)) i.forKids = true;
+        } catch (err) {
+            // Unknown: treat every new video as made for kids this time.
+            log(`Made-for-kids check failed: ${err.message}`, 'WARN');
+            for (const i of fresh) if (i.kind === 'video') i.forKids = true;
+        }
+    }
     log(`${entries.length} entries read, ${fresh.length} new.`);
 
     // ─── Sorting into stories ────────────────────────────────────────────
@@ -334,7 +364,7 @@ export async function update({ now = Date.now() } = {}) {
             .slice(0, MAX_ITEMS_PER_WRITE);
         const texts = new Map();
         await mapLimit(
-            pending.filter((i) => i.kind === 'article'),
+            pending.filter((i) => i.kind === 'article' && !SOURCE_BY_ID.get(i.source)?.headlinesOnly),
             4,
             async (it) => {
                 try {
