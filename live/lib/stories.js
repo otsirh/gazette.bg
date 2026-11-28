@@ -5,7 +5,8 @@ import { outletOf, SOURCE_BY_ID, TIERS, tierOf } from '../sources.js';
 // A party's own channel counts like an ordinary outlet for heat, and never as
 // first-hand confirmation: it is first-hand for their position only.
 const isPartisan = (sourceId) => Boolean(SOURCE_BY_ID.get(sourceId)?.partisan);
-const weightOf = (sourceId) => (isPartisan(sourceId) ? 1 : TIERS[tierOf(sourceId)].weight);
+const weightOf = (sourceId) =>
+    isPartisan(sourceId) ? 1 : SOURCE_BY_ID.get(sourceId)?.independent ? 0.8 : TIERS[tierOf(sourceId)].weight;
 
 const HOUR = 60 * 60 * 1000;
 
