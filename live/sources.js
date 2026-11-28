@@ -382,6 +382,7 @@ export const SOURCES = [
     },
     {
         id: 'novinite',
+        viaBulgaria: true,
         name: 'Novinite.bg',
         home: 'https://www.novinite.bg',
         feed: 'https://www.novinite.bg/rss',
@@ -472,6 +473,7 @@ export const SOURCES = [
     },
     {
         id: 'lex',
+        viaBulgaria: true,
         name: 'Lex.bg',
         home: 'https://news.lex.bg',
         feed: 'https://news.lex.bg/rss',
@@ -534,6 +536,7 @@ export const SOURCES = [
     // 4 — not verified, or mostly unsigned or re-posted
     {
         id: 'blitz',
+        viaBulgaria: true,
         name: 'Блиц',
         home: 'https://blitz.bg',
         feed: 'https://blitz.bg/rss',
@@ -624,6 +627,7 @@ export const SOURCES = [
     },
     {
         id: 'kmeta',
+        viaBulgaria: true,
         name: 'Kmeta.bg (Пловдив)',
         home: 'https://kmeta.bg',
         feed: 'https://kmeta.bg/feed/',
