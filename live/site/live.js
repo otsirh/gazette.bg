@@ -94,7 +94,7 @@ function markSince() {
         badge.className = `badge-new${kind === 'upd' ? ' upd' : ''}`;
         badge.textContent = kind === 'new' ? 'НОВО' : 'ОБНОВЕНО';
         if (card.classList.contains('row')) card.querySelector('a').append(badge);
-        else card.append(badge);
+        else (card.querySelector('.ago') ?? card).before(badge);
         if (kind === 'new') fresh++;
         else updated++;
     }
@@ -263,6 +263,12 @@ document.addEventListener('click', (e) => {
     const filter = e.target.closest('[data-filter]');
     if (filter) {
         applyFilter(filter.dataset.filter);
+        return;
+    }
+    const more = e.target.closest('[data-brief-more]');
+    if (more) {
+        document.querySelector('[data-brief]')?.classList.add('open');
+        more.remove();
         return;
     }
     if (e.target.closest('[data-show-mine]')) {

@@ -90,7 +90,8 @@ export function originOf(story) {
     if ((first.citesKind === 'institution' || first.citesKind === 'person') && first.cites) {
         return { name: first.cites, kind: first.citesKind, at: first.at, via: first.source };
     }
-    return { name: SOURCE_BY_ID.get(first.source)?.name ?? first.source, kind: 'media', at: first.at, via: null };
+    const name = (SOURCE_BY_ID.get(first.source)?.name ?? first.source).replace(/ \(видео\)$/, '');
+    return { name, kind: 'media', at: first.at, via: null, source: first.source, video: first.kind === 'video' };
 }
 
 // The spread as a tree: an item hangs under the earlier item of the outlet it
