@@ -299,84 +299,6 @@ button {
     border: 0;
 }
 
-/* ─── Welcome and since-your-last-visit ─────────────── */
-
-/* The intro: one line under the brief, opened on demand. */
-.welcome {
-    margin: 12px 0 0;
-    border-radius: 14px;
-    background: var(--surface);
-    box-shadow: inset 0 0 0 1px var(--line);
-}
-.welcome > summary {
-    list-style: none;
-    cursor: pointer;
-    padding: 11px 16px;
-    font-size: 14px;
-    color: var(--text-2);
-}
-.welcome > summary::-webkit-details-marker {
-    display: none;
-}
-.welcome > summary::before {
-    content: "▸ ";
-    color: var(--link);
-}
-.welcome[open] > summary::before {
-    content: "▾ ";
-}
-.welcome > summary b {
-    color: var(--link);
-    font-weight: 650;
-}
-.welcome[open] {
-    padding-bottom: 16px;
-}
-.welcome-points,
-.welcome .btn {
-    margin-left: 16px;
-    margin-right: 16px;
-}
-.welcome-points {
-    list-style: none;
-    margin-top: 4px;
-    margin-bottom: 14px;
-    padding: 0;
-    display: grid;
-    gap: 12px;
-    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-}
-.welcome-points li {
-    display: flex;
-    gap: 12px;
-    font-size: 14.5px;
-    line-height: 1.45;
-    opacity: 0.92;
-}
-.wp-icon {
-    flex: none;
-    display: grid;
-    place-items: center;
-    width: 42px;
-    height: 42px;
-    border-radius: 12px;
-    font: 700 14px var(--display);
-    color: #fff;
-}
-.wp-hot {
-    background: linear-gradient(135deg, var(--hot-2), var(--hot));
-}
-.wp-ok {
-    background: var(--k-first);
-}
-.wp-vid {
-    background: var(--k-public);
-}
-.welcome .btn {
-    background: var(--bg);
-    color: var(--text);
-}
-
 .since {
     display: flex;
     flex-wrap: wrap;
@@ -440,9 +362,6 @@ button {
 @media (max-width: 1119px) {
     .rail {
         order: -1;
-    }
-    .rail .how {
-        display: none;
     }
     .justin {
         display: flex !important;
@@ -863,15 +782,6 @@ button {
     font-weight: 550;
     margin-top: 2px;
 }
-.how p {
-    margin: 0 0 10px;
-    font-size: 13.5px;
-    color: var(--text-2);
-}
-.how a {
-    color: var(--link);
-    font-weight: 600;
-}
 
 /* ─── Story page ────────────────────────────────────── */
 
@@ -1087,25 +997,6 @@ button {
 }
 .item-list a:hover {
     text-decoration: underline;
-}
-
-.all-items summary {
-    cursor: pointer;
-    color: var(--link);
-    font-weight: 600;
-    font-size: 14px;
-}
-
-/* All items */
-.all-items summary {
-    list-style: none;
-    margin: 0;
-}
-.all-items summary::-webkit-details-marker {
-    display: none;
-}
-.all-items[open] summary {
-    margin-bottom: 14px;
 }
 .item-list {
     list-style: none;
@@ -1354,11 +1245,9 @@ button {
     vertical-align: 1px;
 }
 
-.all-items summary::before,
 .more summary::before {
     content: "▸ ";
 }
-.all-items[open] summary::before,
 .more[open] summary::before {
     content: "▾ ";
 }
@@ -1458,8 +1347,7 @@ button {
 .ai-note a,
 .item-list a,
 .prose a,
-.footer a,
-.how a {
+.footer a {
     text-decoration: underline;
     text-decoration-thickness: 1px;
     text-underline-offset: 2px;
@@ -1479,16 +1367,6 @@ button {
 }
 .skip:focus {
     top: 12px;
-}
-kbd {
-    display: inline-block;
-    min-width: 20px;
-    padding: 1px 6px;
-    border-radius: 5px;
-    background: var(--surface-2);
-    box-shadow: inset 0 -1px 0 var(--line);
-    font: 600 12px var(--font);
-    text-align: center;
 }
 .card-link:focus-visible {
     outline: 3px solid var(--link);
