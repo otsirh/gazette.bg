@@ -1075,7 +1075,10 @@ test('pulse: the flow sends each new item to its topic, the rest to „Друг�
 test('a story page: why it is hot, how it grew, and its timeline from the first item to now', async () => {
     const out = fs.mkdtempSync(path.join(os.tmpdir(), 'live-'));
     const outlets = ['bta', 'euronews', 'mediapool', 'clubz', 'fakti', 'economic', 'bnr', 'dnevnik'];
-    const items = outlets.map((o, i) => item(`i${i}`, o, 6 - i * 0.7));
+    const items = [
+        ...outlets.map((o, i) => item(`i${i}`, o, 6 - i * 0.7)),
+        item('v1', 'bnt-yt', 1, { videoId: 'vidABCDEF12', url: 'https://www.youtube.com/watch?v=vidABCDEF12' }),
+    ];
     const timeline = Array.from({ length: 20 }, (_, k) => ({
         at: NOW - (6 - k * 0.3) * HOUR,
         who: `Министър ${k}`,
@@ -1089,6 +1092,9 @@ test('a story page: why it is hot, how it grew, and its timeline from the first 
     assert.match(page, /Как се разгоря/);
     assert.match(page, /Кой вдига градусите/);
     assert.match(page, /href="#timeline"/);
+    // Videos come before the timeline, in the page and in the chips at the top.
+    assert.ok(page.indexOf('id="videos"') < page.indexOf('id="timeline"'));
+    assert.ok(page.indexOf('href="#videos"') < page.indexOf('href="#timeline"'));
     // Oldest first: the first item, then the steps, then now.
     const first = page.indexOf('Първата публикация');
     const step0 = page.indexOf('Министър 0');
@@ -1101,7 +1107,7 @@ test('a story page: why it is hot, how it grew, and its timeline from the first 
     const home = fs.readFileSync(path.join(out, 'index.html'), 'utf8');
     assert.match(home, /class="flow"/);
     assert.match(home, /Откъде идва информацията/);
-    assert.match(home, /За последните 24 часа: <b>8 публикации<\/b> от <b>8 източника<\/b>/);
+    assert.match(home, /За последните 24 часа: <b>9 публикации<\/b> от <b>9 източника<\/b>/);
     fs.rmSync(out, { recursive: true, force: true });
 });
 
