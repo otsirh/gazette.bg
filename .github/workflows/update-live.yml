@@ -88,6 +88,7 @@ jobs:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           LIVE_STATE_URL: ${{ vars.LIVE_URL }}/state.json
           LIVE_MONTHLY_BUDGET: ${{ vars.LIVE_MONTHLY_BUDGET || '40' }}
+          LIVE_CONTACT: ${{ vars.LIVE_CONTACT }}
 
       # Wrangler is pinned here rather than in package.json: only this job
       # needs it. The site is a Worker serving dist-live/ as static assets on

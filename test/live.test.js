@@ -82,12 +82,12 @@ test('articleText keeps paragraphs and drops boilerplate', () => {
 });
 
 test('heat halves every HALF_LIFE and a new outlet counts more than a repeat', () => {
-    const one = story([item('a', 'dnevnik', 0)]);
-    const old = story([item('a', 'dnevnik', HALF_LIFE / HOUR)]);
+    const one = story([item('a', 'mediapool', 0)]);
+    const old = story([item('a', 'mediapool', HALF_LIFE / HOUR)]);
     assert.ok(Math.abs(heatAt(one, NOW) - 1) < 1e-9);
     assert.ok(Math.abs(heatAt(old, NOW) - 0.5) < 1e-9);
-    const twoOutlets = story([item('a', 'dnevnik', 0), item('b', 'sega', 0)]);
-    const sameOutlet = story([item('a', 'dnevnik', 0), item('b', 'dnevnik', 0)]);
+    const twoOutlets = story([item('a', 'mediapool', 0), item('b', 'sega', 0)]);
+    const sameOutlet = story([item('a', 'mediapool', 0), item('b', 'mediapool', 0)]);
     assert.ok(heatAt(twoOutlets, NOW) > heatAt(sameOutlet, NOW));
     // A channel and the site of the same outlet are one outlet.
     const siteAndChannel = story([item('a', 'bnt', 0), item('b', 'bnt-yt', 0)]);
@@ -95,9 +95,9 @@ test('heat halves every HALF_LIFE and a new outlet counts more than a repeat', (
 });
 
 test('a story nobody writes about leaves the page', () => {
-    const fading = story([item('a', 'dnevnik', 20)]);
+    const fading = story([item('a', 'mediapool', 20)]);
     const busy = story(
-        ['dnevnik', 'sega', 'bta', 'bnt', 'capital'].map((s, i) => item(`b${i}`, s, 1)),
+        ['mediapool', 'sega', 'bta', 'bnt', 'clubz'].map((s, i) => item(`b${i}`, s, 1)),
         { id: 's2' },
     );
     const ranked = rankStories([fading, busy], NOW);
@@ -110,24 +110,27 @@ test('a story nobody writes about leaves the page', () => {
 
 test('trend: new, rising, falling', () => {
     assert.equal(trendOf(story([item('a', 'bta', 1)]), NOW), 'new');
-    const rising = story([item('a', 'bta', 6), item('b', 'sega', 1), item('c', 'bnt', 0.5), item('d', 'capital', 0.2)]);
+    const rising = story([item('a', 'bta', 6), item('b', 'sega', 1), item('c', 'bnt', 0.5), item('d', 'clubz', 0.2)]);
     assert.equal(trendOf(rising, NOW), 'up');
     const falling = story([item('a', 'bta', 8), item('b', 'sega', 7), item('c', 'bnt', 6.5)]);
     assert.equal(trendOf(falling, NOW), 'down');
 });
 
 test('trust: first-hand plus another outlet is confirmed; one outlet is not', () => {
-    assert.equal(trustOf(story([item('a', 'dnevnik', 1)])).id, 'single');
-    assert.equal(trustOf(story([item('a', 'dnevnik', 1), item('b', 'sega', 1)])).id, 'several');
-    const quoted = story([item('a', 'dnevnik', 1, { cites: 'МВР', citesKind: 'institution' }), item('b', 'sega', 1)]);
+    assert.equal(trustOf(story([item('a', 'mediapool', 1)])).id, 'single');
+    assert.equal(trustOf(story([item('a', 'mediapool', 1), item('b', 'sega', 1)])).id, 'several');
+    const quoted = story([item('a', 'mediapool', 1, { cites: 'МВР', citesKind: 'institution' }), item('b', 'sega', 1)]);
     assert.equal(trustOf(quoted).id, 'confirmed');
-    assert.equal(trustOf(story([item('a', 'bta', 1), item('b', 'sega', 1), item('c', 'dnevnik', 1)])).id, 'confirmed');
+    assert.equal(
+        trustOf(story([item('a', 'bta', 1), item('b', 'sega', 1), item('c', 'mediapool', 1)])).id,
+        'confirmed',
+    );
 });
 
 test('spreadTree hangs a citing item under the outlet it cites', () => {
     const s = story([
         item('a', 'bta', 5, { cites: 'МВР', citesKind: 'institution' }),
-        item('b', 'dnevnik', 4, { cites: 'БТА', citesKind: 'media', citesSource: 'bta' }),
+        item('b', 'mediapool', 4, { cites: 'БТА', citesKind: 'media', citesSource: 'bta' }),
         item('c', 'sega', 3, { citesKind: 'own' }),
     ]);
     const roots = spreadTree(s);
@@ -146,7 +149,7 @@ test('sourceIdForName finds an outlet by any of its names', () => {
 });
 
 test('applyWrite fills in cites and timeline and clears the pending marks', () => {
-    const a = item('a', 'dnevnik', 2, { pending: true, description: 'x' });
+    const a = item('a', 'mediapool', 2, { pending: true, description: 'x' });
     const b = item('b', 'sega', 1, { pending: true });
     const s = story([a, b]);
     applyWrite(
@@ -180,7 +183,7 @@ test('buildSite escapes everything from feeds and the model', async () => {
     const out = fs.mkdtempSync(path.join(os.tmpdir(), 'live-'));
     const s = story(
         [
-            item('a', 'dnevnik', 1, { title: '<img src=x onerror=alert(1)>', url: 'javascript:alert(1)' }),
+            item('a', 'mediapool', 1, { title: '<img src=x onerror=alert(1)>', url: 'javascript:alert(1)' }),
             item('b', 'bnt-yt', 1, { videoId: 'abc"><x', title: 'видео' }),
             item('c', 'sega', 1),
         ],
@@ -221,7 +224,7 @@ test('spreadSvg draws a lane per outlet and links a citing item to its source', 
     const svg = spreadSvg(
         story([
             item('a', 'bta', 3, { cites: 'МВР', citesKind: 'institution' }),
-            item('b', 'dnevnik', 2, { citesKind: 'media', citesSource: 'bta' }),
+            item('b', 'mediapool', 2, { citesKind: 'media', citesSource: 'bta' }),
         ]),
         NOW,
     );
@@ -234,14 +237,14 @@ test('the track record counts who was first and who cites whom', async () => {
     const { outletContributions, addContributions } = await import('../live/lib/stories.js');
     const s = story([
         item('a', 'bta', 5, { citesKind: 'own' }),
-        item('b', 'dnevnik', 4, { citesKind: 'media', citesSource: 'bta' }),
+        item('b', 'mediapool', 4, { citesKind: 'media', citesSource: 'bta' }),
         item('c', 'sega', 3, { citesKind: 'media', citesSource: 'bta' }),
     ]);
     const c = outletContributions(s);
     assert.equal(c.get('bta').first, 1);
     assert.equal(c.get('bta').citedBy, 2);
-    assert.equal(c.get('dnevnik').delayMin, 60);
-    assert.equal(c.get('dnevnik').attributed, 1);
+    assert.equal(c.get('mediapool').delayMin, 60);
+    assert.equal(c.get('mediapool').attributed, 1);
     const totals = addContributions(addContributions({}, s), s);
     assert.equal(totals.bta.stories, 2);
     assert.equal(outletContributions(story([item('x', 'bta', 1), item('y', 'sega', 1)])).size, 0);
@@ -294,4 +297,13 @@ test('merging two stories keeps both sets of items and the old address', async (
     assert.equal(a.timeline.length, 1);
     assert.deepEqual(a.aliases, ['bbbb2222']);
     assert.equal(a.createdAt, NOW - 20 * HOUR);
+});
+
+test('a robots.txt that shuts out Anthropic or says ai-input=no refuses AI', async () => {
+    const { aiRefused } = await import('../live/lib/robots.js');
+    assert.equal(aiRefused('User-agent: *\nDisallow: /admin\n'), false);
+    assert.equal(aiRefused('User-agent: GPTBot\nUser-agent: ClaudeBot\nDisallow: /\n'), true);
+    assert.equal(aiRefused('User-agent: ClaudeBot\nDisallow: /private\n'), false);
+    assert.equal(aiRefused('User-agent: *\nContent-Signal: search=yes, ai-input=no\nAllow: /\n'), true);
+    assert.equal(aiRefused('User-agent: *\nContent-Signal: ai-train=no, ai-input=yes\nAllow: /\n'), false);
 });

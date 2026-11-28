@@ -2334,3 +2334,16 @@ button {
 .hl-group .src-ico {
     margin-left: 2px;
 }
+
+.ai-note {
+    margin: -6px 0 18px;
+    font-size: 13px;
+    color: var(--muted);
+    max-width: 860px;
+}
+.ai-note a {
+    color: var(--link);
+}
+.prose .panel-title {
+    margin-bottom: 10px;
+}

@@ -24,6 +24,7 @@ import { buildSite, OUT_DIR } from './build.js';
 import { clusterItems, proofread, writeOverview, writeStory } from './lib/ai.js';
 import { fillPlaces, frameStories, mergeSame, pastFor, readParliament, retire } from './lib/depth.js';
 import { articleText, fetchText, isOffTopic, itemId, mapLimit, parseFeed, siteOf } from './lib/feeds.js';
+import { aiRefused } from './lib/robots.js';
 import { pruneStories, rankStories } from './lib/stories.js';
 import { tidy } from './lib/text.js';
 import { SOURCE_BY_ID, SOURCES, sourceIdForName } from './sources.js';
@@ -90,8 +91,31 @@ async function loadState() {
     return emptyState();
 }
 
+// Once a day per site: does its robots.txt still let AI use its content?
+// A refusal stops the source at once; YouTube channels go by YouTube's terms.
+async function checkRobots(state, now) {
+    await mapLimit(SOURCES, 8, async (source) => {
+        if (source.home.includes('youtube.com')) return;
+        if (!state.sources[source.id]) state.sources[source.id] = {};
+        const st = state.sources[source.id];
+        if (st.robotsAt && now - st.robotsAt < 24 * HOUR) return;
+        try {
+            const res = await fetch(new URL('/robots.txt', source.home), {
+                headers: { 'User-Agent': 'Mozilla/5.0 (compatible; live.gazette.bg/1.0; +https://live.gazette.bg)' },
+                signal: AbortSignal.timeout(12000),
+            });
+            st.aiRefused = res.ok ? aiRefused(await res.text()) : false;
+            st.robotsAt = now;
+            if (st.aiRefused) log(`${source.id}: robots.txt refuses AI; not read.`, 'WARN');
+        } catch {
+            // Unknown this time: keep the last answer.
+        }
+    });
+}
+
 async function readFeeds(state, now) {
     const results = await mapLimit(SOURCES, 8, async (source) => {
+        if (state.sources[source.id]?.aiRefused) return [];
         try {
             const xml = await fetchSmart(source.feed, source.id, { accept: FEED_ACCEPT });
             const entries = parseFeed(xml, now);
@@ -168,6 +192,12 @@ export async function update({ now = Date.now() } = {}) {
     for (const [id, at] of Object.entries(state.seen)) if (now - at > SEEN_TTL) delete state.seen[id];
 
     // ─── New items ───────────────────────────────────────────────────────
+    await checkRobots(state, now);
+    // Nothing stays from a source we no longer read, or one that now refuses AI.
+    const allowed = (id) => SOURCE_BY_ID.has(id) && !state.sources[id]?.aiRefused;
+    for (const s of state.stories) s.items = s.items.filter((i) => allowed(i.source));
+    state.stories = state.stories.filter((s) => s.items.length);
+    for (const id of Object.keys(state.sources)) if (!SOURCE_BY_ID.has(id)) delete state.sources[id];
     const entries = await readFeeds(state, now);
     const known = new Set(state.stories.flatMap((s) => s.items.map((i) => i.id)));
     const fresh = [];
