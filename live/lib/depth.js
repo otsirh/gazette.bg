@@ -11,7 +11,8 @@ import { videoDetails, videoIdOf } from './youtube.js';
 
 const DAY = 24 * 3600 * 1000;
 const MEMORY_DAYS = 90;
-const MEMORY_MAX = 600;
+// About a week of stories leaving the page (some 14 an hour).
+const MEMORY_MAX = 2000;
 
 // Stories leaving the page are remembered briefly (title, summary, dates)
 // so a new story can say what came before it. Nothing else is kept: no
@@ -23,7 +24,7 @@ export function retire(state, dropped, now) {
             state.memory.push({
                 id: s.id,
                 title: s.title,
-                summary: s.summary,
+                summary: clip(s.summary, 300),
                 at: Math.min(...s.items.map((i) => i.at)),
                 place: s.place || '',
             });
@@ -34,11 +35,54 @@ export function retire(state, dropped, now) {
 
 // Earlier stories a new one may continue: the remembered ones and the older
 // ones still on the page, newest first.
-export function pastFor(state, story, now) {
+// Only the ones that share something with it: words (by their first six
+// letters, so „бюджета“ meets „бюджетът“) and the place. A word in many
+// stories („България“, „министър“) says nothing and is not counted. The
+// model then reads 25 likely ones instead of the newest 120, and a story
+// from last week can still be found.
+const stems = (t) =>
+    new Set(
+        String(t ?? '')
+            .toLowerCase()
+            .split(/[^\p{L}\d]+/u)
+            .filter((w) => w.length >= 5)
+            .map((w) => w.slice(0, 6)),
+    );
+
+export function pastFor(state, story, now, items = []) {
     const active = state.stories
         .filter((s) => s.id !== story.id && s.summary && now - s.createdAt > 6 * 3600 * 1000)
-        .map((s) => ({ id: s.id, title: s.title, summary: s.summary, at: Math.min(...s.items.map((i) => i.at)) }));
-    return [...(state.memory ?? []), ...active].sort((a, b) => b.at - a.at).slice(0, 120);
+        .map((s) => ({
+            id: s.id,
+            title: s.title,
+            summary: s.summary,
+            at: Math.min(...s.items.map((i) => i.at)),
+            place: s.place || '',
+        }));
+    const pool = [...(state.memory ?? []), ...active].map((p) => ({
+        p,
+        title: stems(p.title),
+        summary: stems(p.summary),
+    }));
+    const df = new Map();
+    for (const c of pool) for (const w of new Set([...c.title, ...c.summary])) df.set(w, (df.get(w) ?? 0) + 1);
+    const common = Math.max(3, pool.length * 0.05);
+    const mine = new Set(
+        [...stems([story.title, ...items.map((i) => i.title)].join(' '))].filter((w) => (df.get(w) ?? 0) <= common),
+    );
+    if (!mine.size) return [];
+    return pool
+        .map(({ p, title, summary }) => {
+            let score = 0;
+            for (const w of title) if (mine.has(w)) score += 2;
+            for (const w of summary) if (mine.has(w)) score += 1;
+            if (story.place && p.place === story.place) score += 1;
+            return { p, score };
+        })
+        .filter((x) => x.score >= 3)
+        .sort((a, b) => b.score - a.score || b.p.at - a.p.at)
+        .slice(0, 25)
+        .map((x) => x.p);
 }
 
 export async function fillPlaces(state, meter, log) {

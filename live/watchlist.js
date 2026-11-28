@@ -78,6 +78,15 @@ export const WANTED = [
         note: '',
     },
     {
+        id: 'evrokom-yt',
+        name: 'Евроком (видео)',
+        why: 'outlet',
+        since: '2026-11',
+        check: { robotsOf: 'https://eurocom.bg', channel: 'UCYRY_SSdXPpeV8oxI96Q51w' },
+        contact: '',
+        note: 'Каналът е в YouTube, но самият Евроком забранява AI на сайта си (ClaudeBot Disallow: /, ai-train=no).',
+    },
+    {
         id: 'bgnes-yt',
         name: 'BGNES (видео)',
         why: 'outlet',

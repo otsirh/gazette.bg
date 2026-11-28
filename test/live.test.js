@@ -7,7 +7,7 @@ import { buildSite, wideCards } from '../live/build.js';
 import { articleText, isOffTopic, parseFeed, toText } from '../live/lib/feeds.js';
 import { HALF_LIFE, heatAt, rankStories, spreadTree, trendOf, trustOf } from '../live/lib/stories.js';
 import { sourceIdForName } from '../live/sources.js';
-import { applyWrite, checkQuotes, isTransient, proofQueue } from '../live/update.js';
+import { applyWrite, checkQuotes, isTransient, proofQueue, toItem } from '../live/update.js';
 
 const HOUR = 3600 * 1000;
 const NOW = Date.parse('2026-11-28T12:00:00Z');
@@ -873,4 +873,42 @@ test('the blocklist reaches the ledger: a blocked story and a blocked name leave
         state.ledger.map((e) => e.quote),
         ['до 6 декември ще бъде готово'],
     );
+});
+
+test('a new story is shown the earlier stories it shares rare words with, not just the newest', async () => {
+    const { pastFor } = await import('../live/lib/depth.js');
+    const memory = [
+        {
+            id: 'm1',
+            title: 'ОИК във Варна отстрани кмета Благомир Коцев',
+            summary: 'Решението е обжалвано.',
+            at: NOW - 90 * HOUR,
+        },
+        ...Array.from({ length: 60 }, (_, i) => ({
+            id: `x${i}`,
+            title: `България и новина номер ${i}`,
+            summary: 'В България се случи нещо.',
+            at: NOW - i * HOUR,
+        })),
+    ];
+    const state = { stories: [], memory };
+    const fresh = story([item('a', 'bta', 1, { title: 'Съдът във Варна спря отстраняването на Коцев' })], {
+        id: 'new12345',
+        title: 'Делото за кмета Благомир Коцев',
+    });
+    const past = pastFor(state, fresh, NOW, fresh.items);
+    assert.equal(past[0].id, 'm1');
+    assert.ok(past.length < 25, 'a word in every story („България“) brings nothing');
+});
+
+test('a headlines-only source gives the model its headline and link, not its excerpt', () => {
+    const e = {
+        url: 'https://bntnews.bg/a',
+        title: 'Заглавие',
+        description: 'Откъс от статията',
+        at: NOW,
+        kind: 'article',
+    };
+    assert.equal(toItem({ ...e, source: 'bnt' }).description, '');
+    assert.equal(toItem({ ...e, source: 'sega' }).description, 'Откъс от статията');
 });
