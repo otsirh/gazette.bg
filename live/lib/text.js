@@ -103,6 +103,7 @@ export function aiTexts(state) {
     for (const s of state.stories ?? []) {
         for (const f of ['title', 'summary', 'disputed']) add(s, f);
         add(s.context, 'background');
+        add(s.weight, 'why');
         for (const a of s.framing?.angles ?? []) for (const f of ['label', 'summary']) add(a, f);
         for (const e of s.timeline ?? []) for (const f of ['actor', 'who', 'what']) add(e, f);
         for (const i of s.items ?? []) add(i, 'cites');
