@@ -10,7 +10,7 @@ import { createHash } from 'node:crypto';
 //   ANTHROPIC_API_KEY     required for anything new to be sorted
 //   LIVE_STATE_URL        where the published state.json is; without it the
 //                         state is kept in .live-state.json (local runs)
-//   LIVE_MONTHLY_BUDGET   US$ a month the updates may spend (default 40)
+//   LIVE_MONTHLY_BUDGET   US$ a month the updates may spend (default 100)
 //   LIVE_RUN_BUDGET       US$ one update may spend (default 1.5)
 //   LIVE_NO_AI=1          read feeds and rebuild, without calling Claude
 //   LIVE_PROXY            socks5://host:port in Bulgaria, for the sources
@@ -244,7 +244,7 @@ export async function update({ now = Date.now() } = {}) {
     const proof = [];
     const month = monthOf(now);
     if (state.spend.month !== month) state.spend = { month, usd: 0 };
-    const monthly = Number(process.env.LIVE_MONTHLY_BUDGET ?? 40);
+    const monthly = Number(process.env.LIVE_MONTHLY_BUDGET ?? 100);
     const perRun = Number(process.env.LIVE_RUN_BUDGET ?? 1.5);
     // A state older than three hours means the last updates did not publish
     // (a broken token, an outage). Writing on top of it would pay again for
@@ -473,7 +473,9 @@ export async function update({ now = Date.now() } = {}) {
     const queued = proof.filter(([o, f]) => typeof o[f] === 'string' && o[f].trim());
     if (queued.length && canSpend()) {
         try {
-            const fixes = await proofread({ texts: queued.map(([o, f]) => o[f]), meter });
+            // Sonnet: in a blind test it halved the language errors Haiku leaves
+            // (10.6 → 5.0 per 1000 words; scripts/eval-writing.js).
+            const fixes = await proofread({ texts: queued.map(([o, f]) => o[f]), meter, model: OVERVIEW_MODEL });
             for (const [i, text] of fixes) {
                 const [o, f] = queued[i];
                 log(`  proof: ${o[f].slice(0, 120)} → ${text.slice(0, 120)}`);
