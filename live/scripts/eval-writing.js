@@ -5,7 +5,10 @@
 // not told which text is which, lists every spelling, grammar and
 // punctuation error. Prints errors and cost per setup, and a few samples.
 //
-//   ANTHROPIC_API_KEY=… node live/scripts/eval-writing.js [stories=20]
+//   ANTHROPIC_API_KEY=… node live/scripts/eval-writing.js [stories=20] [proof]
+//
+// With "proof", only Haiku writes, and Sonnet proofreads it at each effort
+// (high, medium, low): what the thinking in the proofreading pass buys.
 //
 // Input is each story's latest headlines only (article texts are not kept),
 // so this measures the language, not how complete a summary is.
@@ -15,6 +18,7 @@ import { tidy } from '../lib/text.js';
 import { SOURCE_BY_ID } from '../sources.js';
 
 const N = Number(process.argv[2] ?? 20);
+const PROOF_ONLY = process.argv[3] === 'proof';
 const JUDGE = 'claude-opus-5-5';
 const HAIKU = 'claude-haiku-5-5';
 const state = await (await fetch(process.env.LIVE_STATE_URL ?? 'https://live.gazette.bg/state.json')).json();
@@ -30,10 +34,20 @@ const SETUPS = [
     { id: 'A', label: 'Haiku, medium (сега)', model: HAIKU, effort: 'medium' },
     { id: 'B', label: 'Haiku, high', model: HAIKU, effort: 'high' },
     { id: 'C', label: 'Sonnet, medium', model: OVERVIEW_MODEL, effort: 'medium' },
-];
-const meters = Object.fromEntries(
-    ['A', 'B', 'C', 'A+proofHaiku', 'A+proofSonnet', 'judge'].map((k) => [k, { usd: 0, calls: 0 }]),
-);
+].filter((s) => !PROOF_ONLY || s.id === 'A');
+// Proofreading of Haiku's text: [key, model, effort].
+const PROOFS = PROOF_ONLY
+    ? [
+          ['A+proofSonnet-high', OVERVIEW_MODEL, 'high'],
+          ['A+proofSonnet-medium', OVERVIEW_MODEL, 'medium'],
+          ['A+proofSonnet-low', OVERVIEW_MODEL, 'low'],
+      ]
+    : [
+          ['A+proofHaiku', HAIKU, 'high'],
+          ['A+proofSonnet', OVERVIEW_MODEL, 'high'],
+      ];
+const KEYS = [...SETUPS.map((s) => s.id), ...PROOFS.map(([k]) => k)];
+const meters = Object.fromEntries([...KEYS, 'judge'].map((k) => [k, { usd: 0, calls: 0 }]));
 
 const textsOf = (r) => [r.title, r.summary, ...(r.events ?? []).map((e) => e.what)].filter(Boolean).map(tidy);
 
@@ -62,11 +76,8 @@ for (const s of picked) {
         }
     }
     if (!out.A) continue;
-    for (const [key, model] of [
-        ['A+proofHaiku', HAIKU],
-        ['A+proofSonnet', OVERVIEW_MODEL],
-    ]) {
-        const fixes = await proofread({ texts: out.A, meter: meters[key], model });
+    for (const [key, model, effort] of PROOFS) {
+        const fixes = await proofread({ texts: out.A, meter: meters[key], model, effort });
         out[key] = out.A.map((t, i) => (fixes.has(i) ? tidy(fixes.get(i)) : t));
     }
     results.push({ story: s, out });
@@ -142,14 +153,14 @@ for (const { story, out } of results) {
 console.log(`\n## ${results.length} истории\n`);
 console.log('| Начин | Грешки | на 1000 думи | Цена |');
 console.log('|---|---:|---:|---:|');
-for (const k of ['A', 'B', 'C', 'A+proofHaiku', 'A+proofSonnet']) {
+for (const k of KEYS) {
     const label = SETUPS.find((x) => x.id === k)?.label ?? k;
     console.log(
         `| ${label} | ${tally[k] ?? 0} | ${(((tally[k] ?? 0) / (words[k] || 1)) * 1000).toFixed(1)} | $${meters[k].usd.toFixed(3)} |`,
     );
 }
 console.log(`\nСъдията: $${meters.judge.usd.toFixed(3)}\n\nПримерни грешки:\n${samples.join('\n')}`);
-console.log('\nПримери (A | C):');
-for (const { story, out } of results.slice(0, 3)) {
+if (!PROOF_ONLY) console.log('\nПримери (A | C):');
+for (const { story, out } of PROOF_ONLY ? [] : results.slice(0, 3)) {
     console.log(`\n— ${story.id}\nA: ${out.A?.slice(0, 2).join(' / ')}\nC: ${out.C?.slice(0, 2).join(' / ')}`);
 }

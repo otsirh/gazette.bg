@@ -34,7 +34,7 @@ import {
 } from './lib/policy.js';
 import { aiRefused, pathAllowed, tdmReserved } from './lib/robots.js';
 import { openSeals, publicState } from './lib/seal.js';
-import { pruneStories, rankStories } from './lib/stories.js';
+import { pruneStories, rankStories, scoreStories } from './lib/stories.js';
 import { aiTexts, clip, recutOld, tidy, tidyState } from './lib/text.js';
 import { channelIdOf, channelUploads, madeForKids } from './lib/youtube.js';
 import { SOURCE_BY_ID, SOURCES, sourceIdForName } from './sources.js';
@@ -50,6 +50,19 @@ const CLUSTER_BATCH = 50;
 const MAX_ITEMS_PER_WRITE = 15;
 const MAX_WRITES_PER_RUN = 20;
 const MAX_TRIES = 3;
+// How hard the proofreader thinks. In a blind test on 24 stories (Opus as
+// judge, scripts/eval-writing.js 24 proof) Sonnet left 6.5 errors per 1000
+// words at "high", 4.1 at "medium" and 2.4 at "low", and "low" cost 58% less
+// than "high": more thinking rewrote more, not better.
+const PROOF_EFFORT = 'low';
+
+// The API busy, overloaded or out of reach: nothing wrong with the request.
+// An answer that cannot be read is not this: asking again costs again.
+export function isTransient(err) {
+    const status = err?.status;
+    if (typeof status === 'number') return status === 408 || status === 409 || status === 429 || status >= 500;
+    return /APIConnection|Timeout|Abort/.test(err?.name ?? '');
+}
 const SEEN_TTL = 4 * 24 * HOUR;
 
 const sourceName = (id) => SOURCE_BY_ID.get(id)?.name ?? id;
@@ -251,6 +264,14 @@ export async function update({ now = Date.now() } = {}) {
     applyBlocklist(state, policy);
     // „Никой не казва“ was judged from headlines alone and was often wrong.
     for (const s of state.stories) if (s.framing) delete s.framing.missing;
+    // Every text on the site now was proofread when it was written, except
+    // what a failed or unpaid pass left (state.unproofed).
+    const unproofed = new Set(state.unproofed ?? []);
+    const proofedBefore = new Set(
+        aiTexts(state)
+            .map(([o, f]) => o[f])
+            .filter((t) => !unproofed.has(t)),
+    );
     const meter = { usd: 0, calls: 0 };
     // Every text the model writes in this update, to be proofread at the end.
     const proof = [];
@@ -324,22 +345,30 @@ export async function update({ now = Date.now() } = {}) {
     let sorted = 0;
     let skipped = 0;
     let unanswered = 0;
+    let createdAny = false;
     for (let i = 0; i < fresh.length && canSpend(); i += CLUSTER_BATCH) {
         const batch = fresh.slice(i, i + CLUSTER_BATCH);
-        const active = rankStories(state.stories, now)
-            .slice(0, 120)
+        // Every story still in the state, the cold ones too: a new item about
+        // one that has left the page joins it instead of starting a twin.
+        const active = scoreStories(state.stories, now)
+            .slice(0, 160)
             .map((r) => r.story);
         let decisions;
         try {
             decisions = await clusterItems({ stories: active, items: batch, sourceName, meter });
         } catch (err) {
-            // Asked once more next update, then let go, like an unanswered item;
-            // otherwise the same failing batch would come back for 36 hours.
             log(`Sorting failed: ${err.message}`, 'WARN');
+            // The API busy or unreachable: the items are simply new again next
+            // update, however long that takes (until they are too old).
+            if (isTransient(err)) continue;
+            // Anything else is asked once more next update, then let go, like
+            // an unanswered item: the same failing batch must not come back
+            // for 36 hours.
             for (const it of batch) state.seen[state.seen[`?${it.id}`] ? it.id : `?${it.id}`] = now;
             continue;
         }
         const created = new Map();
+        createdAny ||= batch.some((_, n) => decisions.get(n)?.key);
         batch.forEach((item, n) => {
             const d = decisions.get(n);
             if (d === undefined) {
@@ -451,7 +480,12 @@ export async function update({ now = Date.now() } = {}) {
     for (const s of state.stories) if (s.items.length > 400) s.items = s.items.sort((a, b) => a.at - b.at).slice(-400);
 
     // ─── Depth: places, how each side tells it, parliament ──────────────
-    if (canSpend()) await mergeSame(state, now, meter, log);
+    // Twins are born when a new story is: look for them then, and at least
+    // once an hour in case two stories grew into one.
+    if (canSpend() && (createdAny || now - (state.sameAt ?? 0) > HOUR)) {
+        await mergeSame(state, now, meter, log);
+        state.sameAt = now;
+    }
     if (canSpend()) await recheckSensitive(state, meter, log, process.env.YOUTUBE_API_KEY);
     if (canSpend()) await fillPlaces(state, meter, log);
     await frameStories(state, now, meter, canSpend, log, proof);
@@ -461,12 +495,21 @@ export async function update({ now = Date.now() } = {}) {
     const ranked = rankStories(state.stories, now)
         .filter((r) => r.trust.outlets >= 2 || r.trust.firstHand)
         .slice(0, 12);
+    // Written again when the five biggest stories change (which ones, not
+    // their order), at most once an hour, and at least every two hours; but
+    // within 20 minutes when the hottest story is not in it at all.
     const topKey = ranked
-        .slice(0, 7)
+        .slice(0, 5)
         .map((r) => r.story.id)
+        .sort()
         .join(',');
     const last = state.overview?.at ?? 0;
-    const due = (topKey !== state.overview?.topKey && now - last > 30 * 60 * 1000) || now - last > 2 * HOUR;
+    const inOverview = new Set((state.overview?.lines ?? []).map((l) => l.story));
+    const newTop = ranked.length > 0 && !inOverview.has(ranked[0].story.id);
+    const due =
+        (newTop && now - last >= 20 * 60 * 1000) ||
+        (topKey !== state.overview?.topKey && now - last >= HOUR) ||
+        now - last > 2 * HOUR;
     if (ranked.length && due && canSpend()) {
         try {
             const lines = await writeOverview({ ranked, meter });
@@ -484,22 +527,28 @@ export async function update({ now = Date.now() } = {}) {
 
     applyBlocklist(state, policy);
 
-    // ─── Proofreading: one pass over everything written in this update ───
-    const queued = proof.filter(([o, f]) => typeof o[f] === 'string' && o[f].trim());
-    if (queued.length && canSpend()) {
+    // ─── Proofreading: once, every new text of this update ──────────────
+    // A text already on the site was proofread when it was written: the model
+    // writes the same title or name again and again, and it is not read
+    // twice. Each distinct text goes once; what a failed pass left is tried
+    // again on the next update.
+    const { queued, distinct } = proofQueue(proof, state, proofedBefore, unproofed);
+    if (distinct.length && canSpend()) {
         try {
             // Sonnet: in a blind test it halved the language errors Haiku leaves
             // (10.6 → 5.0 per 1000 words; scripts/eval-writing.js).
-            const fixes = await proofread({ texts: queued.map(([o, f]) => o[f]), meter, model: OVERVIEW_MODEL });
-            for (const [i, text] of fixes) {
-                const [o, f] = queued[i];
-                log(`  proof: ${o[f].slice(0, 120)} → ${text.slice(0, 120)}`);
-                o[f] = tidy(text);
-            }
-            log(`Proofread ${queued.length} texts, corrected ${fixes.size}.`);
+            const fixes = await proofread({ texts: distinct, meter, model: OVERVIEW_MODEL, effort: PROOF_EFFORT });
+            const fixed = new Map([...fixes].map(([i, text]) => [distinct[i], tidy(text)]));
+            for (const [o, f] of queued) if (fixed.has(o[f])) o[f] = fixed.get(o[f]);
+            for (const [before, after] of fixed) log(`  proof: ${before.slice(0, 120)} → ${after.slice(0, 120)}`);
+            log(`Proofread ${distinct.length} texts (${proof.length} written), corrected ${fixed.size}.`);
+            state.unproofed = [];
         } catch (err) {
             log(`Proofreading failed: ${err.message}`, 'WARN');
+            state.unproofed = distinct.slice(-300);
         }
+    } else if (distinct.length) {
+        state.unproofed = distinct.slice(-300);
     }
 
     // Once: every text already on the site, proofread by the stronger model
@@ -536,6 +585,17 @@ export async function update({ now = Date.now() } = {}) {
     await buildSite(state, { now });
     log(`Built ${OUT_DIR} with ${rankStories(state.stories, now).length} stories on the page.`);
     return state;
+}
+
+// What the proofreader reads in this update: what was written now, and what
+// a failed pass left (unproofed), minus every text that was on the site
+// before (proofread then); each distinct text once.
+export function proofQueue(proof, state, proofedBefore, unproofed) {
+    const retry = aiTexts(state).filter(([o, f]) => unproofed.has(o[f]));
+    const queued = [...proof, ...retry].filter(
+        ([o, f]) => typeof o?.[f] === 'string' && o[f].trim() && !proofedBefore.has(o[f]),
+    );
+    return { queued, distinct: [...new Set(queued.map(([o, f]) => o[f]))] };
 }
 
 // A quote is said word for word in a source (or in what the story already

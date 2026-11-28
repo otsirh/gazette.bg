@@ -7,7 +7,7 @@ import { buildSite, wideCards } from '../live/build.js';
 import { articleText, isOffTopic, parseFeed, toText } from '../live/lib/feeds.js';
 import { HALF_LIFE, heatAt, rankStories, spreadTree, trendOf, trustOf } from '../live/lib/stories.js';
 import { sourceIdForName } from '../live/sources.js';
-import { applyWrite, checkQuotes } from '../live/update.js';
+import { applyWrite, checkQuotes, isTransient, proofQueue } from '../live/update.js';
 
 const HOUR = 3600 * 1000;
 const NOW = Date.parse('2026-11-28T12:00:00Z');
@@ -752,4 +752,33 @@ test('the writer unquotes every quote no source has, in the summary and in each 
     assert.equal(result.events.length, 2, 'no step is dropped');
     assert.equal(result.events[0].what, 'заяви: Няма да има нови данъци догодина');
     assert.equal(result.events[1].what, 'обеща „бюджетът ще бъде приет до края на годината“');
+});
+
+test('proofreading reads only new text, each distinct text once, and retries what failed', () => {
+    const old = story([], { title: 'Старо заглавие', summary: 'Старо обобщение.', timeline: [] });
+    const state = { stories: [old], overview: null };
+    const proofedBefore = new Set(['Старо заглавие', 'Старо обобщение.', 'Иван Иванов, министър']);
+    const e1 = { who: 'Иван Иванов, министър', what: 'заяви нещо' };
+    const e2 = { who: 'Мария Петрова, кмет', what: 'заяви нещо' };
+    old.timeline.push(e1, e2);
+    old.disputed = 'Спорът от миналия път.';
+    const proof = [
+        [old, 'title'],
+        [old, 'summary'],
+        [e1, 'who'],
+        [e1, 'what'],
+        [e2, 'who'],
+        [e2, 'what'],
+    ];
+    const { queued, distinct } = proofQueue(proof, state, proofedBefore, new Set(['Спорът от миналия път.']));
+    assert.deepEqual(distinct, ['заяви нещо', 'Мария Петрова, кмет', 'Спорът от миналия път.']);
+    assert.equal(queued.length, 4, 'both steps get the fix to their shared text');
+});
+
+test('only a busy or unreachable API counts as passing trouble', () => {
+    assert.equal(isTransient({ status: 529 }), true);
+    assert.equal(isTransient({ status: 429 }), true);
+    assert.equal(isTransient({ name: 'APIConnectionTimeoutError' }), true);
+    assert.equal(isTransient({ status: 400 }), false);
+    assert.equal(isTransient(new SyntaxError('Unexpected token')), false);
 });

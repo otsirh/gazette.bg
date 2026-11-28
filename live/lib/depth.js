@@ -138,9 +138,11 @@ export function mergeInto(keep, others) {
 }
 
 export async function mergeSame(state, now, meter, log) {
+    // Stories from one outlet too: the regional pieces of one storm are
+    // exactly those.
     const active = rankStories(state.stories, now)
-        .filter((r) => r.story.summary && (r.trust.outlets >= 2 || r.trust.firstHand))
-        .slice(0, 100)
+        .filter((r) => r.story.summary)
+        .slice(0, 120)
         .map((r) => r.story);
     if (active.length < 2) return;
     let groups;
