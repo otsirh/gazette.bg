@@ -76,6 +76,16 @@ export const SOURCES = [
         aliases: ['МВР', 'Министерството на вътрешните работи'],
     },
     {
+        id: 'gov-yt',
+        name: 'Министерски съвет (видео)',
+        home: 'https://www.youtube.com/channel/UCW9EdtT4kCtntp4igyp7o7Q',
+        feed: yt('UCW9EdtT4kCtntp4igyp7o7Q'),
+        kind: 'video',
+        tier: 1,
+        why: 'Каналът „Government of Bulgaria“, по описанието си официалният канал на правителството: изказвания на премиера, заседания и решения на Министерския съвет. Същата медия като gov.bg.',
+        aliases: [],
+    },
+    {
         id: 'pp-yt',
         name: 'Продължаваме промяната (видео)',
         home: 'https://www.youtube.com/channel/UCLcA8_LzT-rsQJRTWSNguhw',
