@@ -428,7 +428,7 @@ function frontPage(state, ranked, now) {
     }
     const body = groups.length
         ? groups.join('\n')
-        : '<p class="empty">Все още няма събрани истории. Първото обновяване идва до 20 минути.</p>';
+        : '<p class="empty">Все още няма събрани истории. Първото обновяване идва до 10 минути.</p>';
     const top = main[0];
     return `${head({
         title: 'Какво се случва в България сега — live.gazette.bg',

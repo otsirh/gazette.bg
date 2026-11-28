@@ -295,7 +295,8 @@ export async function update({ now = Date.now() } = {}) {
     }
 
     state.spend.usd = Math.round((state.spend.usd + meter.usd) * 10000) / 10000;
-    state.updatedAt = now;
+    // The time readers see is when this version was finished, not begun.
+    state.updatedAt = Date.now();
     log(
         `Claude: ${meter.calls} calls, $${meter.usd.toFixed(3)} this update, $${state.spend.usd.toFixed(2)} in ${month}.`,
     );

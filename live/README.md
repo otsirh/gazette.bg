@@ -7,7 +7,7 @@
 
 ## Как работи
 
-На всеки 20 минути `.github/workflows/update-live.yml` изпълнява
+На всеки 10 минути `.github/workflows/update-live.yml` изпълнява
 `node live/update.js`:
 
 1. **Четене.** RSS емисиите на около 60 медии и YouTube канала от `sources.js`:

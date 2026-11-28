@@ -3,9 +3,10 @@ name: Update live.gazette.bg
 on:
   workflow_dispatch: {}
   schedule:
-    # Every 20 minutes. GitHub may start a scheduled run some minutes late
-    # when it is busy; the next one catches up.
-    - cron: '*/20 * * * *'
+    # Every 10 minutes. GitHub starts scheduled runs late, and at busy times
+    # skips some altogether; asking twice as often keeps the gap short. A run
+    # with nothing new costs a cent at most.
+    - cron: '*/10 * * * *'
 
 # Two updates must not publish over each other: each reads the state the
 # last one published.
