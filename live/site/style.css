@@ -1433,3 +1433,65 @@ button {
     font-size: 11px;
     font-weight: 700;
 }
+
+/* The AI note on the front page: the first thing read, before any story. */
+.home-ai {
+    margin: 0 0 14px;
+}
+
+/* A video before it is played: drawn here, nothing from YouTube. */
+.vface {
+    position: absolute;
+    inset: 0;
+    display: block;
+    background:
+        radial-gradient(120% 90% at 30% 20%, rgb(255 255 255 / 0.08), transparent 60%),
+        linear-gradient(135deg, #1d2433, #0e121b);
+    color: #fff;
+    transition: filter 0.3s var(--ease);
+}
+.card:hover .vface,
+.video-play:hover .vface {
+    filter: brightness(1.15);
+}
+.vface-src {
+    position: absolute;
+    left: 12px;
+    right: 12px;
+    top: 10px;
+    font-size: 13px;
+    font-weight: 650;
+    line-height: 1.3;
+    text-align: left;
+    opacity: 0.9;
+    overflow: hidden;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+}
+.card-thumb {
+    min-height: 140px;
+}
+
+/* „ИИ“: the model wrote this (AI Act, Art. 50(4)), at the start of every card and page. */
+.ai-tag {
+    display: inline-flex;
+    align-items: center;
+    padding: 1px 6px;
+    border-radius: 5px;
+    box-shadow: inset 0 0 0 1px var(--line);
+    color: var(--muted);
+    font: 700 10.5px / 1.4 var(--font);
+    letter-spacing: 0.04em;
+    margin-right: 6px;
+}
+.ai-top {
+    margin: 4px 0 10px;
+}
+
+.btn-small {
+    padding: 6px 12px;
+    font-size: 13px;
+    white-space: normal;
+    text-align: left;
+}

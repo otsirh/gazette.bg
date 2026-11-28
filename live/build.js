@@ -35,7 +35,7 @@ const CONTACT = /^[^\s@<>"]+@[^\s@<>"]+\.[a-z]{2,}$/i.test(process.env.LIVE_CONT
 const HOUR = 3600 * 1000;
 
 // Bumped by hand when style.css or live.js change, so browsers fetch them anew.
-const ASSET_VERSION = '37';
+const ASSET_VERSION = '38';
 
 const shortHash = (t) => createHash('sha1').update(String(t)).digest('base64url').slice(0, 8);
 
@@ -92,6 +92,14 @@ const sourceLabel = (id) => esc(displayName(id));
 const itemTitle = (it) => it.title || `Публикация на ${displayName(it.source)}`;
 const plural = (n, one, many) => `${n} ${n === 1 ? one : many}`;
 
+// Every text the model writes is marked as such where it begins (AI Act,
+// Art. 50(4); the Commission's guidelines ask for it on each output, not
+// once per site): a tag on each card and page, and the words in front of
+// every summary that travels on its own (RSS, search and share previews).
+const AI_TAG =
+    '<span class="ai-tag" title="Написано автоматично от изкуствен интелект"><span aria-hidden="true">ИИ</span><span class="sr-only">Написано от изкуствен интелект:</span></span>';
+const aiText = (t) => `Обобщено от изкуствен интелект: ${t}`;
+
 // ─── What kind of voice a source is ─────────────────────────────────────
 
 const KINDS = {
@@ -118,11 +126,14 @@ const KINDS = {
         title: 'Канали на партии',
         long: 'Канал на партия – мнението на партията, не проверен факт',
     },
+    // Tier 4. Every source has a known owner (SOURCES-POLICY.md, rule 2), so
+    // this says only what anyone can check on the page: the items are
+    // mostly unsigned. Never a judgment of the outlet.
     unverified: {
-        one: 'сайт с неясен собственик',
-        many: 'сайта с неясен собственик',
-        title: 'Сайтове с неясен собственик',
-        long: 'Сайт, за който не знаем кой стои зад него, или текст без автор',
+        one: 'медия без подписи',
+        many: 'медии без подписи',
+        title: 'Медии без подписани материали',
+        long: 'Медия с известен собственик, чиито материали обикновено не са подписани',
     },
 };
 const kindCount = (k, n) => `${n} ${n === 1 ? KINDS[k].one : KINDS[k].many}`;
@@ -241,7 +252,11 @@ const videosOf = (story) =>
         .filter((i) => i.kind === 'video' && !i.forKids && /^[\w-]{6,20}$/.test(i.videoId ?? ''))
         .sort((a, b) => b.at - a.at);
 
-const thumb = (videoId) => `https://i.ytimg.com/vi/${esc(videoId)}/mqdefault.jpg`;
+// A video's face before it is played: whose video it is and a play button,
+// drawn here. Nothing loads from YouTube (not even its picture, which would
+// hand every visitor's address to Google) until the reader presses play.
+const videoFace = (v) =>
+    `<span class="vface"><span class="vface-src">${sourceLabel(v.source)}</span><span class="play" aria-hidden="true">${ICONS.play}</span><span class="thumb-src">YouTube</span></span>`;
 
 const ICONS = {
     play: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5.5v13l11-6.5z" fill="currentColor"/></svg>',
@@ -302,6 +317,7 @@ function footer() {
         <ul class="legend">${KIND_ORDER.map((k) => `<li><i class="kd k-${k}"></i>${esc(KINDS[k].long)}</li>`).join('')}</ul>
         <p>Текстовете тук не ги пише журналист: пише ги компютърна програма с изкуствен интелект (Claude на фирмата Anthropic) по публикациите на ${SOURCES.length} медии и институции. Може да сбърка. Всяко твърдение води към публикацията, от която е взето – проверявай там.</p>
         <p><a href="/about/">За сайта, поправки и поверителност</a> · <a href="/corrections/">Поправки</a> · <a href="/sources/">Източници и как се оценяват</a></p>
+        <p><button type="button" class="btn btn-ghost btn-small" data-since-toggle aria-pressed="false">Отбелязвай ми новото от последното посещение (пази се само в браузъра)</button></p>
     </div>
 </footer>`;
 }
@@ -364,9 +380,9 @@ function storyCard(r, now, { big = false, wide = false } = {}) {
     const video = big ? videosOf(s)[0] : null;
     return `<li class="card heat-${r.level.id}${big ? ' big' : ''}${wide ? ' wide' : ''}${video ? ' with-video' : ''}" ${cardData(r)}>
     <a class="card-link" href="/s/${esc(s.id)}/">
-        ${video ? `<span class="card-thumb"><img src="${thumb(video.videoId)}" alt="" loading="lazy" width="320" height="180" /><span class="play" aria-hidden="true">${ICONS.play}</span><span class="thumb-src">YouTube</span></span>` : ''}
+        ${video ? `<span class="card-thumb">${videoFace(video)}</span>` : ''}
         <span class="card-body">
-            <span class="card-top">${tempBadge(r)}${cardTrend(r)}<span class="ago">${timeEl(lastAt(s), now, true)}</span></span>
+            <span class="card-top">${AI_TAG}${tempBadge(r)}${cardTrend(r)}<span class="ago">${timeEl(lastAt(s), now, true)}</span></span>
             <h3 class="card-title">${esc(s.title)}</h3>
             ${s.summary ? `<span class="card-summary">${esc(s.summary)}</span>` : ''}
             ${whyLine(s)}
@@ -390,7 +406,7 @@ function justIn(ranked, now) {
     <ol class="justin">${latest
         .map(
             ({ it, r }) =>
-                `<li><a href="${href(it.url)}" rel="noopener" target="_blank"><span class="ji-meta">${srcMark(it.source)}${sourceLabel(it.source)}${it.kind === 'video' ? ' ▶' : ''} · ${timeEl(it.at, now, true)}</span><span class="ji-title">${esc(it.title?.trim() ? itemTitle(it) : r.story.title)}</span></a></li>`,
+                `<li><a href="${href(it.url)}" rel="noopener" target="_blank"><span class="ji-meta">${srcMark(it.source)}${sourceLabel(it.source)}${it.kind === 'video' ? ' ▶' : ''} · ${timeEl(it.at, now, true)}</span><span class="ji-title">${it.title?.trim() ? esc(itemTitle(it)) : `${AI_TAG}${esc(r.story.title)}`}</span></a></li>`,
         )
         .join('')}</ol>
 </section>`;
@@ -432,7 +448,7 @@ function frontPage(state, ranked, now) {
     return `${head({
         title: 'Какво се случва в България сега — live.gazette.bg',
         description: top
-            ? `Сега най-горещо: ${top.story.title}. Всички актуални новини, подредени по това колко се говори за тях, с първоизточника и видеата.`
+            ? `Сега най-горещо: ${top.story.title} (заглавие от изкуствен интелект). Всички актуални новини, подредени по това колко се говори за тях, с първоизточника и видеата.`
             : 'Актуалните новини в България, подредени по това колко се говори за тях, с първоизточника и видеата.',
         canonical: `${SITE_ORIGIN}/`,
         image: `${SITE_ORIGIN}/og/home.png?v=${state.updatedAt}`,
@@ -459,6 +475,7 @@ ${topbar(state, now)}
 <main id="main" class="wrap">
 ${state.silence ? '<p class="silence">Изборен ден: до края на гласуването не показваме социологически проучвания и партийни канали (Изборен кодекс, чл. 182 и 205).</p>' : ''}
 <h1 class="sr-only">Какво се случва в България сега</h1>
+<p class="ai-note home-ai">Заглавията и обобщенията на историите са написани автоматично от изкуствен интелект, без човешка редакция, и може да има грешки. Всяко твърдение води към публикацията, от която е взето. <a href="/about/">Как работи</a></p>
 <div class="since" data-since hidden></div>
 <div class="layout">
     <div class="feed">
@@ -480,8 +497,7 @@ ${footer()}
 function videoTile(v, now) {
     return `<li class="video">
     <button type="button" class="video-play" data-video="${esc(v.videoId)}" aria-label="Пусни: ${esc(v.title)}">
-        <img src="${thumb(v.videoId)}" alt="" loading="lazy" width="320" height="180" />
-        <span class="play" aria-hidden="true">${ICONS.play}</span>
+        ${videoFace(v)}
     </button>
     <span class="video-title">${ext(v.url, esc(v.title))}</span>
     <span class="video-meta">${srcMark(v.source)}${sourceLabel(v.source)} · ${timeEl(v.at, now)} · <span class="yt-src">YouTube</span></span>
@@ -494,7 +510,7 @@ function videoBlock(story, now) {
     if (!vids.length) return '';
     return `<section class="panel panel-video" aria-labelledby="videos">
     <h2 id="videos" class="panel-title">▶ Чуй какво казват <span>${plural(vids.length, 'видео', 'видеа')}, най-новото първо</span></h2>
-    <p class="quiet small yt-note">Видеата са от YouTube и се зареждат едва при пускане; тогава важат <a href="https://www.youtube.com/t/terms" rel="noopener" target="_blank">Условията на YouTube</a> и <a href="https://policies.google.com/privacy" rel="noopener" target="_blank">Политиката за поверителност на Google</a>.</p>
+    <p class="quiet small yt-note">Видеата са от YouTube и нищо от тях не се зарежда, преди да натиснеш „пусни“; щом пуснеш видео, YouTube (Google) получава данни за посещението и важат <a href="https://www.youtube.com/t/terms" rel="noopener" target="_blank">Условията на YouTube</a> и <a href="https://policies.google.com/privacy" rel="noopener" target="_blank">Политиката за поверителност на Google</a>.</p>
     <ul class="videos">${vids.map((v) => videoTile(v, now)).join('')}</ul>
 </section>`;
 }
@@ -555,14 +571,14 @@ function storyPage(state, r, ranked, now, { cold = false } = {}) {
     const image = cold ? `${SITE_ORIGIN}/og/home.png` : `${SITE_ORIGIN}/og/${s.id}.png`;
     return `${head({
         title: `${s.title} — live.gazette.bg`,
-        description: s.summary || s.title,
+        description: aiText(s.summary || s.title),
         canonical: url,
         noindex: cold,
         ld: {
             '@context': 'https://schema.org',
             '@type': 'NewsArticle',
             headline: s.title.slice(0, 110),
-            description: s.summary || s.title,
+            description: aiText(s.summary || s.title),
             datePublished: new Date(Math.min(...s.items.map((i) => i.at))).toISOString(),
             dateModified: new Date(lastAt(s)).toISOString(),
             inLanguage: 'bg',
@@ -583,9 +599,9 @@ ${topbar(state, now)}
 ${cold ? '<p class="cold-note">Тази новина изстина: за нея вече почти не се пише и я няма на началната страница. Страницата остава, за да работят споделените линкове.</p>' : ''}
 <header class="story-head">
     <div class="card-top">${tempBadge(r)}${chips(r, now)}</div>
+    <p class="ai-note ai-top">${AI_TAG}Заглавието и всичко на тази страница освен заглавията на медиите е написано автоматично от изкуствен интелект по ${plural(s.items.length, 'публикация', 'публикации')} на ${plural(r.trust.outlets, 'медия', 'медии')}, без човешка редакция. Може да има грешки: всяко твърдение води към публикацията, от която е взето, проверявай там. <a href="/about/">Как работи</a></p>
     <h1>${esc(s.title)}</h1>
     ${s.summary ? `<p class="lede">${esc(s.summary)}</p>` : ''}
-    <p class="ai-note">Написано автоматично от изкуствен интелект по ${plural(s.items.length, 'публикация', 'публикации')} на ${plural(r.trust.outlets, 'медия', 'медии')}. Може да има грешки: всяко твърдение води към публикацията, от която е взето, проверявай там. <a href="/about/">Как работи</a></p>
     <dl class="stats">
         ${stat('Може ли да се вярва', `<span class="trust trust-${r.trust.id}">${esc(r.trust.label)}</span>${coverageBar(s, { legend: true })}`)}
         ${weightStat(s)}
@@ -612,7 +628,7 @@ function memoryPage(m) {
     const url = `${SITE_ORIGIN}/s/${m.id}/`;
     return `${head({
         title: `${m.title} — live.gazette.bg`,
-        description: m.summary || m.title,
+        description: aiText(m.summary || m.title),
         canonical: url,
         image: `${SITE_ORIGIN}/og/home.png`,
         noindex: true,
@@ -623,9 +639,9 @@ ${topbar({}, m.at, { status: false })}
 <a class="back" href="/">← Всичко, което се случва сега</a>
 <p class="cold-note">Тази новина е от ${esc(fmtDate.format(m.at))}. Вече не се следи и подробностите ѝ не се пазят: тук е само обобщението ѝ.</p>
 <header class="story-head">
+    <p class="ai-note ai-top">${AI_TAG}Написано автоматично от изкуствен интелект, без човешка редакция. <a href="/about/">Как работи</a></p>
     <h1>${esc(m.title)}</h1>
     ${m.summary ? `<p class="lede">${esc(m.summary)}</p>` : ''}
-    <p class="ai-note">Написано автоматично от изкуствен интелект. <a href="/about/">Как работи</a></p>
     <p><a class="btn" href="/">Виж какво се случва сега →</a></p>
 </header>
 </main>
@@ -646,7 +662,7 @@ function rssFeed(state, ranked, now) {
         .map((r) => {
             const s = r.story;
             const url = `${SITE_ORIGIN}/s/${s.id}/`;
-            return `<item><title>${esc(s.title)}</title><link>${url}</link><guid isPermaLink="true">${url}</guid><pubDate>${new Date(lastAt(s)).toUTCString()}</pubDate><description>${esc(s.summary || s.title)}</description></item>`;
+            return `<item><title>${esc(s.title)}</title><link>${url}</link><guid isPermaLink="true">${url}</guid><pubDate>${new Date(lastAt(s)).toUTCString()}</pubDate><description>${esc(aiText(s.summary || s.title))}</description></item>`;
         })
         .join('\n');
     return `<?xml version="1.0" encoding="UTF-8"?>
@@ -691,9 +707,10 @@ ${topbar(state, now)}
 <div class="prose panel">
 <p><b>Тежестта на източника</b> идва от проверими неща, не от политическата му линия: дали говори самата институция или човек, дали медията отговаря по закон за точността си, дали има известен собственик и подписани материали.</p>
 <p><b>Независимите автори</b> са журналисти, коментатори и малки екипи без медия зад тях: известен човек отговаря за казаното, но няма редакция, която да го проверява. Тежат малко по-малко от редакционните медии.</p>
+<p><b>Медиите без подписи</b> имат известен собственик, но материалите им обикновено не са подписани. Тежат по-малко. Това казва само какво се вижда на страниците им, не е оценка на медията.</p>
 <p><b>Партийните канали</b> са първоизточник за това какво казват политиците, но казаното е тяхна позиция. Затова сами никога не потвърждават история.</p>
 <p><b>„Потвърдено“</b> значи: има първоизточник (институцията говори сама или медия съобщава какво е обявила) и още една медия, която пише от свое име, или поне три такива медии, сред които агенция или обществена медия. Медия, която само преразказва друга („според БТА“), разпространява новината, но не я потвърждава; интервю е мнение, не потвърден факт. Ако източниците си противоречат за съществен факт, историята не е „Потвърдено“, докато спорът не се разреши.</p>
-<p><b>Кого четем.</b> Източник влиза, ако го позволява законът (robots.txt, условията за ползване), ако някой отговаря за него (известен собственик или автор с име), ако редовно пише за България и ако е активен. Не четем източник, за който независима проверка е установила дезинформация или разпространение на санкционирани медии, нито такъв, който системно използва език на омразата, обиди, внушения без доказателства, клюки или скрита реклама. Политическата позиция, шумните заглавия и малката аудитория не са причина да махнем някого — те влияят само на тежестта му.</p>
+<p><b>Кого четем.</b> Източник влиза, ако го позволяват законът и самият той (robots.txt, условията за ползване: не четем медия, чиито условия забраняват дори заглавие и връзка, агрегиране или автоматично четене), ако някой отговаря за него (известен собственик или автор с име), ако редовно пише за България и ако е активен. Не четем източник, за който независима проверка е установила дезинформация или разпространение на санкционирани медии, нито такъв, който системно използва език на омразата, обиди, внушения без доказателства, клюки или скрита реклама. Политическата позиция, шумните заглавия и малката аудитория не са причина да махнем някого — те влияят само на тежестта му.</p>
 <p><b>Нажежеността</b> (°) расте с всяка медия, която пише по историята; още материали от същата медия добавят все по-малко, така че шумът на една медия не прави история гореща. Пада наполовина за около 6 часа новини: през деня — за около 6 часа, а нощем, когато почти никой не пише, часовникът почти спира. Горещи са най-много 10 истории наведнъж. Щом за една история спре да се пише, тя изстива и изчезва.</p>
 </div>
 ${groups}
@@ -728,7 +745,7 @@ ${topbar(state, now)}
 <div class="prose panel">
 <h2 class="panel-title">Кой стои зад сайта</h2>
 ${operator}
-<p>Сайтът няма реклами, не взима пари и няма абонамент.</p>
+<p>Сайтът няма реклами, не взима пари и няма абонамент. Няма други собственици и не получава финансиране от никого, включително от държавата, партии или чужди институции.</p>
 </div>
 <div class="prose panel">
 <h2 class="panel-title">Как работи</h2>
@@ -746,13 +763,18 @@ ${operator}
 <h2 class="panel-title">Авторски права</h2>
 <p>Правата върху материалите, заглавията, видеата и логата принадлежат на техните собственици. Показваме само заглавие и връзка към оригинала, а видеата — чрез официалния плейър на YouTube; не публикуваме текстове на статии. Обобщенията са със свои думи, по фактите от няколко източника.</p>
 <p>Четем само сайтове, които позволяват съдържанието им да се анализира автоматично: всеки ден проверяваме техния robots.txt (за целия сайт и за емисията), Content-Signal и TDM резервация (ЗАПСП, чл. 26е, ал. 4) и спираме да четем сайт, който откаже. Сайтове, чиито условия забраняват роботи или извличане на текст, ползваме само със заглавие и връзка, без да отваряме статиите. Текстът на статиите се използва само за анализа и не се пази.</p>
-<p>Видеата от YouTube четем през официалния YouTube Data API и ги показваме с официалния плейър на YouTube; за тях важат <a href="https://www.youtube.com/t/terms" rel="noopener" target="_blank">Условията на YouTube</a> и <a href="https://policies.google.com/privacy" rel="noopener" target="_blank">Политиката за поверителност на Google</a>. Видео, отбелязано от YouTube като „за деца“, не вграждаме.</p>
-<p>Логата и иконите са на съответните медии и служат само да се разпознае източникът; сайтът не е свързан с тях. Махаме лого при поискване.</p>
+<p>Видеата от YouTube четем през официалния YouTube Data API (сайтът използва YouTube API Services) и ги показваме с официалния плейър на YouTube. Като пускаш видео тук, се съгласяваш с <a href="https://www.youtube.com/t/terms" rel="noopener" target="_blank">Условията на YouTube</a>; за данните важи <a href="https://policies.google.com/privacy" rel="noopener" target="_blank">Политиката за поверителност на Google</a>. Видео, отбелязано от YouTube като „за деца“, не вграждаме.</p>
+<p>Логата и иконите са на съответните медии и служат само да се разпознае източникът до неговите собствени заглавия; не са променени и сайтът не е свързан с тях. Махаме лого при поискване.</p>
+<p>Anthropic не използва текстовете, които сайтът му изпраща, за обучение на моделите си. Сайтът не обучава модели.</p>
 </div>
 <div class="prose panel">
 <h2 class="panel-title">Лични данни</h2>
-<p><b>За посетителите.</b> Сайтът няма бисквитки, реклами, анализи на посещенията и проследяване. Страниците се доставят от Cloudflare, който обработва IP адреса на всеки посетител, за да ги достави и защити. Кои истории са отворени, кои се следят и дали обясненията са затворени, се пази само в браузъра на посетителя (localStorage) и не се изпраща никъде; може да се изтрие с бутона по-долу. Картинките на видеата се зареждат от сървъра за изображения на YouTube (i.ytimg.com), който вижда IP адреса на посетителя; самото видео се зарежда едва когато бъде пуснато, и тогава YouTube (Google) получава данни за посещението по своите правила.</p>
-<p><b>За хората в новините.</b> Историите съдържат имена и изявления на хора от публикувани материали. Те се обработват за журналистически цели, за свободата на изразяване и правото на информация (чл. 85 от Регламент (ЕС) 2016/679 и чл. 25з от Закона за защита на личните данни). Текстовете на материалите се обработват от Anthropic като обработващ лични данни. Всеки може да поиска поправка или премахване на ${mail}.</p>
+<p><b>Кой отговаря.</b> Администратор на личните данни е ${OPERATOR ? esc(OPERATOR) : 'лицето, което поддържа сайта'}; връзка: ${mail}.</p>
+<p><b>Какво става при посещение.</b> Сайтът няма бисквитки, реклами, анализи на посещенията и проследяване и не пази журнали на посещенията. Страниците се доставят от Cloudflare (обработващ лични данни), който вижда IP адреса и браузъра на всеки посетител, за да достави страницата и да спре атаки, и пази тези данни за кратко по своите правила. Основание: законният интерес сайтът да работи и да е защитен (чл. 6, ал. 1, буква „е“ от Регламент (ЕС) 2016/679). Cloudflare е в САЩ; предаването е по Рамката за защита на данните между ЕС и САЩ.</p>
+<p><b>В браузъра ти.</b> Нищо не се записва на устройството ти, докато сам не го поискаш. Ако включиш „Отбелязвай ми новото от последното посещение“, браузърът пази кога си бил тук (localStorage) и не го изпраща никъде; изключиш ли го, се изтрива.</p>
+<p><b>Видеата.</b> Докато не натиснеш „пусни“, от YouTube не се зарежда нищо, дори картинката. Пуснеш ли видео, браузърът ти се свързва с YouTube (Google), който получава данни за посещението и може да запише бисквитки по своите правила (<a href="https://policies.google.com/privacy" rel="noopener" target="_blank">Политика за поверителност на Google</a>).</p>
+<p><b>Хората в новините.</b> Историите съдържат имена и изявления на хора от публикувани материали. Те се обработват за журналистически цели, за свободата на изразяване и правото на информация (чл. 85 от Регламента и чл. 25з от Закона за защита на личните данни). Текстовете на материалите се изпращат на Anthropic (обработващ лични данни, САЩ, при стандартните договорни клаузи на ЕС) само за да се напише обобщението и не се пазят след това.</p>
+<p><b>Твоите права.</b> Можеш да поискаш достъп до данните си, поправка, изтриване, ограничаване или да възразиш срещу обработването (чл. 15–21 от Регламента) на ${mail}. Имаш право на жалба до Комисията за защита на личните данни (<a href="https://www.cpdp.bg" rel="noopener" target="_blank">cpdp.bg</a>, София 1592, бул. „Проф. Цветан Лазаров“ 2).</p>
 <p><button type="button" class="btn btn-ghost" data-forget>Изтрий какво помни браузърът ми за сайта</button></p>
 </div>
 </main>
@@ -797,7 +819,7 @@ const HEADERS = `/*
   X-Frame-Options: DENY
   X-Content-Type-Options: nosniff
   Referrer-Policy: strict-origin-when-cross-origin
-  Content-Security-Policy: default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https://i.ytimg.com; font-src 'self'; connect-src 'self'; worker-src 'self'; frame-src https://www.youtube-nocookie.com; manifest-src 'self'; frame-ancestors 'none'; base-uri 'self'; object-src 'none'
+  Content-Security-Policy: default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src 'self'; worker-src 'self'; frame-src https://www.youtube-nocookie.com; manifest-src 'self'; frame-ancestors 'none'; base-uri 'self'; object-src 'none'
   Permissions-Policy: camera=(), microphone=(), geolocation=(), payment=(), usb=()
   Cache-Control: public, max-age=60
 

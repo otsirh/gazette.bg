@@ -1,8 +1,8 @@
 // The editorial and legal rules in live/policy.json, applied to the state on
 // every update and to the pages on every build:
 // - election silence (Изборен кодекс чл. 182(4) and 205(5)): from 00:00 the
-//   day before an election day until the end of that day, no poll results
-//   and no party channels;
+//   day before an election day until the end of that day, no poll results,
+//   no party channels and no calls to vote, from anyone;
 // - the blocklist, for corrections and removal requests;
 // - the public corrections log and replies (ИК чл. 188).
 import fs from 'node:fs';
@@ -42,6 +42,12 @@ export function inElectionSilence(policy, now) {
 export const POLL =
     /социолог|проучван|анкет|рейтинг|галъп|алфа рисърч|тренд|маркет линкс|медиана|екзакта|„мяра“|агенция „мяра“|exit ?poll|екзитпол|паралелно преброяване|\d+(,\d+)?\s?%\s*(подкрепа|от гласовете|за )/i;
 
+// Calls to vote for or against someone (ИК § 1, т. 17 ДР: „призив за
+// подкрепа или за неподкрепа“), whoever reports them: none on the day
+// before an election and on the day itself (ИК чл. 182, ал. 4).
+export const APPEAL =
+    /(?<!\p{L})(гласувай(те)?|подкрепете|дай(те)? (си )?гласа?)(?!\p{L})|за кого да гласува|призова(ха)? .{0,40}(да гласува|да подкрепят|да не гласува)/iu;
+
 const isPartisan = (sourceId) => Boolean(SOURCE_BY_ID.get(sourceId)?.partisan);
 
 export function isPollStory(story) {
@@ -52,11 +58,13 @@ export function isPollStory(story) {
 // a party's own channel. A story left with nothing is hidden.
 export function silenceFilter(stories) {
     return stories
-        .filter((s) => !isPollStory(s))
+        .filter((s) => !isPollStory(s) && !APPEAL.test(`${s.title} ${s.summary}`))
         .map((s) => ({
             ...s,
-            items: s.items.filter((i) => !isPartisan(i.source) && !POLL.test(i.title)),
-            timeline: s.timeline.filter((e) => !POLL.test(`${e.who} ${e.what}`)),
+            items: s.items.filter((i) => !isPartisan(i.source) && !POLL.test(i.title) && !APPEAL.test(i.title)),
+            timeline: s.timeline.filter(
+                (e) => !POLL.test(`${e.who} ${e.what}`) && !APPEAL.test(`${e.what} ${e.quote ?? ''}`),
+            ),
         }))
         .filter((s) => s.items.length);
 }

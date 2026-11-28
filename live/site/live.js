@@ -4,8 +4,10 @@
 // - Times tick ("преди 3 мин").
 // - New updates slide in: a bar offers them, a tap swaps the page in place,
 //   so the reader keeps their scroll and never sees a reload.
-// - A returning reader sees what changed since their last visit, marked on
-//   the cards.
+// - A returning reader who asks for it sees what changed since their last
+//   visit, marked on the cards. Nothing is kept on the device until they
+//   switch it on (ЗЕТ чл. 4а: storage only for a service explicitly asked
+//   for); switching it off deletes it.
 // - Videos load from YouTube only when asked.
 
 const MINUTE = 60 * 1000;
@@ -62,17 +64,43 @@ function toast(text) {
 // pages does not wipe the marks. A visit ends after 30 minutes away.
 const SESSION_GAP = 30 * MINUTE;
 const now = Date.now();
-const lastSeen = Number(store.get('live:lastSeen') || 0);
-let previousVisit = Number(store.get('live:previousVisit') || 0);
-if (!lastSeen) previousVisit = 0;
-else if (now - lastSeen > SESSION_GAP) {
-    previousVisit = lastSeen;
-    store.set('live:previousVisit', String(previousVisit));
+const sinceOn = () => store.get('live:since') === '1';
+let previousVisit = 0;
+// What an earlier version kept without asking is cleared on the first visit.
+if (!sinceOn()) {
+    try {
+        for (const k of Object.keys(localStorage)) if (k.startsWith('live:')) localStorage.removeItem(k);
+    } catch {}
 }
-store.set('live:lastSeen', String(now));
+if (sinceOn()) {
+    const lastSeen = Number(store.get('live:lastSeen') || 0);
+    previousVisit = Number(store.get('live:previousVisit') || 0);
+    if (!lastSeen) previousVisit = 0;
+    else if (now - lastSeen > SESSION_GAP) {
+        previousVisit = lastSeen;
+        store.set('live:previousVisit', String(previousVisit));
+    }
+    store.set('live:lastSeen', String(now));
+}
 addEventListener('visibilitychange', () => {
-    if (document.hidden) store.set('live:lastSeen', String(Date.now()));
+    if (document.hidden && sinceOn()) store.set('live:lastSeen', String(Date.now()));
 });
+
+function forget() {
+    try {
+        for (const k of Object.keys(localStorage)) if (k.startsWith('live:')) localStorage.removeItem(k);
+    } catch {}
+}
+
+// The switch in the footer says what it will do now.
+function sinceSwitch() {
+    for (const b of document.querySelectorAll('[data-since-toggle]')) {
+        b.textContent = sinceOn()
+            ? 'Спри да отбелязваш новото и изтрий какво помни браузърът'
+            : 'Отбелязвай ми новото от последното посещение (пази се само в браузъра)';
+        b.setAttribute('aria-pressed', String(sinceOn()));
+    }
+}
 
 function markSince() {
     if (!previousVisit) return { fresh: 0, updated: 0 };
@@ -200,16 +228,28 @@ document.addEventListener('keydown', (e) => {
 
 function decorate() {
     tick();
+    sinceSwitch();
     const counts = markSince();
     sinceBar(counts);
 }
 
 document.addEventListener('click', (e) => {
     if (e.target.closest('[data-forget]')) {
-        try {
-            for (const k of Object.keys(localStorage)) if (k.startsWith('live:')) localStorage.removeItem(k);
-        } catch {}
+        forget();
+        sinceSwitch();
         toast('Изтрито. Браузърът вече не помни нищо за сайта.');
+        return;
+    }
+    if (e.target.closest('[data-since-toggle]')) {
+        if (sinceOn()) {
+            forget();
+            toast('Изтрито. Браузърът вече не помни нищо за сайта.');
+        } else {
+            store.set('live:since', '1');
+            store.set('live:lastSeen', String(Date.now()));
+            toast('Добре. Следващия път ще ти покажа какво е ново.');
+        }
+        sinceSwitch();
         return;
     }
     const play = e.target.closest('.video-play');
@@ -228,8 +268,23 @@ document.addEventListener('click', (e) => {
 decorate();
 setInterval(tick, MINUTE);
 
-// Read without a connection: pages you opened stay readable offline.
-if ('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js').catch(() => {});
+// The offline copy is gone: undo the worker and caches of earlier visits.
+if ('serviceWorker' in navigator) {
+    navigator.serviceWorker
+        .getRegistrations()
+        .then((regs) => {
+            for (const r of regs) r.unregister();
+        })
+        .catch(() => {});
+}
+if (self.caches) {
+    caches
+        .keys()
+        .then((keys) => {
+            for (const k of keys) if (k.startsWith('live-')) caches.delete(k);
+        })
+        .catch(() => {});
+}
 setInterval(checkForUpdate, 2 * MINUTE);
 document.addEventListener('visibilitychange', () => {
     if (!document.hidden) {

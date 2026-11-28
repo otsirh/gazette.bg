@@ -86,18 +86,18 @@ test('heat halves every HALF_LIFE and a new outlet counts more than a repeat', (
     const old = story([item('a', 'mediapool', HALF_LIFE / HOUR)]);
     assert.ok(Math.abs(heatAt(one, NOW) - 1) < 1e-9);
     assert.ok(Math.abs(heatAt(old, NOW) - 0.5) < 1e-9);
-    const twoOutlets = story([item('a', 'mediapool', 0), item('b', 'sega', 0)]);
+    const twoOutlets = story([item('a', 'mediapool', 0), item('b', 'euronews', 0)]);
     const sameOutlet = story([item('a', 'mediapool', 0), item('b', 'mediapool', 0)]);
     assert.ok(heatAt(twoOutlets, NOW) > heatAt(sameOutlet, NOW));
     // A channel and the site of the same outlet are one outlet.
-    const siteAndChannel = story([item('a', 'bnt', 0), item('b', 'bnt-yt', 0)]);
+    const siteAndChannel = story([item('a', 'bnr', 0), item('b', 'bnrnews-yt', 0)]);
     assert.ok(heatAt(siteAndChannel, NOW) < 2 * 1.2);
 });
 
 test('a story nobody writes about leaves the page', () => {
     const fading = story([item('a', 'mediapool', 20)]);
     const busy = story(
-        ['mediapool', 'sega', 'bta', 'bnt', 'clubz'].map((s, i) => item(`b${i}`, s, 1)),
+        ['mediapool', 'euronews', 'bta', 'bnr', 'clubz'].map((s, i) => item(`b${i}`, s, 1)),
         { id: 's2' },
     );
     const ranked = rankStories([fading, busy], NOW);
@@ -110,19 +110,27 @@ test('a story nobody writes about leaves the page', () => {
 
 test('trend: new, rising, falling', () => {
     assert.equal(trendOf(story([item('a', 'bta', 1)]), NOW), 'new');
-    const rising = story([item('a', 'bta', 6), item('b', 'sega', 1), item('c', 'bnt', 0.5), item('d', 'clubz', 0.2)]);
+    const rising = story([
+        item('a', 'bta', 6),
+        item('b', 'euronews', 1),
+        item('c', 'bnr', 0.5),
+        item('d', 'clubz', 0.2),
+    ]);
     assert.equal(trendOf(rising, NOW), 'up');
-    const falling = story([item('a', 'bta', 8), item('b', 'sega', 7), item('c', 'bnt', 6.5)]);
+    const falling = story([item('a', 'bta', 8), item('b', 'euronews', 7), item('c', 'bnr', 6.5)]);
     assert.equal(trendOf(falling, NOW), 'down');
 });
 
 test('trust: first-hand plus another outlet is confirmed; one outlet is not', () => {
     assert.equal(trustOf(story([item('a', 'mediapool', 1)])).id, 'single');
-    assert.equal(trustOf(story([item('a', 'mediapool', 1), item('b', 'sega', 1)])).id, 'several');
-    const quoted = story([item('a', 'mediapool', 1, { cites: 'МВР', citesKind: 'institution' }), item('b', 'sega', 1)]);
+    assert.equal(trustOf(story([item('a', 'mediapool', 1), item('b', 'euronews', 1)])).id, 'several');
+    const quoted = story([
+        item('a', 'mediapool', 1, { cites: 'МВР', citesKind: 'institution' }),
+        item('b', 'euronews', 1),
+    ]);
     assert.equal(trustOf(quoted).id, 'confirmed');
     assert.equal(
-        trustOf(story([item('a', 'bta', 1), item('b', 'sega', 1), item('c', 'mediapool', 1)])).id,
+        trustOf(story([item('a', 'bta', 1), item('b', 'euronews', 1), item('c', 'mediapool', 1)])).id,
         'confirmed',
     );
 });
@@ -131,7 +139,7 @@ test('spreadTree hangs a citing item under the outlet it cites', () => {
     const s = story([
         item('a', 'bta', 5, { cites: 'МВР', citesKind: 'institution' }),
         item('b', 'mediapool', 4, { cites: 'БТА', citesKind: 'media', citesSource: 'bta' }),
-        item('c', 'sega', 3, { citesKind: 'own' }),
+        item('c', 'euronews', 3, { citesKind: 'own' }),
     ]);
     const roots = spreadTree(s);
     assert.equal(roots.length, 2);
@@ -143,7 +151,7 @@ test('spreadTree hangs a citing item under the outlet it cites', () => {
 
 test('sourceIdForName finds an outlet by any of its names', () => {
     assert.equal(sourceIdForName('БТА'), 'bta');
-    assert.equal(sourceIdForName('„Сега“'), 'sega');
+    assert.equal(sourceIdForName('„Стандарт“'), 'standart');
     assert.equal(sourceIdForName('Нова телевизия'), 'nova-yt');
     assert.equal(sourceIdForName('Сметната палата'), 'smetna');
     assert.equal(sourceIdForName('Министерството на финансите'), null);
@@ -151,7 +159,7 @@ test('sourceIdForName finds an outlet by any of its names', () => {
 
 test('applyWrite fills in cites and timeline and clears the pending marks', () => {
     const a = item('a', 'mediapool', 2, { pending: true, description: 'x' });
-    const b = item('b', 'sega', 1, { pending: true });
+    const b = item('b', 'euronews', 1, { pending: true });
     const s = story([a, b]);
     applyWrite(
         s,
@@ -185,8 +193,8 @@ test('buildSite escapes everything from feeds and the model', async () => {
     const s = story(
         [
             item('a', 'mediapool', 1, { title: '<img src=x onerror=alert(1)>', url: 'javascript:alert(1)' }),
-            item('b', 'bnt-yt', 1, { videoId: 'abc"><x', title: 'видео' }),
-            item('c', 'sega', 1),
+            item('b', 'bnrnews-yt', 1, { videoId: 'abc"><x', title: 'видео' }),
+            item('c', 'euronews', 1),
         ],
         {
             title: '<script>alert(1)</script>',
@@ -214,7 +222,7 @@ test('buildSite escapes everything from feeds and the model', async () => {
 });
 
 test("a party's own channel never confirms a story on its own", () => {
-    const s = story([item('a', 'dps-yt', 1), item('b', 'sega', 1)]);
+    const s = story([item('a', 'dps-yt', 1), item('b', 'euronews', 1)]);
     const t = trustOf(s);
     assert.equal(t.firstHand, false);
     assert.equal(t.id, 'several');
@@ -227,9 +235,9 @@ test('speaker names from the record lose their capitals', async () => {
 });
 
 test('an independent author is its own kind and weighs a little less', () => {
-    const one = heatAt(story([item('a', 'karbovski-yt', 0)]), NOW);
+    const one = heatAt(story([item('a', 'genov-yt', 0)]), NOW);
     assert.ok(Math.abs(one - 0.8) < 1e-9);
-    assert.equal(trustOf(story([item('a', 'karbovski-yt', 1), item('b', 'indzhev', 1)])).firstHand, false);
+    assert.equal(trustOf(story([item('a', 'genov-yt', 1), item('b', 'toest', 1)])).firstHand, false);
 });
 
 test('tidy fixes what a rule can fix in Bulgarian text', async () => {
@@ -254,7 +262,7 @@ test('merging two stories keeps both sets of items and the old address', async (
         id: 'aaaa1111',
         timeline: [{ at: NOW, who: 'X', what: 'каза', items: ['a'] }],
     });
-    const b = story([item('a', 'bta', 2), item('b', 'sega', 1)], {
+    const b = story([item('a', 'bta', 2), item('b', 'euronews', 1)], {
         id: 'bbbb2222',
         createdAt: NOW - 20 * HOUR,
         timeline: [{ at: NOW, who: 'X', what: 'каза', items: ['a'] }],
@@ -318,7 +326,7 @@ test('the blocklist removes stories, outlets and names everywhere', async () => 
     const state = {
         stories: [
             story([item('a', 'bta', 1)], { id: 'keep1', title: 'Иван Петров заяви нещо', summary: 'Иван Петров каза' }),
-            story([item('b', 'sega', 1)], { id: 'drop1' }),
+            story([item('b', 'euronews', 1)], { id: 'drop1' }),
         ],
         overview: { lines: [{ story: 'keep1', text: 'Иван Петров е тук' }] },
     };
@@ -439,10 +447,13 @@ test('the sensitive rule names children, sexual and domestic violence, not every
 test('built pages: counts agree with their nouns', async () => {
     const out = fs.mkdtempSync(path.join(os.tmpdir(), 'live-plurals-'));
     const vid = (n, h) =>
-        item(`v${n}`, 'bnt-yt', h, { videoId: `vid${n}abcdef`, url: `https://www.youtube.com/watch?v=vid${n}abcdef` });
+        item(`v${n}`, 'bnrnews-yt', h, {
+            videoId: `vid${n}abcdef`,
+            url: `https://www.youtube.com/watch?v=vid${n}abcdef`,
+        });
     // Seven videos (all shown at once), and a story with one of each.
     const many = story(
-        [item('a', 'mediapool', 1), item('b', 'sega', 1), ...[1, 2, 3, 4, 5, 6, 7].map((n) => vid(n, n / 10))],
+        [item('a', 'mediapool', 1), item('b', 'euronews', 1), ...[1, 2, 3, 4, 5, 6, 7].map((n) => vid(n, n / 10))],
         {
             id: 'many',
             summary: 'Обобщение',
@@ -520,11 +531,11 @@ test('tidyState reaches every text the model wrote, not outlet headlines', async
 test('originOf: an institution broke the news, a quoted person did not', async () => {
     const { originOf } = await import('../live/lib/stories.js');
     const byInst = originOf(
-        story([item('a', 'bta', 2, { cites: 'МВР', citesKind: 'institution' }), item('b', 'sega', 1)]),
+        story([item('a', 'bta', 2, { cites: 'МВР', citesKind: 'institution' }), item('b', 'euronews', 1)]),
     );
     assert.equal(byInst.name, 'МВР');
     const byPerson = originOf(
-        story([item('a', 'mediapool', 2, { cites: 'Бойко Борисов', citesKind: 'person' }), item('b', 'sega', 1)]),
+        story([item('a', 'mediapool', 2, { cites: 'Бойко Борисов', citesKind: 'person' }), item('b', 'euronews', 1)]),
     );
     assert.equal(byPerson.name, 'Медиапул');
     assert.equal(byPerson.words, 'Бойко Борисов');
@@ -561,7 +572,7 @@ test('parseFeed: a link in <url> and a zone-less date in Sofia time', () => {
 
 test('heat: one outlet writing a lot counts less than many outlets', async () => {
     const flood = story(Array.from({ length: 20 }, (_, i) => item(`f${i}`, 'mediapool', i * 0.1)));
-    const broad = story(['mediapool', 'sega', 'clubz', 'offnews'].map((s, i) => item(`b${i}`, s, 0.5)));
+    const broad = story(['mediapool', 'euronews', 'clubz', 'offnews'].map((s, i) => item(`b${i}`, s, 0.5)));
     assert.ok(heatAt(broad, NOW) > heatAt(flood, NOW), 'four outlets beat twenty items from one');
     // The outlet's newest item is the one that counts in full.
     const recentRepeat = story([item('o', 'mediapool', 12), item('n', 'mediapool', 0)]);
@@ -575,7 +586,7 @@ test('news clock: at night, with nothing published, a story keeps most of its he
     const items = Array.from({ length: 100 }, (_, i) => item(`d${i}`, 'bta', 0, { at: day + i * 432000 }));
     const evening = Date.UTC(2026, 10, 27, 18, 0);
     const morning = Date.UTC(2026, 10, 28, 4, 0);
-    const big = story([item('x', 'sega', 0, { at: evening })], { id: 'x' });
+    const big = story([item('x', 'euronews', 0, { at: evening })], { id: 'x' });
     const all = [story(items, { id: 'day' }), big];
     const clock = newsClock(all, morning);
     const kept = heatAt(big, morning, clock) / heatAt(big, evening, clock);
@@ -586,7 +597,7 @@ test('news clock: at night, with nothing published, a story keeps most of its he
 
 test('at most MAX_HOT stories are hot', async () => {
     const { MAX_HOT } = await import('../live/lib/stories.js');
-    const outlets = ['bta', 'bnt', 'sega', 'clubz', 'offnews', 'mediapool', 'dnes', '24chasa'];
+    const outlets = ['bta', 'bnr', 'euronews', 'clubz', 'offnews', 'mediapool', 'standart', 'economic'];
     const many = Array.from({ length: MAX_HOT + 3 }, (_, n) =>
         story(
             outlets.map((o, i) => item(`${n}-${i}`, o, 0.1)),
@@ -628,7 +639,7 @@ test('trust: retelling another outlet, an interview or a dispute does not confir
     // Three outlets, but two only retell BTA: one outlet knows it for itself.
     const retold = story([
         item('a', 'bta', 1),
-        item('b', 'sega', 1, { cites: 'БТА', citesKind: 'media' }),
+        item('b', 'euronews', 1, { cites: 'БТА', citesKind: 'media' }),
         item('c', 'mediapool', 1, { cites: 'БТА', citesKind: 'media' }),
     ]);
     assert.equal(trustOf(retold).id, 'several');
@@ -636,11 +647,11 @@ test('trust: retelling another outlet, an interview or a dispute does not confir
     // A person speaking in an interview is a view, not a first-hand fact.
     const interview = story([
         item('a', 'mediapool', 1, { cites: 'проф. Иванов', citesKind: 'person' }),
-        item('b', 'sega', 1),
+        item('b', 'euronews', 1),
     ]);
     assert.equal(trustOf(interview).id, 'several');
     // Sources that contradict each other: never "Потвърдено".
-    const confirmed = story([item('a', 'bta', 1), item('b', 'sega', 1), item('c', 'mediapool', 1)]);
+    const confirmed = story([item('a', 'bta', 1), item('b', 'euronews', 1), item('c', 'mediapool', 1)]);
     assert.equal(trustOf(confirmed).id, 'confirmed');
     assert.equal(trustOf({ ...confirmed, disputed: 'Кой е виновен' }).id, 'several');
 });
@@ -654,8 +665,8 @@ test('a sensitive story: headlines hidden on the page, sealed in the state, open
         const s = story(
             [
                 item('a', 'mediapool', 1, { title: 'Детето Иван е в болница' }),
-                item('b', 'bnt-yt', 1, { title: 'Видео за Иван', videoId: 'abcDEF12345' }),
-                item('c', 'sega', 1, { title: 'Иван е добре' }),
+                item('b', 'bnrnews-yt', 1, { title: 'Видео за Иван', videoId: 'abcDEF12345' }),
+                item('c', 'euronews', 1, { title: 'Иван е добре' }),
             ],
             { id: 'sens1234', sensitive: true, summary: 'Дете е в болница.' },
         );
@@ -687,7 +698,7 @@ test('a sensitive story: headlines hidden on the page, sealed in the state, open
 
 test('a cold story and a remembered one keep their pages; „Никой не казва“ is gone', async () => {
     const out = fs.mkdtempSync(path.join(os.tmpdir(), 'live-'));
-    const hot = story([item('a', 'bta', 1), item('b', 'sega', 1), item('c', 'mediapool', 1)], {
+    const hot = story([item('a', 'bta', 1), item('b', 'euronews', 1), item('c', 'mediapool', 1)], {
         id: 'hot12345',
         framing: { angles: [{ label: 'Ъгъл', summary: 'Обяснение', items: ['a'] }], missing: 'Нищо', at: NOW },
     });
@@ -731,7 +742,7 @@ test('a blocked story leaves the memory too, so it gets no page', async () => {
 test('merging a sensitive story into another keeps its items hidden', async () => {
     const { mergeInto } = await import('../live/lib/depth.js');
     const keep = story([item('a', 'bta', 1)], { id: 'keep1234' });
-    const other = story([item('b', 'sega', 1)], { id: 'sens1234', sensitive: true });
+    const other = story([item('b', 'euronews', 1)], { id: 'sens1234', sensitive: true });
     mergeInto(keep, [other]);
     assert.equal(keep.sensitive, true);
 });
@@ -787,7 +798,7 @@ test('only a busy or unreachable API counts as passing trouble', () => {
 
 test('a card says when its story last gained a step; the trend never reads like the group', async () => {
     const out = fs.mkdtempSync(path.join(os.tmpdir(), 'live-'));
-    const s = story([item('a', 'bta', 0.5), item('b', 'sega', 0.5), item('c', 'mediapool', 0.5)], {
+    const s = story([item('a', 'bta', 0.5), item('b', 'euronews', 0.5), item('c', 'mediapool', 0.5)], {
         id: 'step1234',
         timeline: [{ at: NOW - 8 * HOUR, who: 'МВР', what: 'съобщи', items: ['b'] }],
     });
@@ -800,7 +811,7 @@ test('a card says when its story last gained a step; the trend never reads like 
 
 test('a deadline enters the ledger only word for word, with a real future date and someone to answer for it', async () => {
     const { acceptCommitments, recordCommitments } = await import('../live/lib/ledger.js');
-    const a = item('a', 'sega', 2, { title: 'Парното се връща' });
+    const a = item('a', 'euronews', 2, { title: 'Парното се връща' });
     const b = item('b', 'bta', 1, { title: 'Топлофикация обеща парно' });
     const texts = new Map([
         ['a', 'Топлофикация София съобщи за аварии със заявено възстановяване на 29 ноември в Лозенец.'],
@@ -911,13 +922,13 @@ test('a headlines-only source gives the model its headline and link, not its exc
         at: NOW,
         kind: 'article',
     };
-    assert.equal(toItem({ ...e, source: 'bnt' }).description, '');
-    assert.equal(toItem({ ...e, source: 'sega' }).description, 'Откъс от статията');
+    assert.equal(toItem({ ...e, source: 'bnr' }).description, '');
+    assert.equal(toItem({ ...e, source: 'euronews' }).description, 'Откъс от статията');
 });
 
 test('the build writes an RSS feed, story titles as headings, and a service worker tied to the asset version', async () => {
     const out = fs.mkdtempSync(path.join(os.tmpdir(), 'live-'));
-    const outlets = ['bta', 'sega', 'mediapool', 'clubz', 'fakti', '24chasa'];
+    const outlets = ['bta', 'euronews', 'mediapool', 'clubz', 'fakti', 'economic'];
     const s = story(
         outlets.map((o, i) => item(`i${i}`, o, 0.5)),
         { id: 'rss12345', title: 'Заглавие <с> „кавички“' },
@@ -941,9 +952,15 @@ test('a story that weighs much but is little written about is shown under „Т�
     assert.equal(storyWeight({ weight }), 6);
     assert.equal(storyWeight({}), null);
     const out = fs.mkdtempSync(path.join(os.tmpdir(), 'live-'));
-    const quiet = story([item('a', 'bta', 3), item('b', 'sega', 3)], { id: 'quiet123', title: 'Нов данък', weight });
+    const quiet = story([item('a', 'bta', 3), item('b', 'euronews', 3)], {
+        id: 'quiet123',
+        title: 'Нов данък',
+        weight,
+    });
     const loud = story(
-        ['bta', 'sega', 'mediapool', 'clubz', 'fakti', '24chasa', 'bnt', 'btv'].map((o, i) => item(`l${i}`, o, 0.3)),
+        ['bta', 'euronews', 'mediapool', 'clubz', 'fakti', 'economic', 'bnr', 'btv'].map((o, i) =>
+            item(`l${i}`, o, 0.3),
+        ),
         { id: 'loud1234', title: 'Катастрофа' },
     );
     await buildSite({ updatedAt: NOW, stories: [quiet, loud], sources: {} }, { now: NOW, outDir: out, images: false });
@@ -959,10 +976,10 @@ test('a story that weighs much but is little written about is shown under „Т�
 
 test('plain words: a name with a number gets quotes, kinds and trust in everyday words', async () => {
     const out = fs.mkdtempSync(path.join(os.tmpdir(), 'live-'));
-    const s = story([item('a', '24chasa', 1), item('b', 'sega', 1)], { id: 'plain123' });
+    const s = story([item('a', 'kanal3-yt', 1, { videoId: 'abcdefgh' }), item('b', 'euronews', 1)], { id: 'plain123' });
     await buildSite({ updatedAt: NOW, stories: [s], sources: {} }, { now: NOW, outDir: out, images: false });
     const page = fs.readFileSync(path.join(out, 's', 'plain123', 'index.html'), 'utf8');
-    assert.ok(page.includes('„24 часа“'));
+    assert.ok(page.includes('„Канал 3“'));
     assert.ok(page.includes('Още не е потвърдено'));
     assert.ok(page.includes('частни медии') || page.includes('частна медия'));
     fs.rmSync(out, { recursive: true, force: true });
@@ -970,7 +987,7 @@ test('plain words: a name with a number gets quotes, kinds and trust in everyday
 
 test('„Току-що“ opens the outlet’s own article, not our page', async () => {
     const out = fs.mkdtempSync(path.join(os.tmpdir(), 'live-'));
-    const s = story([item('a', 'bta', 0.5, { url: 'https://www.bta.bg/a1' }), item('b', 'sega', 0.4)], {
+    const s = story([item('a', 'bta', 0.5, { url: 'https://www.bta.bg/a1' }), item('b', 'euronews', 0.4)], {
         id: 'just1234',
     });
     await buildSite({ updatedAt: NOW, stories: [s], sources: {} }, { now: NOW, outDir: out, images: false });
@@ -997,4 +1014,67 @@ test('one answer from the writer only asks to hide a story; a check that cannot 
     );
     assert.equal(s.sensitive, true, 'no check possible: hidden, to be safe');
     assert.equal(s.sensitiveAsked, undefined);
+});
+
+test('the law on every page: AI marked where its text begins, nothing from YouTube before play, nothing stored unasked', async () => {
+    const out = fs.mkdtempSync(path.join(os.tmpdir(), 'live-'));
+    const s = story(
+        [
+            item('a', 'bta', 1),
+            item('b', 'euronews', 1),
+            item('c', 'mediapool', 1),
+            item('v', 'bnt-yt', 1, { videoId: 'abcdefgh', title: 'Видео' }),
+        ],
+        { id: 'law12345', title: 'Нов закон', summary: 'Парламентът прие закона.' },
+    );
+    await buildSite({ updatedAt: NOW, stories: [s], sources: {} }, { now: NOW, outDir: out, images: false });
+    const read = (...p) => fs.readFileSync(path.join(out, ...p), 'utf8');
+    const home = read('index.html');
+    const page = read('s', 'law12345', 'index.html');
+    const rss = read('rss.xml');
+    for (const html of [home, page, read('about', 'index.html'), read('sources', 'index.html')]) {
+        assert.ok(!html.includes('i.ytimg.com'), 'no YouTube picture before play');
+        assert.ok(html.includes('data-since-toggle'), 'the memory is a switch the reader turns on');
+    }
+    assert.ok(!read('_headers').includes('i.ytimg.com'));
+    // The note comes before the first story on the front page, and before
+    // the title on a story page.
+    const body = home.slice(home.indexOf('<main'));
+    assert.ok(body.indexOf('написани автоматично от изкуствен интелект') < body.indexOf('Нов закон'));
+    assert.ok(home.includes('class="ai-tag"'));
+    assert.ok(page.indexOf('class="ai-note ai-top"') < page.indexOf('<h1>'));
+    assert.ok(page.includes('content="Обобщено от изкуствен интелект: Парламентът прие закона."'));
+    assert.match(rss, /<description>Обобщено от изкуствен интелект: Парламентът прие закона\.<\/description>/);
+    assert.ok(page.includes('class="vface"'));
+    const about = read('about', 'index.html');
+    assert.ok(about.includes('YouTube API Services') && about.includes('се съгласяваш с'));
+    assert.ok(about.includes('cpdp.bg'));
+    fs.rmSync(out, { recursive: true, force: true });
+});
+
+test('every source names who answers for it, and the public label of tier 4 judges no one', async () => {
+    const { SOURCES } = await import('../live/sources.js');
+    for (const s of SOURCES) {
+        assert.ok(s.why?.trim(), `${s.id} has a reason`);
+        assert.ok(!/не сме проверили|не е проверен|неясен собственик/i.test(s.why), `${s.id}: ${s.why}`);
+    }
+    const build = fs.readFileSync(path.join(import.meta.dirname, '..', 'live', 'build.js'), 'utf8');
+    assert.ok(!/неясен собственик|не знаем кой стои/.test(build));
+});
+
+test('election silence hides calls to vote from anyone, not the news that a vote was held', async () => {
+    const { APPEAL, silenceFilter } = await import('../live/lib/policy.js');
+    assert.ok(APPEAL.test('Гласувайте за промяната!'));
+    assert.ok(APPEAL.test('Лидерът призова хората да гласуват за листата'));
+    assert.ok(!APPEAL.test('Парламентът гласува бюджета'));
+    assert.ok(!APPEAL.test('Депутатите гласуваха на първо четене'));
+    const kept = silenceFilter([
+        story([item('a', 'bta', 1, { title: 'Гласувайте за нас, каза кандидатът' }), item('b', 'euronews', 1)], {
+            id: 'call1234',
+        }),
+    ]);
+    assert.deepEqual(
+        kept[0].items.map((i) => i.id),
+        ['b'],
+    );
 });
