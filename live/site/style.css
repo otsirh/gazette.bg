@@ -28,16 +28,16 @@
     --surface-2: #eceef2;
     --text: #0e1116;
     --text-2: #39414d;
-    --muted: #697282;
+    --muted: #5c6573;
     --line: #e0e3e9;
-    --hot: #e8321f;
+    --hot: #cc2b19;
     --hot-2: #ff6a3d;
     --hot-wash: #fdebe7;
-    --warm: #ea6c0a;
+    --warm: #a64a05;
     --warm-wash: #fdf0e3;
-    --cool: #8a93a3;
-    --ok: #0f9d58;
-    --warn: #b7791f;
+    --cool: #616a79;
+    --ok: #0b7a44;
+    --warn: #8f5a00;
     --link: #1d5fd6;
     --k-first: #0f9d58;
     --k-public: #2f6fe4;
@@ -61,14 +61,14 @@
         --surface-2: #1c212b;
         --text: #f1f3f6;
         --text-2: #c4cad4;
-        --muted: #8a93a3;
+        --muted: #9aa3b1;
         --line: #232935;
-        --hot: #ff4d3d;
+        --hot: #ff6a5c;
         --hot-2: #ff8a4d;
         --hot-wash: #35140f;
         --warm: #ff9a3d;
         --warm-wash: #33210f;
-        --cool: #6d7686;
+        --cool: #8a94a3;
         --ok: #34d17f;
         --warn: #f2bd4a;
         --link: #7fb0ff;
@@ -2346,4 +2346,95 @@ button {
 }
 .prose .panel-title {
     margin-bottom: 10px;
+}
+
+/* ─── Accessibility: WCAG 2.1 AA ────────────────────── */
+
+/* White text needs a deep enough red and blue behind it in both themes. */
+.badge-new,
+.lvl.heat-hot,
+.fresh-bar {
+    background: #c92f20;
+}
+.badge-new.upd {
+    background: #2f6fe4;
+}
+
+/* Links inside running text are underlined, not told apart by colour alone. */
+.ai-note a,
+.voice-src a,
+.tl-src a,
+.item-list a,
+.node a,
+.prose a,
+.footer a,
+.context a,
+.how a {
+    text-decoration: underline;
+    text-decoration-thickness: 1px;
+    text-underline-offset: 2px;
+    text-decoration-color: color-mix(in srgb, currentColor 45%, transparent);
+}
+
+.skip {
+    position: absolute;
+    left: 12px;
+    top: -60px;
+    z-index: 100;
+    padding: 10px 16px;
+    border-radius: 10px;
+    background: var(--text);
+    color: var(--bg);
+    font-weight: 650;
+}
+.skip:focus {
+    top: 12px;
+}
+
+/* ─── Following, new for you ────────────────────────── */
+
+.badge-follow {
+    background: #8a3fd1;
+}
+.card.is-followed {
+    box-shadow:
+        0 0 0 2px color-mix(in srgb, var(--k-partisan) 45%, transparent),
+        var(--shadow);
+}
+.btn[aria-pressed="true"] {
+    background: color-mix(in srgb, var(--k-partisan) 14%, var(--surface));
+    box-shadow: inset 0 0 0 1px var(--k-partisan);
+}
+.story-news {
+    display: inline-block;
+    margin: 0 0 12px;
+    padding: 6px 12px;
+    border-radius: 999px;
+    background: var(--hot-wash);
+    color: var(--hot);
+    font-weight: 700;
+    font-size: 14px;
+}
+.tl.is-new .tl-body {
+    border-radius: 8px;
+    background: color-mix(in srgb, var(--hot) 8%, transparent);
+    box-shadow: -6px 0 0 color-mix(in srgb, var(--hot) 8%, transparent);
+}
+.tl.is-new .tl-time {
+    color: var(--hot);
+}
+kbd {
+    display: inline-block;
+    min-width: 20px;
+    padding: 1px 6px;
+    border-radius: 5px;
+    background: var(--surface-2);
+    box-shadow: inset 0 -1px 0 var(--line);
+    font: 600 12px var(--font);
+    text-align: center;
+}
+.card-link:focus-visible {
+    outline: 3px solid var(--link);
+    outline-offset: -3px;
+    border-radius: var(--radius);
 }
