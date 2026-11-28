@@ -142,7 +142,7 @@ test('sourceIdForName finds an outlet by any of its names', () => {
     assert.equal(sourceIdForName('БТА'), 'bta');
     assert.equal(sourceIdForName('„Сега“'), 'sega');
     assert.equal(sourceIdForName('Нова телевизия'), 'nova-yt');
-    assert.equal(sourceIdForName('МВР'), null);
+    assert.equal(sourceIdForName('Прокуратурата'), null);
 });
 
 test('applyWrite fills in cites and timeline and clears the pending marks', () => {
@@ -176,7 +176,7 @@ test('applyWrite fills in cites and timeline and clears the pending marks', () =
     assert.ok(!a.pending && !b.pending && !('description' in a));
 });
 
-test('buildSite escapes everything from feeds and the model', () => {
+test('buildSite escapes everything from feeds and the model', async () => {
     const out = fs.mkdtempSync(path.join(os.tmpdir(), 'live-'));
     const s = story(
         [
@@ -195,7 +195,7 @@ test('buildSite escapes everything from feeds and the model', () => {
         overview: { at: NOW, lines: [{ story: 's1', text: '<i>ред</i>' }] },
         sources: {},
     };
-    buildSite(state, { now: NOW, outDir: out });
+    await buildSite(state, { now: NOW, outDir: out, images: false });
     const home = fs.readFileSync(path.join(out, 'index.html'), 'utf8');
     const page = fs.readFileSync(path.join(out, 's', 's1', 'index.html'), 'utf8');
     for (const html of [home, page]) {
@@ -207,4 +207,25 @@ test('buildSite escapes everything from feeds and the model', () => {
     assert.ok(!page.includes('abc"'), 'a malformed video id is not used');
     assert.ok(fs.existsSync(path.join(out, 'state.json')));
     fs.rmSync(out, { recursive: true, force: true });
+});
+
+test("a party's own channel never confirms a story on its own", () => {
+    const s = story([item('a', 'gerb-yt', 1), item('b', 'sega', 1)]);
+    const t = trustOf(s);
+    assert.equal(t.firstHand, false);
+    assert.equal(t.id, 'several');
+});
+
+test('spreadSvg draws a lane per outlet and links a citing item to its source', async () => {
+    const { spreadSvg } = await import('../live/build.js');
+    const svg = spreadSvg(
+        story([
+            item('a', 'bta', 3, { cites: 'МВР', citesKind: 'institution' }),
+            item('b', 'dnevnik', 2, { citesKind: 'media', citesSource: 'bta' }),
+        ]),
+        NOW,
+    );
+    assert.match(svg, /Първоизточник/);
+    assert.equal((svg.match(/class="sp-lane"/g) ?? []).length, 3);
+    assert.equal((svg.match(/class="sp-link"/g) ?? []).length, 1);
 });

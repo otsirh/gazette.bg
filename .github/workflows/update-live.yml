@@ -44,6 +44,40 @@ jobs:
             [ -n "${!v}" ] || { echo "::error::$v is not set (see live/README.md)."; exit 1; }
           done
 
+      # A few sites turn away addresses outside Bulgaria, so those are read
+      # through the Mac mini at home, an exit node on our tailnet (as in
+      # update-gazette.yml). Unlike there, a Mac mini that is asleep or away
+      # does not stop the update: LIVE_PROXY is set only when it answers, and
+      # without it those sources are skipped this time.
+      - name: Connect to the exit node in Bulgaria
+        id: tailscale
+        continue-on-error: true
+        timeout-minutes: 3
+        env:
+          TS_VERSION: '1.104.4'
+          TS_SHA256: 624ea093d47d62cf56f17b8332d74b8decda4a1faa610ebc60a1de334b2b3dc9
+          TS_OAUTH_SECRET: ${{ secrets.TS_OAUTH_SECRET }}
+          TS_EXIT_NODE: ${{ vars.TS_EXIT_NODE }}
+        run: |
+          [ -n "$TS_OAUTH_SECRET" ] || { echo "::warning::TS_OAUTH_SECRET is not set; sources via Bulgaria are skipped."; exit 1; }
+          cd /tmp
+          curl -fsSL -o tailscale.tgz "https://pkgs.tailscale.com/stable/tailscale_${TS_VERSION}_amd64.tgz"
+          echo "${TS_SHA256}  tailscale.tgz" | sha256sum -c -
+          tar -xzf tailscale.tgz --strip-components=1
+          nohup ./tailscaled --tun=userspace-networking --state=mem: --socket=/tmp/tailscaled.sock \
+            --socks5-server=127.0.0.1:1055 > tailscaled.log 2>&1 &
+          for i in $(seq 20); do [ -S /tmp/tailscaled.sock ] && break; sleep 1; done
+          ./tailscale --socket=/tmp/tailscaled.sock up \
+            --auth-key="${TS_OAUTH_SECRET}?ephemeral=true&preauthorized=true" --advertise-tags=tag:ci \
+            --hostname="live-ci-${GITHUB_RUN_ID}" --accept-dns=false --timeout=1m
+          ./tailscale --socket=/tmp/tailscaled.sock set --exit-node="${TS_EXIT_NODE}"
+          if curl -sS -o /dev/null --socks5-hostname 127.0.0.1:1055 --max-time 20 https://www.capital.bg/rss/; then
+            echo "LIVE_PROXY=socks5://127.0.0.1:1055" >> "$GITHUB_ENV"
+          else
+            echo "::warning::The Mac mini (${TS_EXIT_NODE}) did not answer; sources via Bulgaria are skipped."
+            exit 1
+          fi
+
       # Reads the state the site last published, adds what is new, and builds
       # dist-live/. If the published state cannot be read (anything but "not
       # there yet"), it stops rather than start over from nothing.

@@ -2,6 +2,11 @@
 // growing, how far its sources can be trusted, and how it spread.
 import { outletOf, SOURCE_BY_ID, TIERS, tierOf } from '../sources.js';
 
+// A party's own channel counts like an ordinary outlet for heat, and never as
+// first-hand confirmation: it is first-hand for their position only.
+const isPartisan = (sourceId) => Boolean(SOURCE_BY_ID.get(sourceId)?.partisan);
+const weightOf = (sourceId) => (isPartisan(sourceId) ? 1 : TIERS[tierOf(sourceId)].weight);
+
 const HOUR = 60 * 60 * 1000;
 
 // Each article counts half as much every HALF_LIFE: a story nobody writes
@@ -27,7 +32,7 @@ export function heatAt(story, at) {
         const outlet = outletOf(item.source);
         const repeat = seen.has(outlet);
         seen.add(outlet);
-        const w = TIERS[tierOf(item.source)].weight * (repeat ? REPEAT_WEIGHT : 1);
+        const w = weightOf(item.source) * (repeat ? REPEAT_WEIGHT : 1);
         heat += w * 0.5 ** ((at - item.at) / HALF_LIFE);
     }
     return heat;
@@ -64,10 +69,11 @@ export function sparkline(story, now, buckets = 24, size = 2 * HOUR) {
 // says: first-hand word, how many separate outlets, whether they disagree.
 export function trustOf(story) {
     const outlets = new Set(story.items.map((i) => outletOf(i.source)));
+    const neutral = story.items.filter((i) => !isPartisan(i.source));
     const firstHand =
-        story.items.some((i) => tierOf(i.source) === 1) ||
-        story.items.some((i) => i.citesKind === 'institution' || i.citesKind === 'person');
-    const strong = story.items.some((i) => tierOf(i.source) <= 2);
+        neutral.some((i) => tierOf(i.source) === 1) ||
+        neutral.some((i) => i.citesKind === 'institution' || i.citesKind === 'person');
+    const strong = neutral.some((i) => tierOf(i.source) <= 2);
     let level;
     if (firstHand && outlets.size >= 2) level = { id: 'confirmed', label: 'Потвърдено' };
     else if (outlets.size >= 3 && strong) level = { id: 'confirmed', label: 'Потвърдено' };
