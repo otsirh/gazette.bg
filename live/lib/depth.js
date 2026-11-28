@@ -52,10 +52,12 @@ export async function fillPlaces(state, meter, log) {
     }
 }
 
-const KIND_LABEL = (id) =>
-    SOURCE_BY_ID.get(id)?.partisan
-        ? 'партиен канал'
-        : ['първоизточник', 'първоизточник', 'обществена медия', 'редакционна медия', 'непроверен'][tierOf(id)];
+const KIND_LABEL = (id) => {
+    const s = SOURCE_BY_ID.get(id);
+    if (s?.partisan) return 'партиен канал';
+    if (s?.independent) return 'независим автор';
+    return ['първоизточник', 'първоизточник', 'обществена медия', 'редакционна медия', 'непроверен'][tierOf(id)];
+};
 
 // How each side tells it: for the busiest stories, again once two more
 // outlets have joined since the last look.

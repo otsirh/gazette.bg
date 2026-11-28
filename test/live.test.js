@@ -252,3 +252,9 @@ test('speaker names from the record lose their capitals', async () => {
     assert.equal(nameCase('НИКОЛАЙ ДЕНКОВ'), 'Николай Денков');
     assert.equal(nameCase('Иван Иванов'), 'Иван Иванов');
 });
+
+test('an independent author is its own kind and weighs a little less', () => {
+    const one = heatAt(story([item('a', 'karbovski-yt', 0)]), NOW);
+    assert.ok(Math.abs(one - 0.8) < 1e-9);
+    assert.equal(trustOf(story([item('a', 'karbovski-yt', 1), item('b', 'indzhev', 1)])).firstHand, false);
+});

@@ -25,7 +25,7 @@ export const SITE_ORIGIN = 'https://live.gazette.bg';
 const HOUR = 3600 * 1000;
 
 // Bumped by hand when style.css or live.js change, so browsers fetch them anew.
-const ASSET_VERSION = '5';
+const ASSET_VERSION = '6';
 
 const esc = (s) =>
     String(s ?? '')
@@ -79,6 +79,11 @@ const KINDS = {
     },
     public: { one: 'обществена медия', many: 'обществени медии', long: 'Агенция или обществена медия' },
     editorial: { one: 'редакционна медия', many: 'редакционни медии', long: 'Редакционна медия с известен собственик' },
+    independent: {
+        one: 'независим автор',
+        many: 'независими автори',
+        long: 'Независим автор — известен човек, без редакция зад него',
+    },
     partisan: { one: 'партиен канал', many: 'партийни канала', long: 'Партиен канал — позиция, не проверен факт' },
     unverified: {
         one: 'непроверен източник',
@@ -87,10 +92,11 @@ const KINDS = {
     },
 };
 const kindCount = (k, n) => `${n} ${n === 1 ? KINDS[k].one : KINDS[k].many}`;
-const KIND_ORDER = ['first', 'public', 'editorial', 'partisan', 'unverified'];
+const KIND_ORDER = ['first', 'public', 'editorial', 'independent', 'partisan', 'unverified'];
 
 function kindOf(sourceId) {
     if (SOURCE_BY_ID.get(sourceId)?.partisan) return 'partisan';
+    if (SOURCE_BY_ID.get(sourceId)?.independent) return 'independent';
     return ['first', 'first', 'public', 'editorial', 'unverified'][tierOf(sourceId)] ?? 'unverified';
 }
 
@@ -346,7 +352,7 @@ function howBox() {
     return `<section class="rail-box how" aria-labelledby="how">
     <h2 id="how" class="rail-title">Как да четеш</h2>
     <p><b class="t-hot">87°</b> Нажеженост: колко се пише сега. Пада наполовина на всеки 6 часа без нови материали.</p>
-    <p><span class="cov cov-mini"><span class="cov-bar"><i class="k-first" style="flex:1"></i><i class="k-public" style="flex:1"></i><i class="k-editorial" style="flex:3"></i><i class="k-partisan" style="flex:1"></i><i class="k-unverified" style="flex:1"></i></span></span>Кой отразява историята: първоизточници, обществени и редакционни медии, партийни канали, непроверени.</p>
+    <p><span class="cov cov-mini"><span class="cov-bar"><i class="k-first" style="flex:1"></i><i class="k-public" style="flex:1"></i><i class="k-editorial" style="flex:3"></i><i class="k-independent" style="flex:1"></i><i class="k-partisan" style="flex:1"></i><i class="k-unverified" style="flex:1"></i></span></span>Кой отразява историята: първоизточници, обществени и редакционни медии, независими автори, партийни канали, непроверени.</p>
     <p><a href="/sources/">Всички ${SOURCES.length} източника →</a></p>
 </section>`;
 }
@@ -948,6 +954,7 @@ ${topbar(state, now)}
 <p class="lede">Четем ${SOURCES.length} медии, телевизии и официални канала от всички страни: колкото повече гледни точки, толкова по-ясна картина.</p></header>
 <div class="prose panel">
 <p><b>Тежестта на източника</b> идва от проверими неща, не от политическата му линия: дали говори самата институция или човек, дали медията отговаря по закон за точността си, дали има известен собственик и подписани материали.</p>
+<p><b>Независимите автори</b> са журналисти, коментатори и малки екипи без медия зад тях: известен човек отговаря за казаното, но няма редакция, която да го проверява. Тежат малко по-малко от редакционните медии.</p>
 <p><b>Партийните канали</b> са първоизточник за това какво казват политиците, но казаното е тяхна позиция. Затова сами никога не потвърждават история.</p>
 <p><b>„Потвърдено“</b> значи: има първоизточник (институция или човек говорят сами) и още една медия, или поне три отделни медии, сред които агенция или обществена медия. „Противоречия“ значи, че източниците си противоречат за съществен факт.</p>
 <p><b>Нажежеността</b> (°) расте с всеки нов материал — повече от нова медия, по-малко от същата — и пада наполовина на всеки 6 часа. Щом за една история спре да се пише, тя изстива и изчезва.</p>

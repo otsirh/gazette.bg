@@ -42,6 +42,7 @@
     --k-first: #0f9d58;
     --k-public: #2f6fe4;
     --k-editorial: #8b95a5;
+    --k-independent: #0f9fa0;
     --k-partisan: #9b4dea;
     --k-unverified: #e0a800;
     --shadow: 0 1px 2px rgb(16 24 40 / 0.05), 0 2px 8px rgb(16 24 40 / 0.06);
@@ -74,6 +75,7 @@
         --k-first: #34d17f;
         --k-public: #5b93ff;
         --k-editorial: #7c8696;
+        --k-independent: #2fd0c8;
         --k-partisan: #b67cff;
         --k-unverified: #f2c230;
         --shadow: 0 1px 2px rgb(0 0 0 / 0.5);
@@ -160,6 +162,10 @@ button {
 .k-editorial {
     background: var(--k-editorial);
     fill: var(--k-editorial);
+}
+.k-independent {
+    background: var(--k-independent);
+    fill: var(--k-independent);
 }
 .k-partisan {
     background: var(--k-partisan);
@@ -1394,6 +1400,9 @@ button {
 .kt-partisan {
     fill: var(--k-partisan);
 }
+.kt-independent {
+    fill: var(--k-independent);
+}
 .sp-tick {
     font-size: 11px;
     fill: var(--muted);
@@ -1534,6 +1543,9 @@ button {
 }
 .tl-partisan::before {
     background: var(--k-partisan);
+}
+.tl-independent::before {
+    background: var(--k-independent);
 }
 .tl-unverified::before {
     background: var(--k-unverified);
