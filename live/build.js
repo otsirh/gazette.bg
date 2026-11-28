@@ -828,7 +828,7 @@ function videoBlock(story, now) {
         .join('')}</ul>
     ${
         vids.length > 4
-            ? `<details class="more"><summary>Още ${vids.length - 4} видео</summary><ul class="videos">${vids
+            ? `<details class="more"><summary>Още ${plural(vids.length - 4, 'видео', 'видеа')}</summary><ul class="videos">${vids
                   .slice(4)
                   .map((v) => videoTile(v, now))
                   .join('')}</ul></details>`
@@ -972,7 +972,7 @@ ${topbar(state, now)}
     <dl class="stats">
         ${stat('Достоверност', `<span class="trust trust-${r.trust.id}">${esc(r.trust.label)}</span>${coverageBar(s, { legend: true })}`)}
         ${originStat}
-        ${stat('Медии', `${r.trust.outlets}<small>${plural(s.items.length, 'материал', 'материала')}${videos ? `, ${videos} видео` : ''}</small>`)}
+        ${stat('Медии', `${r.trust.outlets}<small>${plural(s.items.length, 'материал', 'материала')}${videos ? `, ${plural(videos, 'видео', 'видеа')}` : ''}</small>`)}
         ${stat('Нажеженост', `<span class="stat-temp heat-${r.level.id}">${tempOf(r.heat)}°</span>${sparkSvg(sparkline(s, now))}<small>колко се пише, последни 48 ч</small>`)}
     </dl>
     ${r.trust.disputed ? `<p class="disputed"><b>⚠ Спорно:</b> ${esc(r.trust.disputed)}</p>` : ''}

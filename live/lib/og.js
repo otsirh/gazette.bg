@@ -114,7 +114,7 @@ export async function storyImage({ title, level, levelLabel, temp, outlets, vide
                     title,
                 ),
                 el('div', { gap: 34, fontSize: 26, color: C.muted, borderTop: `2px solid ${C.line}`, paddingTop: 24 }, [
-                    el('div', { color: C.text }, `${outlets} медии`),
+                    el('div', { color: C.text }, `${outlets} ${outlets === 1 ? 'медия' : 'медии'}`),
                     el('div', {}, trust),
                     el('div', {}, 'обобщено с AI'),
                     videos
@@ -127,7 +127,7 @@ export async function storyImage({ title, level, levelLabel, temp, outlets, vide
                                   borderBottom: '11px solid transparent',
                                   borderLeft: `18px solid ${C.hot}`,
                               }),
-                              el('div', {}, `${videos} видео`),
+                              el('div', {}, `${videos} ${videos === 1 ? 'видео' : 'видеа'}`),
                           ])
                         : el('div', {}, ''),
                 ]),

@@ -463,3 +463,42 @@ test('the sensitive rule names children, sexual and domestic violence, not every
     assert.match(SENSITIVE_RULE, /домашно насилие/);
     assert.match(SENSITIVE_RULE, /не е основание/);
 });
+
+// Every count on every page agrees with its noun: "1 видео", "2 видеа",
+// "1 медия", "2 медии", "1 материал", "2 материала".
+test('built pages: counts agree with their nouns', async () => {
+    const out = fs.mkdtempSync(path.join(os.tmpdir(), 'live-plurals-'));
+    const vid = (n, h) =>
+        item(`v${n}`, 'bnt-yt', h, { videoId: `vid${n}abcdef`, url: `https://www.youtube.com/watch?v=vid${n}abcdef` });
+    // Seven videos (four shown, "Още 3 видеа"), and a story with one of each.
+    const many = story(
+        [item('a', 'mediapool', 1), item('b', 'sega', 1), ...[1, 2, 3, 4, 5, 6, 7].map((n) => vid(n, n / 10))],
+        {
+            id: 'many',
+            summary: 'Обобщение',
+        },
+    );
+    const one = story([item('c', 'mediapool', 2), vid(8, 2)], { id: 'one', summary: 'Обобщение' });
+    await buildSite({ updatedAt: NOW, stories: [many, one], sources: {} }, { now: NOW, outDir: out, images: false });
+    const bad = [];
+    const walk = (d) => {
+        for (const f of fs.readdirSync(d, { withFileTypes: true })) {
+            const p = path.join(d, f.name);
+            if (f.isDirectory()) walk(p);
+            else if (f.name.endsWith('.html')) {
+                const text = fs.readFileSync(p, 'utf8').replace(/<[^>]+>/g, ' ');
+                for (const m of text.matchAll(
+                    /(?<![\d,])(\d+)\s+(видео|видеа|медия|медии|материал|материала|история|истории)(?![а-я])/g,
+                )) {
+                    const n = Number(m[1]);
+                    const one = ['видео', 'медия', 'материал', 'история'].includes(m[2]);
+                    if ((n === 1) !== one) bad.push(`${path.relative(out, p)}: ${m[0]}`);
+                }
+            }
+        }
+    };
+    walk(out);
+    assert.deepEqual(bad, []);
+    assert.match(fs.readFileSync(path.join(out, 's', 'many', 'index.html'), 'utf8'), /Още 3 видеа/);
+    fs.rmSync(out, { recursive: true, force: true });
+});
