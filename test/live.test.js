@@ -594,3 +594,8 @@ test('at most MAX_HOT stories are hot', async () => {
     const ranked = rankStories(many, NOW);
     assert.equal(ranked.filter((r) => r.level.id === 'hot').length, MAX_HOT);
 });
+
+test('tidy: the percent sign sits right after the number', async () => {
+    const { tidy } = await import('../live/lib/text.js');
+    assert.equal(tidy('около 40 % от нарушенията'), 'около 40% от нарушенията');
+});
