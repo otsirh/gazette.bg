@@ -65,8 +65,8 @@ export function riverLayout({ series }, w, h) {
 // The colour of a band: important stories cold, the rest by heat.
 function colorOf(r, i, important) {
     if (important) return ['#3fb3e0', '#5b8def', '#36c2c2'][i % 3];
-    if (r.level.id === 'hot') return ['#ff5a3c', '#ff7a45', '#f0442b', '#ff9157'][i % 4];
-    if (r.level.id === 'warm') return ['#f5a524', '#e8913a', '#f2b84b'][i % 3];
+    if (r.level.id === 'hot') return ['#ff4d3a', '#e8432f', '#ff6347', '#d93a2b'][i % 4];
+    if (r.level.id === 'warm') return ['#f5a524', '#f0b03c', '#e89a2a'][i % 3];
     return ['#9aa3b1', '#8a94a3'][i % 2];
 }
 

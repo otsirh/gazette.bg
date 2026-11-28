@@ -93,7 +93,7 @@ function markSince() {
         if (card.tagName === 'BODY') continue;
         const badge = document.createElement('span');
         badge.className = `badge-new${kind === 'upd' ? ' upd' : ''}`;
-        badge.textContent = kind === 'new' ? 'НОВО' : 'ОБНОВЕНО';
+        badge.textContent = kind === 'new' ? 'НОВО' : 'НОВО РАЗВИТИЕ';
         if (card.classList.contains('row')) card.querySelector('a').append(badge);
         else (card.querySelector('.ago') ?? card).before(badge);
         if (kind === 'new') fresh++;
@@ -107,7 +107,7 @@ function sinceBar({ fresh, updated }) {
     const mineFilter = document.querySelector('[data-filter="mine"]');
     if (!box || (!fresh && !updated)) return;
     const parts = [];
-    if (fresh) parts.push(`<span class="pill">${fresh} ${fresh === 1 ? 'нова история' : 'нови истории'}</span>`);
+    if (fresh) parts.push(`<span class="pill">${fresh === 1 ? '1 е нова' : `${fresh} са нови`}</span>`);
     if (updated)
         parts.push(
             `<span class="pill" style="background:none;box-shadow:inset 0 0 0 1px var(--line);color:var(--text-2)">${updated} с нови развития</span>`,
@@ -129,6 +129,17 @@ const FILTERS = {
     follow: (el) => followed().has(el.dataset.story),
 };
 
+// Why a filter shows nothing, in words: never a bare „nothing“.
+const EMPTY = {
+    all: 'Няма такива новини в момента.',
+    important:
+        'Сега няма новина, която пряко да засяга много хора: нов закон, данък или голям разход на държавни пари.',
+    video: 'Сега няма новини с видео.',
+    confirmed: 'Сега няма потвърдени новини.',
+    mine: 'Нищо ново, откакто беше тук.',
+    follow: 'Новините, които следиш, вече ги няма на страницата.',
+};
+
 function applyFilter(id) {
     const test = FILTERS[id] ?? FILTERS.all;
     let shown = 0;
@@ -148,7 +159,10 @@ function applyFilter(id) {
         b.setAttribute('aria-pressed', String(on));
     }
     const empty = document.querySelector('[data-filter-empty]');
-    if (empty) empty.hidden = shown > 0;
+    if (empty) {
+        empty.hidden = shown > 0;
+        empty.textContent = EMPTY[id] ?? EMPTY.all;
+    }
     layoutHot();
     store.set('live:filter', id === 'mine' ? 'all' : id);
 }
@@ -231,7 +245,7 @@ async function swapIn() {
     document.title = doc.title;
     decorate();
     scrollTo({ top: scroll });
-    toast('Обновено');
+    toast('Ето най-новото');
 }
 
 async function checkForUpdate() {
@@ -290,7 +304,7 @@ function decorateFollow() {
     for (const btn of document.querySelectorAll('[data-follow]')) {
         const on = set.has(btn.dataset.follow);
         btn.setAttribute('aria-pressed', String(on));
-        btn.textContent = on ? '★ Следиш' : '☆ Следи';
+        btn.textContent = on ? '★ Следиш я' : '☆ Следи новината';
     }
     let withNews = 0;
     for (const card of document.querySelectorAll('.feed [data-story]')) {
@@ -428,6 +442,9 @@ function initRiver() {
 
 function decorate() {
     initRiver();
+    // „Как се чете страницата“ is open where there is room for it.
+    const how = document.querySelector('[data-how]');
+    if (how && matchMedia('(min-width: 1120px)').matches) how.open = true;
     tick();
     const counts = markSince();
     sinceBar(counts);
@@ -456,7 +473,7 @@ document.addEventListener('click', (e) => {
         const on = follow.getAttribute('aria-pressed') !== 'true';
         setFollow(follow.dataset.follow, on);
         decorateFollow();
-        toast(on ? 'Ще виждаш, когато има ново в тази история' : 'Вече не я следиш');
+        toast(on ? 'Ще виждаш отбелязано, когато има ново в тази новина' : 'Вече не я следиш');
         return;
     }
     const filter = e.target.closest('[data-filter]');

@@ -23,7 +23,7 @@ export const MAX_HOT = 10;
 export const LEVELS = [
     { id: 'hot', min: 6, label: 'Гореща' },
     { id: 'warm', min: 2.5, label: 'Актуална' },
-    { id: 'cool', min: 0, label: 'Утихва' },
+    { id: 'cool', min: 0, label: 'По-тихо' },
 ];
 // Below this a story leaves the page; below DROP_HEAT it leaves the state too.
 export const SHOW_HEAT = 0.4;
@@ -144,8 +144,8 @@ export function trustOf(story) {
     let level;
     if (!disputed && firstHand && ownWord.size >= 2) level = { id: 'confirmed', label: 'Потвърдено' };
     else if (!disputed && ownWord.size >= 3 && strong) level = { id: 'confirmed', label: 'Потвърдено' };
-    else if (outlets.size >= 2) level = { id: 'several', label: 'Няколко източника' };
-    else level = { id: 'single', label: 'Само един източник' };
+    else if (outlets.size >= 2) level = { id: 'several', label: 'Още не е потвърдено' };
+    else level = { id: 'single', label: 'Пише само една медия' };
     return { ...level, outlets: outlets.size, independent: ownWord.size, firstHand, disputed };
 }
 

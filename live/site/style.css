@@ -332,6 +332,27 @@ button {
 .river-box {
     margin: 0 0 22px;
 }
+@media (max-width: 1119px) {
+    .desk-only {
+        display: none;
+    }
+}
+.hero-note {
+    margin: 6px 0 0;
+    color: var(--muted);
+    font-size: 14px;
+}
+details.how > summary {
+    cursor: pointer;
+    list-style: none;
+}
+details.how > summary::after {
+    content: " ↓";
+    color: var(--link);
+}
+details.how[open] > summary::after {
+    content: "";
+}
 .river-say {
     display: grid;
     gap: 4px;
@@ -643,7 +664,7 @@ button {
         order: -1;
     }
     .rail .how {
-        display: none;
+        order: 2;
     }
     .justin {
         display: flex !important;
