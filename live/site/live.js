@@ -83,10 +83,11 @@ function markSince() {
     for (const card of document.querySelectorAll('[data-story][data-first]')) {
         if (card.querySelector('.badge-new')) continue;
         const first = Number(card.dataset.first);
-        const last = Number(card.dataset.last);
+        // A new step in its timeline, not just one more article retelling it.
+        const step = Number(card.dataset.step ?? card.dataset.last);
         let kind = null;
         if (first > previousVisit) kind = 'new';
-        else if (last > previousVisit) kind = 'upd';
+        else if (step > previousVisit) kind = 'upd';
         if (!kind) continue;
         card.dataset.mine = '1';
         if (card.tagName === 'BODY') continue;
@@ -351,9 +352,11 @@ document.addEventListener('keydown', (e) => {
     );
     if (!links.length) return;
     const at = links.indexOf(document.activeElement);
-    const next = key === 'j' ? Math.min(links.length - 1, at + 1) : Math.max(0, at < 0 ? 0 : at - 1);
+    if (at < 0) return;
+    const next = key === 'j' ? Math.min(links.length - 1, at + 1) : Math.max(0, at - 1);
     links[next].focus();
-    links[next].scrollIntoView({ block: 'center', behavior: 'smooth' });
+    const calm = matchMedia('(prefers-reduced-motion: reduce)').matches;
+    links[next].scrollIntoView({ block: 'center', behavior: calm ? 'auto' : 'smooth' });
     e.preventDefault();
 });
 
