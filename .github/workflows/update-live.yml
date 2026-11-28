@@ -89,6 +89,19 @@ jobs:
           LIVE_STATE_URL: ${{ vars.LIVE_URL }}/state.json
           LIVE_MONTHLY_BUDGET: ${{ vars.LIVE_MONTHLY_BUDGET || '40' }}
           LIVE_CONTACT: ${{ vars.LIVE_CONTACT }}
+          LIVE_OPERATOR: ${{ vars.LIVE_OPERATOR }}
+          LIVE_ADDRESS: ${{ vars.LIVE_ADDRESS }}
+
+      # Stories that left the page, kept for the record (what was said, from
+      # which headlines and links) in case a claim is ever questioned.
+      - name: Keep the record of retired stories
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: live-evidence-${{ github.run_id }}
+          path: .evidence/
+          if-no-files-found: ignore
+          retention-days: 90
 
       # Wrangler is pinned here rather than in package.json: only this job
       # needs it. The site is a Worker serving dist-live/ as static assets on

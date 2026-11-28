@@ -14,6 +14,7 @@ import { isMain as isMainModule } from '../scripts/lib/cli.js';
 import { isWebUrl } from './lib/feeds.js';
 import { homeImage, iconPng, storyImage } from './lib/og.js';
 import { MAP, OUTLINE, placeOf } from './lib/places.js';
+import { inElectionSilence, loadPolicy, POLL, silenceFilter } from './lib/policy.js';
 import { addContributions, lastAt, originOf, rankStories, sparkline, spreadTree } from './lib/stories.js';
 import { outletOf, SOURCE_BY_ID, SOURCES, tierOf } from './sources.js';
 
@@ -23,13 +24,16 @@ const ROOT = path.join(HERE, '..');
 export const OUT_DIR = path.join(ROOT, 'dist-live');
 export const SITE_ORIGIN = 'https://live.gazette.bg';
 // Where readers ask for a correction or a removal (GitHub variable LIVE_CONTACT).
+// Who runs the site (GitHub variables LIVE_OPERATOR and, if wished, LIVE_ADDRESS).
+const OPERATOR = (process.env.LIVE_OPERATOR ?? '').trim().slice(0, 120);
+const ADDRESS = (process.env.LIVE_ADDRESS ?? '').trim().slice(0, 200);
 const CONTACT = /^[^\s@<>"]+@[^\s@<>"]+\.[a-z]{2,}$/i.test(process.env.LIVE_CONTACT ?? '')
     ? process.env.LIVE_CONTACT
     : '';
 const HOUR = 3600 * 1000;
 
 // Bumped by hand when style.css or live.js change, so browsers fetch them anew.
-const ASSET_VERSION = '13';
+const ASSET_VERSION = '14';
 
 const esc = (s) =>
     String(s ?? '')
@@ -74,6 +78,9 @@ const timeEl = (ms, now, rel = false) =>
 // where it matters rather than "(видео)" after every name.
 const displayName = (id) => (SOURCE_BY_ID.get(id)?.name ?? id).replace(/ \(видео\)$/, '');
 const sourceLabel = (id) => esc(displayName(id));
+// An outlet's headline, or, where a story touches a child or a victim and the
+// headline is withheld, just whose material it is.
+const itemTitle = (it) => it.title || `Материал на ${displayName(it.source)}`;
 const capFirst = (t) => String(t).replace(/^(\p{Ll})/u, (c) => c.toUpperCase());
 const plural = (n, one, many) => `${n} ${n === 1 ? one : many}`;
 
@@ -262,7 +269,7 @@ function footer() {
         <div class="footer-brand"><span class="live-dot" aria-hidden="true"></span> live.gazette.bg</div>
         <ul class="legend">${KIND_ORDER.map((k) => `<li><i class="kd k-${k}"></i>${esc(KINDS[k].long)}</li>`).join('')}</ul>
         <p>Историите, обобщенията и хронологиите се съставят автоматично с изкуствен интелект (Claude на Anthropic) от ${SOURCES.length} източника и може да съдържат грешки. Всяко твърдение води към материала, от който е взето.</p>
-        <p><a href="/about/">За сайта, поправки и поверителност</a> · <a href="/sources/">Източници и как се оценяват</a> · <a href="/media/">Досие на медиите</a></p>
+        <p><a href="/about/">За сайта, поправки и поверителност</a> · <a href="/corrections/">Поправки</a> · <a href="/sources/">Източници и как се оценяват</a> · <a href="/media/">Досие на медиите</a></p>
     </div>
 </footer>`;
 }
@@ -382,7 +389,7 @@ function justIn(ranked, now) {
     <ol class="justin">${latest
         .map(
             ({ it, r }) =>
-                `<li><a href="/s/${esc(r.story.id)}/"><span class="ji-meta">${srcMark(it.source)}${sourceLabel(it.source)}${it.kind === 'video' ? ' ▶' : ''} · ${timeEl(it.at, now, true)}</span><span class="ji-title">${esc(it.title)}</span></a></li>`,
+                `<li><a href="/s/${esc(r.story.id)}/"><span class="ji-meta">${srcMark(it.source)}${sourceLabel(it.source)}${it.kind === 'video' ? ' ▶' : ''} · ${timeEl(it.at, now, true)}</span><span class="ji-title">${esc(itemTitle(it))}</span></a></li>`,
         )
         .join('')}</ol>
 </section>`;
@@ -500,6 +507,7 @@ function frontPage(state, ranked, now) {
 ${topbar(state, now)}
 <main id="main" class="wrap">
 ${welcomeBlock()}
+${state.silence ? '<p class="silence">Изборен ден: до края на гласуването не показваме социологически проучвания и партийни канали (Изборен кодекс, чл. 182 и 205).</p>' : ''}
 ${heroBlock(state, ranked, main.length, now)}
 <div class="since" data-since hidden></div>
 <div class="layout">
@@ -589,7 +597,7 @@ function framingBlock(story, now) {
             const chipsHtml = [...outlets.values()]
                 .map(
                     (it) =>
-                        `<a class="src-chip" href="${href(it.url)}" target="_blank" rel="noopener" title="${esc(it.title)}">${srcMark(it.source)}${sourceLabel(it.source)}</a>`,
+                        `<a class="src-chip" href="${href(it.url)}" target="_blank" rel="noopener" title="${esc(itemTitle(it))}">${srcMark(it.source)}${sourceLabel(it.source)}</a>`,
                 )
                 .join('');
             return `<li class="angle"><b>${esc(a.label)}</b><p>${esc(a.summary)}</p><div class="src-chips">${chipsHtml}</div></li>`;
@@ -610,7 +618,7 @@ function framingBlock(story, now) {
         return `<div class="hl-group"><h3><i class="kd k-${k}"></i>${esc(KINDS[k].many[0].toUpperCase() + KINDS[k].many.slice(1))}</h3><ul>${list
             .map(
                 (it) =>
-                    `<li><span>${srcMark(it.source)}${sourceLabel(it.source)}</span>${ext(it.url, esc(it.title))}</li>`,
+                    `<li><span>${srcMark(it.source)}${sourceLabel(it.source)}</span>${ext(it.url, esc(itemTitle(it)))}</li>`,
             )
             .join('')}</ul></div>`;
     }).join('');
@@ -719,7 +727,7 @@ export function spreadSvg(story, now) {
                 );
             }
         }
-        const label = `${SOURCE_BY_ID.get(it.source)?.name ?? it.source} · ${when(it.at, now)} — ${it.title}`;
+        const label = `${displayName(it.source)} · ${when(it.at, now)} — ${itemTitle(it)}`;
         marks.push(
             `<a href="${href(it.url)}" target="_blank" rel="noopener"><title>${esc(label)}</title><circle class="sp-dot k-${kindOf(it.source)}${it.kind === 'video' ? ' sp-video' : ''}" cx="${f(p.x)}" cy="${f(p.y)}" r="${it.id === items[0].id ? 7 : 5}"/></a>`,
         );
@@ -757,7 +765,7 @@ function treeHtml(nodes, now) {
                   : it.cites && it.citesKind === 'media'
                     ? `цитира ${esc(it.cites)}`
                     : '';
-            return `<li><span class="node"><span class="node-src">${srcMark(it.source)}${sourceLabel(it.source)}${it.kind === 'video' ? ' ▶' : ''} ${timeEl(it.at, now)}</span>${how ? `<span class="node-how">${how}</span>` : ''}${ext(it.url, esc(it.title))}</span>${kids}</li>`;
+            return `<li><span class="node"><span class="node-src">${srcMark(it.source)}${sourceLabel(it.source)}${it.kind === 'video' ? ' ▶' : ''} ${timeEl(it.at, now)}</span>${how ? `<span class="node-how">${how}</span>` : ''}${ext(it.url, esc(itemTitle(it)))}</span>${kids}</li>`;
         })
         .join('')}</ul>`;
 }
@@ -784,10 +792,12 @@ function videoTile(v, now) {
 }
 
 function videoBlock(story, now) {
+    if (story.sensitive) return '';
     const vids = videosOf(story);
     if (!vids.length) return '';
     return `<section class="panel panel-video" aria-labelledby="videos">
     <h2 id="videos" class="panel-title">▶ Чуй какво казват <span>${plural(vids.length, 'видео', 'видеа')}, най-новото първо</span></h2>
+    <p class="quiet small yt-note">Видеото се зарежда от YouTube едва при пускане; тогава YouTube (Google) получава данни за посещението.</p>
     <ul class="videos">${vids
         .slice(0, 4)
         .map((v) => videoTile(v, now))
@@ -838,7 +848,7 @@ function sourcesBlock(story, now) {
         .slice(0, LIST_MAX)
         .map(
             (i) =>
-                `<li>${timeEl(i.at, now)} ${srcMark(i.source)}<b>${sourceLabel(i.source)}</b>${i.kind === 'video' ? ' ▶' : ''} ${ext(i.url, esc(i.title))}</li>`,
+                `<li>${timeEl(i.at, now)} ${srcMark(i.source)}<b>${sourceLabel(i.source)}</b>${i.kind === 'video' ? ' ▶' : ''} ${ext(i.url, esc(itemTitle(i)))}</li>`,
         );
     return `<details class="panel all-items">
     <summary class="panel-title">Всички ${plural(sorted.length, 'материал', 'материала')} <span>най-старото първо</span></summary>
@@ -856,6 +866,19 @@ function moreBlock(r, ranked, now) {
     if (!others.length) return '';
     return `<section class="group more-stories" aria-labelledby="more"><h2 id="more" class="group-title t-hot">Още за това се говори сега</h2>
 <ol class="cards">${others.map((o) => storyCard(o, now)).join('')}</ol></section>`;
+}
+
+// Answers from people or parties a story names (Изборен кодекс чл. 188, and
+// anyone else who asks), published as received, without comment.
+let REPLIES = [];
+function repliesBlock(story) {
+    const ids = new Set([story.id, ...(story.aliases ?? [])]);
+    const mine = REPLIES.filter((r) => ids.has(r.story));
+    if (!mine.length) return '';
+    return `<section class="panel replies" aria-labelledby="replies">
+    <h2 id="replies" class="panel-title">Отговор <span>публикуван без коментар</span></h2>
+    ${mine.map((r) => `<blockquote class="reply"><p>${esc(r.text)}</p><footer>— ${esc(r.from)}${r.date ? `, ${esc(r.date)}` : ''}</footer></blockquote>`).join('')}
+</section>`;
 }
 
 function storyPage(state, r, ranked, now) {
@@ -935,6 +958,7 @@ ${blocks.videos}
 ${blocks.framing}
 ${blocks.voices}
 ${blocks.spread}
+${repliesBlock(s)}
 ${blocks.timeline}
 ${sourcesBlock(s, now)}
 ${moreBlock(r, ranked, now)}
@@ -1069,12 +1093,15 @@ ${footer()}
 // ─── About, corrections, privacy ────────────────────────────────────────
 
 function aboutPage(state, now) {
-    const contact = CONTACT
-        ? `<p>Ако нещо в историите е невярно, назовава човек, който не бива да бъде назован, или е ваше съдържание, което искате да махнем, пишете на <a href="mailto:${esc(CONTACT)}">${esc(CONTACT)}</a> с връзката към страницата. Проверяваме веднага; невярното поправяме или махаме.</p>`
-        : '<p>Ако нещо в историите е невярно, назовава човек, който не бива да бъде назован, или е ваше съдържание, което искате да махнем, пишете ни — адресът за връзка ще бъде тук скоро.</p>';
+    const mail = CONTACT
+        ? `<a href="mailto:${esc(CONTACT)}">${esc(CONTACT)}</a>`
+        : 'адреса за връзка, който ще бъде публикуван тук';
+    const operator = OPERATOR
+        ? `<p>Сайтът се списва и поддържа от <b>${esc(OPERATOR)}</b>, физическо лице, с нестопанска цел.${ADDRESS ? ` Адрес за кореспонденция: ${esc(ADDRESS)}.` : ''} Връзка: ${mail}.</p>`
+        : `<p>Връзка: ${mail}.</p>`;
     return `${head({
         title: 'За сайта — live.gazette.bg',
-        description: 'Какво е live.gazette.bg, как работи, поправки, авторски права и поверителност.',
+        description: 'Какво е live.gazette.bg, как работи, поправки и отговори, авторски права и лични данни.',
         canonical: `${SITE_ORIGIN}/about/`,
         image: `${SITE_ORIGIN}/og/home.png?v=${state.updatedAt}`,
     })}
@@ -1085,23 +1112,61 @@ ${topbar(state, now)}
 <header class="story-head"><h1>За сайта</h1>
 <p class="lede">live.gazette.bg показва какво се случва в България сега: новините от ${SOURCES.length} източника, подредени по това колко се говори за тях, с първоизточника, хронологията и видеата.</p></header>
 <div class="prose panel">
-<h2 class="panel-title">Как работи</h2>
-<p>На всеки 10 минути сайтът чете публичните емисии (RSS) на медиите и YouTube каналите от <a href="/sources/">списъка с източници</a>. Изкуствен интелект (Claude на Anthropic) подрежда материалите в истории и пише кратко обобщение, хронология и кой какво е казал. Нищо не е писано от човек и нищо не е платено.</p>
-<p>Текстовете са <b>автоматични и може да съдържат грешки</b>. Затова всяко твърдение води към материала, от който е взето, и показваме колко и какви медии потвърждават всяка история.</p>
+<h2 class="panel-title">Кой стои зад сайта</h2>
+${operator}
+<p>Сайтът няма реклами, не взима пари и няма абонамент.</p>
 </div>
 <div class="prose panel">
-<h2 class="panel-title">Поправки и премахване</h2>
-${contact}
+<h2 class="panel-title">Как работи</h2>
+<p>На всеки 10 минути сайтът чете публичните емисии (RSS) на медиите и YouTube каналите от <a href="/sources/">списъка с източници</a>. Изкуствен интелект (Claude на Anthropic) подрежда материалите в истории и пише кратко обобщение, хронология и кой какво е казал. <b>Текстовете са генерирани от изкуствен интелект, без човешка редакция, и може да съдържат грешки.</b> Затова всяко твърдение води към материала, от който е взето, и показваме колко и какви медии потвърждават всяка история.</p>
+<p>Правилата, които изкуственият интелект спазва: всяко твърдение има източник; никой не се представя за виновен без окончателна присъда; не се назовават деца, пострадали, свидетели и заподозрени, които не са публични личности; не се цитират числа от социологически проучвания. При история, която засяга дете или пострадал от насилие, не показваме заглавията и видеата на медиите. В деня преди изборите и в изборния ден не показваме проучвания и партийни канали (Изборен кодекс, чл. 182 и 205).</p>
+<p>„Тежестта“ на източниците и „Досието на медиите“ са автоматична статистика по проверими признаци, а не оценка на медиите. Описанията на това как медиите представят една история казват само какво подчертават заглавията им.</p>
+</div>
+<div class="prose panel">
+<h2 class="panel-title">Поправки, премахване и отговор</h2>
+<p>Ако нещо е невярно, назовава човек, който не бива да бъде назован, или е съдържание, което трябва да махнем, пишете на ${mail} с връзката към страницата. Отговаряме до 24 часа; невярното поправяме или махаме, а поправките записваме в <a href="/corrections/">дневника на поправките</a>.</p>
+<p>Всеки, когото една история засяга — включително кандидати и партии по време на избори (Изборен кодекс, чл. 188), — може да изпрати отговор. Публикуваме го незабавно, на страницата на историята, без коментар.</p>
+<p>Медия, която не иска да бъде четена или да бъде показвана с лого, може да ни пише или просто да го забрани в robots.txt — спираме сами.</p>
 </div>
 <div class="prose panel">
 <h2 class="panel-title">Авторски права</h2>
-<p>Правата върху материалите, заглавията, видеата и логата принадлежат на техните собственици. Показваме само заглавие и връзка към оригинала, а видеата — чрез официалния плейър на YouTube; не публикуваме текстове на статии. Обобщенията са наши, по фактите от няколко източника.</p>
-<p>Четем само сайтове, които позволяват съдържанието им да се ползва от изкуствен интелект: всеки ден проверяваме файла robots.txt на всеки източник и спираме да четем сайт, който откаже.</p>
+<p>Правата върху материалите, заглавията, видеата и логата принадлежат на техните собственици. Показваме само заглавие и връзка към оригинала, а видеата — чрез официалния плейър на YouTube; не публикуваме текстове на статии. Обобщенията са със свои думи, по фактите от няколко източника.</p>
+<p>Четем само сайтове, които позволяват съдържанието им да се анализира автоматично: всеки ден проверяваме техния robots.txt, Content-Signal и TDM резервация (ЗАПСП, чл. 26е, ал. 4) и спираме да четем сайт, който откаже. Текстът на статиите се използва само за анализа и не се пази.</p>
 </div>
 <div class="prose panel">
-<h2 class="panel-title">Поверителност</h2>
-<p>Сайтът не използва бисквитки, реклами, анализи на посещенията или проследяване и не събира лични данни. Кои истории сте видели и дали сте затворили обясненията, се пазят само в браузъра ви (localStorage) и не се изпращат никъде. Видео от YouTube се зарежда едва когато го пуснете; тогава важат правилата на YouTube.</p>
+<h2 class="panel-title">Лични данни</h2>
+<p><b>За посетителите.</b> Сайтът няма бисквитки, реклами, анализи на посещенията и проследяване. Страниците се доставят от Cloudflare, който обработва IP адреса на всеки посетител, за да ги достави и защити. Кои истории са отворени, кои се следят и дали обясненията са затворени, се пази само в браузъра на посетителя (localStorage) и не се изпраща никъде; може да се изтрие с бутона по-долу. Видео от YouTube се зарежда едва когато бъде пуснато; тогава YouTube (Google) получава данни за посещението по своите правила.</p>
+<p><b>За хората в новините.</b> Историите съдържат имена и изявления на хора от публикувани материали. Те се обработват за журналистически цели, за свободата на изразяване и правото на информация (чл. 85 от Регламент (ЕС) 2016/679 и чл. 25з от Закона за защита на личните данни). Текстовете на материалите се обработват от Anthropic като обработващ лични данни. Всеки може да поиска поправка или премахване на ${mail}.</p>
+<p><button type="button" class="btn btn-ghost" data-forget>Изтрий какво помни браузърът ми за сайта</button></p>
 </div>
+</main>
+${footer()}
+</body>
+</html>
+`;
+}
+
+function correctionsPage(state, now, corrections) {
+    const rows = [...corrections]
+        .sort((a, b) => String(b.date).localeCompare(String(a.date)))
+        .map(
+            (c) =>
+                `<li><time>${esc(c.date)}</time><p>${esc(c.text)}</p>${c.story ? `<a href="/s/${esc(c.story)}/">Историята</a>` : ''}</li>`,
+        )
+        .join('');
+    return `${head({
+        title: 'Поправки — live.gazette.bg',
+        description: 'Дневник на поправките в live.gazette.bg.',
+        canonical: `${SITE_ORIGIN}/corrections/`,
+        image: `${SITE_ORIGIN}/og/home.png?v=${state.updatedAt}`,
+    })}
+<body class="corrections" data-version="${state.updatedAt}">
+${topbar(state, now)}
+<main id="main" class="wrap narrow">
+<a class="back" href="/">← Всичко, което се случва сега</a>
+<header class="story-head"><h1>Поправки</h1>
+<p class="lede">Всичко, което сме поправили или махнали след сигнал, с дата. Сигнали: ${CONTACT ? `<a href="mailto:${esc(CONTACT)}">${esc(CONTACT)}</a>` : 'вижте „За сайта“'}.</p></header>
+<div class="panel"><ul class="item-list corrections-list">${rows || '<li class="quiet">Още няма поправки.</li>'}</ul></div>
 </main>
 ${footer()}
 </body>
@@ -1191,6 +1256,20 @@ async function writeImages(ranked, outDir) {
 
 export async function buildSite(state, { now = Date.now(), outDir = OUT_DIR, images = true } = {}) {
     fs.rmSync(outDir, { recursive: true, force: true });
+    const policy = loadPolicy();
+    REPLIES = policy.replies;
+    // Election silence: the pages show no polls and no party channels.
+    if (inElectionSilence(policy, now)) {
+        state = {
+            ...state,
+            stories: silenceFilter(state.stories),
+            overview: state.overview && {
+                ...state.overview,
+                lines: state.overview.lines.filter((l) => !POLL.test(l.text)),
+            },
+            silence: true,
+        };
+    }
     const ranked = rankStories(state.stories, now);
     write(path.join(outDir, 'index.html'), frontPage(state, ranked, now));
     for (const r of ranked) {
@@ -1205,7 +1284,7 @@ export async function buildSite(state, { now = Date.now(), outDir = OUT_DIR, ima
             );
         }
     }
-    const urls = ['/', '/about/', '/sources/', '/media/', ...ranked.map((r) => `/s/${r.story.id}/`)];
+    const urls = ['/', '/about/', '/corrections/', '/sources/', '/media/', ...ranked.map((r) => `/s/${r.story.id}/`)];
     write(
         path.join(outDir, 'sitemap.xml'),
         `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${urls.map((u) => `<url><loc>${SITE_ORIGIN}${u}</loc></url>`).join('\n')}\n</urlset>\n`,
@@ -1213,6 +1292,8 @@ export async function buildSite(state, { now = Date.now(), outDir = OUT_DIR, ima
     write(path.join(outDir, 'sources', 'index.html'), sourcesPage(state, now));
     write(path.join(outDir, 'media', 'index.html'), mediaPage(state, now));
     write(path.join(outDir, 'about', 'index.html'), aboutPage(state, now));
+    write(path.join(outDir, 'corrections', 'index.html'), correctionsPage(state, now, policy.corrections));
+    // During the silence the published state carries no polls either.
     write(path.join(outDir, 'state.json'), JSON.stringify(state));
     write(path.join(outDir, 'version.json'), JSON.stringify({ updatedAt: state.updatedAt }));
     write(path.join(outDir, '_headers'), HEADERS);

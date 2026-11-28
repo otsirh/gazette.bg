@@ -116,6 +116,7 @@ export async function storyImage({ title, level, levelLabel, temp, outlets, vide
                 el('div', { gap: 34, fontSize: 26, color: C.muted, borderTop: `2px solid ${C.line}`, paddingTop: 24 }, [
                     el('div', { color: C.text }, `${outlets} медии`),
                     el('div', {}, trust),
+                    el('div', {}, 'обобщено с AI'),
                     videos
                         ? el('div', { alignItems: 'center', gap: 12, color: C.hot }, [
                               // Unbounded has no ▶; a drawn triangle stands in.
