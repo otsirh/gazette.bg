@@ -221,7 +221,7 @@ function footer() {
         <div class="footer-brand"><span class="live-dot" aria-hidden="true"></span> live.gazette.bg</div>
         <ul class="legend">${KIND_ORDER.map((k) => `<li><i class="kd k-${k}"></i>${esc(KINDS[k].long)}</li>`).join('')}</ul>
         <p>Историите, обобщенията и хронологиите се съставят автоматично с изкуствен интелект (Claude на Anthropic) от ${SOURCES.length} медии, телевизии и официални канала и може да съдържат грешки. Всяко твърдение води към материала, от който е взето.</p>
-        <p><a href="/sources/">Източници и как се оценяват</a> · <a href="https://gazette.bg">gazette.bg — Държавен вестник накратко</a></p>
+        <p><a href="/sources/">Източници и как се оценяват</a></p>
     </div>
 </footer>`;
 }
