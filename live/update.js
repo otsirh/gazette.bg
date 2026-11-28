@@ -512,7 +512,7 @@ export async function update({ now = Date.now() } = {}) {
     // The time readers see is when this version was finished, not begun.
     state.updatedAt = Date.now();
     log(
-        `Claude: ${meter.calls} calls, $${meter.usd.toFixed(3)} this update, $${state.spend.usd.toFixed(2)} in ${month}.`,
+        `Claude: ${meter.calls} calls, $${meter.usd.toFixed(3)} this update, $${state.spend.usd.toFixed(2)} in ${month}; cache ${meter.cacheRead ?? 0} read / ${meter.cacheWrite ?? 0} written / ${meter.input ?? 0} uncached input tokens.`,
     );
 
     if (!process.env.LIVE_STATE_URL) fs.writeFileSync(LOCAL_STATE, JSON.stringify(state));

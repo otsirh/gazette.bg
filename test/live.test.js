@@ -556,3 +556,41 @@ test('parseFeed: a link in <url> and a zone-less date in Sofia time', () => {
     assert.equal(e.url, 'https://varnautre.bg/2026/11/28/1-a');
     assert.equal(new Date(e.at).toISOString(), '2026-11-28T10:28:10.000Z');
 });
+
+test('heat: one outlet writing a lot counts less than many outlets', async () => {
+    const flood = story(Array.from({ length: 20 }, (_, i) => item(`f${i}`, 'mediapool', i * 0.1)));
+    const broad = story(['mediapool', 'sega', 'clubz', 'offnews'].map((s, i) => item(`b${i}`, s, 0.5)));
+    assert.ok(heatAt(broad, NOW) > heatAt(flood, NOW), 'four outlets beat twenty items from one');
+    // The outlet's newest item is the one that counts in full.
+    const recentRepeat = story([item('o', 'mediapool', 12), item('n', 'mediapool', 0)]);
+    assert.ok(heatAt(recentRepeat, NOW) > 1, 'a fresh item keeps the outlet on the story');
+});
+
+test('news clock: at night, with nothing published, a story keeps most of its heat', async () => {
+    const { newsClock } = await import('../live/lib/stories.js');
+    // A busy day (100 items between 08:00 and 20:00), then a silent night.
+    const day = Date.UTC(2026, 10, 27, 6, 0);
+    const items = Array.from({ length: 100 }, (_, i) => item(`d${i}`, 'bta', 0, { at: day + i * 432000 }));
+    const evening = Date.UTC(2026, 10, 27, 18, 0);
+    const morning = Date.UTC(2026, 10, 28, 4, 0);
+    const big = story([item('x', 'sega', 0, { at: evening })], { id: 'x' });
+    const all = [story(items, { id: 'day' }), big];
+    const clock = newsClock(all, morning);
+    const kept = heatAt(big, morning, clock) / heatAt(big, evening, clock);
+    const wall = heatAt(big, morning) / heatAt(big, evening);
+    assert.ok(kept > 0.6, `kept ${kept.toFixed(2)} of its heat overnight`);
+    assert.ok(wall < 0.35, 'the wall clock would have taken most of it');
+});
+
+test('at most MAX_HOT stories are hot', async () => {
+    const { MAX_HOT } = await import('../live/lib/stories.js');
+    const outlets = ['bta', 'bnt', 'sega', 'clubz', 'offnews', 'mediapool', 'dnes', '24chasa'];
+    const many = Array.from({ length: MAX_HOT + 3 }, (_, n) =>
+        story(
+            outlets.map((o, i) => item(`${n}-${i}`, o, 0.1)),
+            { id: `s${n}`, title: `История ${n}` },
+        ),
+    );
+    const ranked = rankStories(many, NOW);
+    assert.equal(ranked.filter((r) => r.level.id === 'hot').length, MAX_HOT);
+});
