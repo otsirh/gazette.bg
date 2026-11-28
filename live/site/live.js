@@ -124,6 +124,7 @@ const FILTERS = {
     video: (el) => el.dataset.video === '1',
     confirmed: (el) => el.dataset.trust === 'confirmed',
     mine: (el) => el.dataset.mine === '1',
+    follow: (el) => followed().has(el.dataset.story),
 };
 
 function applyFilter(id) {
@@ -242,6 +243,102 @@ async function checkForUpdate() {
     }
 }
 
+// ─── Following a story, and what is new in it for you ───────────────────
+
+const json = (key, fallback) => {
+    try {
+        return JSON.parse(store.get(key)) ?? fallback;
+    } catch {
+        return fallback;
+    }
+};
+const followed = () => new Set(json('live:follow', []));
+
+function setFollow(id, on) {
+    const set = followed();
+    if (on) set.add(id);
+    else set.delete(id);
+    store.set('live:follow', JSON.stringify([...set].slice(-100)));
+}
+
+// When you last opened each story, so its page can mark what came after.
+const storySeen = json('live:storySeen', {});
+
+function decorateFollow() {
+    const set = followed();
+    for (const btn of document.querySelectorAll('[data-follow]')) {
+        const on = set.has(btn.dataset.follow);
+        btn.setAttribute('aria-pressed', String(on));
+        btn.textContent = on ? '★ Следиш' : '☆ Следи';
+    }
+    let withNews = 0;
+    for (const card of document.querySelectorAll('.feed [data-story]')) {
+        const id = card.dataset.story;
+        if (!set.has(id)) continue;
+        card.classList.add('is-followed');
+        if (Number(card.dataset.last) > (storySeen[id] ?? 0)) {
+            withNews++;
+            if (!card.querySelector('.badge-follow')) {
+                const b = document.createElement('span');
+                b.className = 'badge-new badge-follow';
+                b.textContent = '★ НОВО В ИСТОРИЯТА';
+                if (card.classList.contains('row')) card.querySelector('a').append(b);
+                else (card.querySelector('.ago') ?? card).before(b);
+            }
+        }
+    }
+    const filter = document.querySelector('[data-filter="follow"]');
+    if (filter) {
+        filter.hidden = set.size === 0;
+        filter.textContent = withNews ? `★ Следени · ${withNews} с ново` : '★ Следени';
+    }
+}
+
+// On a story page: mark the steps since your last visit, then remember now.
+function markStoryNews() {
+    const id = document.body.classList.contains('story') ? document.body.dataset.story : null;
+    if (!id) return;
+    const since = storySeen[id] ?? 0;
+    let fresh = 0;
+    if (since) {
+        for (const li of document.querySelectorAll('.timeline .tl[data-at]')) {
+            if (Number(li.dataset.at) > since) {
+                li.classList.add('is-new');
+                fresh++;
+            }
+        }
+    }
+    if (fresh && !document.querySelector('.story-news')) {
+        const note = document.createElement('a');
+        note.className = 'story-news';
+        note.href = '#timeline';
+        note.textContent = `${fresh} ${fresh === 1 ? 'нова стъпка' : 'нови стъпки'}, откакто я видя за последно ↓`;
+        document.querySelector('.story-head h1')?.after(note);
+    }
+    storySeen[id] = Date.now();
+    const keep = Object.entries(storySeen)
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 200);
+    store.set('live:storySeen', JSON.stringify(Object.fromEntries(keep)));
+}
+
+// ─── Keyboard: J and K move between stories, Enter opens ────────────────
+
+document.addEventListener('keydown', (e) => {
+    if (e.metaKey || e.ctrlKey || e.altKey || /input|textarea|select/i.test(e.target.tagName)) return;
+    const key = e.key.toLowerCase();
+    if (key !== 'j' && key !== 'k') return;
+    const links = [...document.querySelectorAll('.feed [data-story]:not([hidden]) a[href^="/s/"]')].filter(
+        (a, i, all) => all.findIndex((b) => b.closest('[data-story]') === a.closest('[data-story]')) === i,
+    );
+    if (!links.length) return;
+    const at = links.indexOf(document.activeElement);
+    const next = key === 'j' ? Math.min(links.length - 1, at + 1) : Math.max(0, at < 0 ? 0 : at - 1);
+    links[next].focus();
+    links[next].scrollIntoView({ block: 'center', behavior: 'smooth' });
+    e.preventDefault();
+});
+
 // ─── Wiring ─────────────────────────────────────────────────────────────
 
 function decorate() {
@@ -249,6 +346,7 @@ function decorate() {
     const counts = markSince();
     sinceBar(counts);
     welcome();
+    decorateFollow();
     const saved = store.get('live:filter');
     if (saved && saved !== 'all' && document.querySelector(`[data-filter="${saved}"]`)) applyFilter(saved);
 }
@@ -258,6 +356,14 @@ document.addEventListener('click', (e) => {
     if (shareBtn) {
         e.preventDefault();
         share(shareBtn);
+        return;
+    }
+    const follow = e.target.closest('[data-follow]');
+    if (follow) {
+        const on = follow.getAttribute('aria-pressed') !== 'true';
+        setFollow(follow.dataset.follow, on);
+        decorateFollow();
+        toast(on ? 'Ще виждаш, когато има ново в тази история' : 'Вече не я следиш');
         return;
     }
     const filter = e.target.closest('[data-filter]');
@@ -308,7 +414,11 @@ document.addEventListener('click', (e) => {
 });
 
 decorate();
+markStoryNews();
 setInterval(tick, MINUTE);
+
+// Read without a connection: pages you opened stay readable offline.
+if ('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js').catch(() => {});
 setInterval(checkForUpdate, 2 * MINUTE);
 document.addEventListener('visibilitychange', () => {
     if (!document.hidden) {

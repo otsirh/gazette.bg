@@ -29,7 +29,7 @@ const CONTACT = /^[^\s@<>"]+@[^\s@<>"]+\.[a-z]{2,}$/i.test(process.env.LIVE_CONT
 const HOUR = 3600 * 1000;
 
 // Bumped by hand when style.css or live.js change, so browsers fetch them anew.
-const ASSET_VERSION = '11';
+const ASSET_VERSION = '13';
 
 const esc = (s) =>
     String(s ?? '')
@@ -211,7 +211,10 @@ const ICONS = {
 
 // ─── Page frame ─────────────────────────────────────────────────────────
 
-function head({ title, description, canonical, image }) {
+// JSON inside <script>: a "<" in a headline must not end the element.
+const jsonLd = (data) => `<script type="application/ld+json">${JSON.stringify(data).replace(/</g, '\\u003c')}</script>`;
+
+function head({ title, description, canonical, image, ld = null }) {
     return `<!DOCTYPE html>
 <html lang="bg">
 <head>
@@ -238,13 +241,15 @@ function head({ title, description, canonical, image }) {
     <link rel="preload" as="font" type="font/woff2" href="/fonts/unbounded-cyrillic-700.woff2" crossorigin />
     <link rel="stylesheet" href="/style.css?v=${ASSET_VERSION}" />
     <script type="module" src="/live.js?v=${ASSET_VERSION}"></script>
+    ${ld ? jsonLd(ld) : ''}
 </head>`;
 }
 
 function topbar(state, now) {
     return `<header class="topbar">
     <div class="wrap topbar-inner">
-        <a class="brand" href="/" aria-label="live.gazette.bg — начало"><span class="live-dot" aria-hidden="true"></span><span class="brand-live">НА ЖИВО</span><span class="brand-name">live.gazette.bg</span></a>
+        <a class="skip" href="#main">Към съдържанието</a>
+        <a class="brand" href="/"><span class="live-dot" aria-hidden="true"></span><span class="brand-live">НА ЖИВО</span><span class="brand-name">live.gazette.bg</span></a>
         <span class="status" data-status>обновено ${timeEl(state.updatedAt || now, now, true)}</span>
         <button type="button" class="icon-btn" data-share data-share-title="Какво се случва в България сега" data-share-url="${SITE_ORIGIN}/" aria-label="Сподели сайта">${ICONS.share}</button>
     </div>
@@ -355,11 +360,12 @@ function filters() {
         ['video', '▶ С видео'],
         ['confirmed', '✓ Потвърдени'],
         ['mine', 'Нови за мен'],
+        ['follow', '★ Следени'],
     ];
     return `<div class="filters" role="toolbar" aria-label="Покажи">${f
         .map(
             ([id, label], i) =>
-                `<button type="button" class="filter${i === 0 ? ' on' : ''}" data-filter="${id}"${id === 'mine' ? ' hidden' : ''} aria-pressed="${i === 0}">${label}</button>`,
+                `<button type="button" class="filter${i === 0 ? ' on' : ''}" data-filter="${id}"${id === 'mine' || id === 'follow' ? ' hidden' : ''} aria-pressed="${i === 0}">${label}</button>`,
         )
         .join('')}</div>`;
 }
@@ -387,6 +393,7 @@ function howBox() {
     <h2 id="how" class="rail-title">Как да четеш</h2>
     <p><b class="t-hot">87°</b> Нажеженост: колко се пише сега. Пада наполовина на всеки 6 часа без нови материали.</p>
     <p><span class="cov cov-mini"><span class="cov-bar"><i class="k-first" style="flex:1"></i><i class="k-public" style="flex:1"></i><i class="k-editorial" style="flex:3"></i><i class="k-independent" style="flex:1"></i><i class="k-partisan" style="flex:1"></i><i class="k-unverified" style="flex:1"></i></span></span>Кой отразява историята: първоизточници, обществени и редакционни медии, независими автори, партийни канали, непроверени.</p>
+    <p><kbd>J</kbd> <kbd>K</kbd> — следваща и предишна история, <kbd>Enter</kbd> — отвори.</p>
     <p><a href="/sources/">Всички ${SOURCES.length} източника →</a></p>
 </section>`;
 }
@@ -427,7 +434,7 @@ function mapBlock(ranked, now) {
         .join('');
     return `<section class="group map-group" aria-labelledby="g-map"><h2 id="g-map" class="group-title">По места <span>местните истории в момента</span></h2>
 <div class="map-wrap">
-    <svg class="map" viewBox="-20 -20 ${MAP.width + 40} ${MAP.height + 40}" role="img" aria-label="Карта на България с местните истории"><path class="map-land" d="${OUTLINE}"/>${dots}</svg>
+    <svg class="map" role="group" viewBox="-20 -20 ${MAP.width + 40} ${MAP.height + 40}" aria-label="Карта на България с местните истории"><path class="map-land" d="${OUTLINE}"/>${dots}</svg>
     <ol class="map-list">${rows}</ol>
 </div></section>`;
 }
@@ -471,10 +478,27 @@ function frontPage(state, ranked, now) {
             : 'Актуалните новини в България, подредени по това колко се говори за тях, с първоизточника и видеата.',
         canonical: `${SITE_ORIGIN}/`,
         image: `${SITE_ORIGIN}/og/home.png?v=${state.updatedAt}`,
+        ld: {
+            '@context': 'https://schema.org',
+            '@type': 'WebSite',
+            name: 'live.gazette.bg',
+            url: `${SITE_ORIGIN}/`,
+            inLanguage: 'bg',
+            description: 'Какво се случва в България сега: новините, подредени по това колко се говори за тях.',
+            mainEntity: {
+                '@type': 'ItemList',
+                itemListElement: main.slice(0, 20).map((r, i) => ({
+                    '@type': 'ListItem',
+                    position: i + 1,
+                    url: `${SITE_ORIGIN}/s/${r.story.id}/`,
+                    name: r.story.title,
+                })),
+            },
+        },
     })}
 <body class="home" data-version="${state.updatedAt}">
 ${topbar(state, now)}
-<main class="wrap">
+<main id="main" class="wrap">
 ${welcomeBlock()}
 ${heroBlock(state, ranked, main.length, now)}
 <div class="since" data-since hidden></div>
@@ -713,7 +737,7 @@ export function spreadSvg(story, now) {
             return `<text class="sp-tick" x="${f(x(t))}" y="16" text-anchor="${anchor}">${esc(when(t, now))}</text>`;
         })
         .join('');
-    return `<div class="spread-scroll"><svg class="spread-svg" viewBox="0 0 ${W} ${H}" role="img" aria-label="Как се разпространи новината във времето, медия по медия">${ticks}${laneEls}${links.join('')}${marks.join('')}</svg></div>`;
+    return `<div class="spread-scroll"><svg class="spread-svg" viewBox="0 0 ${W} ${H}" role="group" aria-label="Как се разпространи новината във времето, медия по медия">${ticks}${laneEls}${links.join('')}${marks.join('')}</svg></div>`;
 }
 
 function treeHtml(nodes, now) {
@@ -795,7 +819,7 @@ function timelineBlock(story) {
             const day = dayKey.format(e.at);
             const sep = day !== lastDay ? `<li class="tl-day">${esc(fmtLongDay.format(e.at))}</li>` : '';
             lastDay = day;
-            return `${sep}<li class="tl tl-${kind}">
+            return `${sep}<li class="tl tl-${kind}" data-at="${e.at}">
     <span class="tl-time">${esc(fmtClock.format(e.at))}</span>
     <span class="tl-body"><b class="tl-who">${esc(capFirst(e.who))}</b><span class="tl-what">${esc(capFirst(e.what))}</span>${e.quote ? `<q class="quote">${esc(e.quote)}</q>` : ''}${links ? `<span class="tl-src">${links}</span>` : ''}</span>
 </li>`;
@@ -867,11 +891,26 @@ function storyPage(state, r, ranked, now) {
         title: `${s.title} — live.gazette.bg`,
         description: s.summary || s.title,
         canonical: url,
+        ld: {
+            '@context': 'https://schema.org',
+            '@type': 'NewsArticle',
+            headline: s.title.slice(0, 110),
+            description: s.summary || s.title,
+            datePublished: new Date(Math.min(...s.items.map((i) => i.at))).toISOString(),
+            dateModified: new Date(lastAt(s)).toISOString(),
+            inLanguage: 'bg',
+            mainEntityOfPage: url,
+            image: [`${SITE_ORIGIN}/og/${s.id}.png`],
+            author: { '@type': 'Organization', name: 'live.gazette.bg', url: `${SITE_ORIGIN}/about/` },
+            publisher: { '@type': 'Organization', name: 'live.gazette.bg', url: `${SITE_ORIGIN}/` },
+            isBasedOn: s.items.slice(0, 30).map((i) => i.url),
+            ...(placeOf(s.place) ? { contentLocation: { '@type': 'Place', name: placeOf(s.place).name } } : {}),
+        },
         image: `${SITE_ORIGIN}/og/${s.id}.png?v=${tempOf(r.heat)}-${r.trust.outlets}`,
     })}
 <body class="story heat-${r.level.id}" data-version="${state.updatedAt}" ${cardData(r)}>
 ${topbar(state, now)}
-<main class="wrap">
+<main id="main" class="wrap">
 <a class="back" href="/">← Всичко, което се случва сега</a>
 <header class="story-head">
     <div class="card-top">${tempBadge(r)}${chips(r, now)}</div>
@@ -880,6 +919,7 @@ ${topbar(state, now)}
     <p class="ai-note">Обобщено автоматично с изкуствен интелект от ${plural(s.items.length, 'материал', 'материала')} на ${plural(r.trust.outlets, 'медия', 'медии')}. Всяко твърдение води към материала, от който е взето — проверявай там. <a href="/about/">Как работи</a></p>
     <div class="actions">
         <button type="button" class="btn" data-share data-share-title="${esc(s.title)}" data-share-url="${url}">${ICONS.share} Сподели</button>
+        <button type="button" class="btn btn-ghost" data-follow="${esc(s.id)}" aria-pressed="false">☆ Следи</button>
         ${nav}
     </div>
     <dl class="stats">
@@ -954,7 +994,7 @@ function mediaPage(state, now) {
     })}
 <body class="media" data-version="${state.updatedAt}">
 ${topbar(state, now)}
-<main class="wrap">
+<main id="main" class="wrap">
 <a class="back" href="/">← Всичко, което се случва сега</a>
 <header class="story-head"><h1>Досие на медиите</h1>
 <p class="lede">Как всяка медия се държи в новините, които следим: съобщава ли първа, посочва ли откъде знае, цитират ли я другите. Само данни, събирани от ${esc(fmtLongDay.format(since))}, насам, без мнение. С всеки ден картината е по-точна.</p></header>
@@ -1007,7 +1047,7 @@ function sourcesPage(state, now) {
     })}
 <body class="sources" data-version="${state.updatedAt}">
 ${topbar(state, now)}
-<main class="wrap narrow">
+<main id="main" class="wrap narrow">
 <a class="back" href="/">← Всичко, което се случва сега</a>
 <header class="story-head"><h1>Източници и как се оценяват</h1>
 <p class="lede">Четем ${SOURCES.length} източника от всички страни: медии, телевизии, независими автори, институции и партии. Колкото повече гледни точки, толкова по-ясна картина.</p></header>
@@ -1040,7 +1080,7 @@ function aboutPage(state, now) {
     })}
 <body class="about" data-version="${state.updatedAt}">
 ${topbar(state, now)}
-<main class="wrap narrow">
+<main id="main" class="wrap narrow">
 <a class="back" href="/">← Всичко, което се случва сега</a>
 <header class="story-head"><h1>За сайта</h1>
 <p class="lede">live.gazette.bg показва какво се случва в България сега: новините от ${SOURCES.length} източника, подредени по това колко се говори за тях, с първоизточника, хронологията и видеата.</p></header>
@@ -1076,7 +1116,7 @@ const HEADERS = `/*
   X-Frame-Options: DENY
   X-Content-Type-Options: nosniff
   Referrer-Policy: strict-origin-when-cross-origin
-  Content-Security-Policy: default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https://i.ytimg.com; font-src 'self'; connect-src 'self'; frame-src https://www.youtube-nocookie.com; manifest-src 'self'; frame-ancestors 'none'; base-uri 'self'; object-src 'none'
+  Content-Security-Policy: default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https://i.ytimg.com; font-src 'self'; connect-src 'self'; worker-src 'self'; frame-src https://www.youtube-nocookie.com; manifest-src 'self'; frame-ancestors 'none'; base-uri 'self'; object-src 'none'
   Permissions-Policy: camera=(), microphone=(), geolocation=(), payment=(), usb=()
   Cache-Control: public, max-age=60
 
@@ -1084,6 +1124,9 @@ const HEADERS = `/*
   ! Cache-Control
   Cache-Control: no-cache
 /version.json
+  ! Cache-Control
+  Cache-Control: no-cache
+/sw.js
   ! Cache-Control
   Cache-Control: no-cache
 /fonts/*
@@ -1181,9 +1224,9 @@ export async function buildSite(state, { now = Date.now(), outDir = OUT_DIR, ima
     write(
         path.join(outDir, '404.html'),
         `${head({ title: 'Няма такава страница — live.gazette.bg', description: 'Тази история вече не е актуална.', canonical: `${SITE_ORIGIN}/`, image: `${SITE_ORIGIN}/og/home.png` })}
-<body data-version="${state.updatedAt}">${topbar(state, now)}<main class="wrap narrow"><header class="story-head"><h1>Тази история изстина</h1><p class="lede">За нея отдавна не се пише, затова е махната. Но точно сега се случва друго.</p><p><a class="btn" href="/">Виж какво се случва сега →</a></p></header></main>${footer()}</body></html>\n`,
+<body data-version="${state.updatedAt}">${topbar(state, now)}<main id="main" class="wrap narrow"><header class="story-head"><h1>Тази история изстина</h1><p class="lede">За нея отдавна не се пише, затова е махната. Но точно сега се случва друго.</p><p><a class="btn" href="/">Виж какво се случва сега →</a></p></header></main>${footer()}</body></html>\n`,
     );
-    for (const f of ['style.css', 'live.js', 'favicon.svg']) {
+    for (const f of ['style.css', 'live.js', 'sw.js', 'favicon.svg']) {
         fs.copyFileSync(path.join(HERE, 'site', f), path.join(outDir, f));
     }
     if (ICONS_FOUND.size) fs.cpSync(ICON_DIR, path.join(outDir, 'icons'), { recursive: true });
