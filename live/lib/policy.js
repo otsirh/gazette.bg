@@ -101,7 +101,6 @@ export function applyBlocklist(state, policy) {
             e.quote = scrub(e.quote);
         }
         if (s.context) s.context.background = scrub(s.context.background);
-        if (s.weight) s.weight.why = scrub(s.weight.why);
         if (s.framing) {
             for (const a of s.framing.angles ?? []) {
                 a.label = scrub(a.label);

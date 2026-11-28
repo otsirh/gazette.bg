@@ -86,20 +86,6 @@ export function levelOf(heat) {
     return LEVELS.find((l) => heat >= l.min);
 }
 
-// How much a story weighs for people, not how loud it is: whom it reaches,
-// how much public money, whether a binding rule was decided, how long it
-// lasts (lib/ai.js classifyWeights). 0–9; IMPORTANT and above is shown as
-// important even when little is written about it.
-const SCOPE = { person: 0, local: 1, region: 2, country: 3 };
-const MONEY = { none: 0, small: 1, large: 2, huge: 3 };
-export const IMPORTANT = 5;
-
-export function storyWeight(story) {
-    const w = story.weight;
-    if (!w) return null;
-    return (SCOPE[w.scope] ?? 0) + (MONEY[w.money] ?? 0) + (w.rules ? 2 : 0) + (w.lasting ? 1 : 0);
-}
-
 // Rising, falling or steady: heat now against heat three hours ago. A story
 // younger than that is new, which says more.
 export function trendOf(story, now, clock = WALL_CLOCK) {

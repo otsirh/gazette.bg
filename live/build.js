@@ -17,7 +17,7 @@ import { homeImage, iconPng, storyImage } from './lib/og.js';
 import { placeOf } from './lib/places.js';
 import { inElectionSilence, isPollStory, loadPolicy, POLL, silenceFilter } from './lib/policy.js';
 import { publicState } from './lib/seal.js';
-import { IMPORTANT, lastAt, rankStories, scoreStories, sparkline, storyWeight } from './lib/stories.js';
+import { lastAt, rankStories, scoreStories, sparkline } from './lib/stories.js';
 import { outletOf, SOURCE_BY_ID, SOURCES, tierOf } from './sources.js';
 
 const require = createRequire(import.meta.url);
@@ -35,7 +35,7 @@ const CONTACT = /^[^\s@<>"]+@[^\s@<>"]+\.[a-z]{2,}$/i.test(process.env.LIVE_CONT
 const HOUR = 3600 * 1000;
 
 // Bumped by hand when style.css or live.js change, so browsers fetch them anew.
-const ASSET_VERSION = '37';
+const ASSET_VERSION = '38';
 
 const shortHash = (t) => createHash('sha1').update(String(t)).digest('base64url').slice(0, 8);
 
@@ -110,7 +110,7 @@ const KINDS = {
     independent: {
         one: 'автор на своя страница',
         many: 'автори на свои страници',
-        long: 'Автор на своя страница – известен човек, без редакция',
+        long: 'Журналист на своя страница или малка редакция',
     },
     partisan: {
         one: 'канал на партия',
@@ -313,25 +313,7 @@ function footer() {
 function cardData(r) {
     const s = r.story;
     const step = Math.max(0, ...s.timeline.map((e) => e.at));
-    return `data-story="${esc(s.id)}" data-first="${Math.min(...s.items.map((i) => i.at))}" data-last="${lastAt(s)}" data-step="${step}" data-weight="${storyWeight(s) ?? ''}" data-level="${r.level.id}" data-trust="${r.trust.id}" data-video="${videosOf(s).length ? 1 : 0}"`;
-}
-
-const WEIGHT_LABEL = (w) => (w >= IMPORTANT ? 'Голяма' : w >= 3 ? 'Средна' : 'Малка');
-
-function weightStat(s) {
-    const w = storyWeight(s);
-    if (w === null) return '';
-    return stat(
-        'Тежест',
-        `<span class="stat-weight${w >= IMPORTANT ? ' big' : ''}">${WEIGHT_LABEL(w)}</span><small>${s.weight.why ? `${esc(s.weight.why)} · ` : ''}колко засяга хората, не колко се пише</small>`,
-    );
-}
-
-// Why an important story matters, in a line under its summary.
-function whyLine(s) {
-    const w = storyWeight(s);
-    if (w === null || w < IMPORTANT || !s.weight.why) return '';
-    return `<span class="card-why"><span aria-hidden="true">⚖</span> ${esc(s.weight.why)}</span>`;
+    return `data-story="${esc(s.id)}" data-first="${Math.min(...s.items.map((i) => i.at))}" data-last="${lastAt(s)}" data-step="${step}" data-level="${r.level.id}" data-trust="${r.trust.id}" data-video="${videosOf(s).length ? 1 : 0}"`;
 }
 
 function cardMeta(r) {
@@ -369,7 +351,6 @@ function storyCard(r, now, { big = false, wide = false } = {}) {
             <span class="card-top">${tempBadge(r)}${cardTrend(r)}<span class="ago">${timeEl(lastAt(s), now, true)}</span></span>
             <h3 class="card-title">${esc(s.title)}</h3>
             ${s.summary ? `<span class="card-summary">${esc(s.summary)}</span>` : ''}
-            ${whyLine(s)}
             <span class="card-foot"><span class="meta">${cardMeta(r)}</span></span>
         </span>
     </a>
@@ -401,14 +382,7 @@ const isMain = (r) => r.trust.outlets >= 2 || r.trust.firstHand;
 function frontPage(state, ranked, now) {
     const main = ranked.filter(isMain);
     const hot = main.filter((r) => r.level.id === 'hot');
-    // Important, and not among the loudest: what a page ordered by noise
-    // would bury. Shown once, here, and not again lower down.
-    const quiet = main
-        .filter((r) => r.level.id !== 'hot' && (storyWeight(r.story) ?? 0) >= IMPORTANT)
-        .sort((a, b) => storyWeight(b.story) - storyWeight(a.story) || b.heat - a.heat)
-        .slice(0, 6);
-    const inQuiet = new Set(quiet.map((r) => r.story.id));
-    const warm = main.filter((r) => r.level.id === 'warm' && !inQuiet.has(r.story.id));
+    const warm = main.filter((r) => r.level.id === 'warm');
     const groups = [];
     if (hot.length) {
         groups.push(`<section class="group" aria-labelledby="g-hot"><h2 id="g-hot" class="group-title t-hot">Горещо <span>за това се пише най-много сега; градусите показват колко медии пишат, а не времето навън</span></h2>
@@ -416,10 +390,6 @@ function frontPage(state, ranked, now) {
             const wide = wideCards(hot.map((r) => videosOf(r.story).length > 0));
             return hot.map((r, i) => storyCard(r, now, { big: true, wide: wide[i] })).join('');
         })()}</ol></section>`);
-    }
-    if (quiet.length) {
-        groups.push(`<section class="group" aria-labelledby="g-quiet"><h2 id="g-quiet" class="group-title t-weight">Тихо, но важно <span>засяга много хора, а се пише малко</span></h2>
-<ol class="cards">${quiet.map((r) => storyCard(r, now)).join('')}</ol></section>`);
     }
     if (warm.length) {
         groups.push(`<section class="group" aria-labelledby="g-warm"><h2 id="g-warm" class="group-title t-warm">Още новини <span>пише се за тях, но не колкото за горещите</span></h2>
@@ -588,7 +558,6 @@ ${cold ? '<p class="cold-note">Тази новина изстина: за нея
     <p class="ai-note">Написано автоматично от изкуствен интелект по ${plural(s.items.length, 'публикация', 'публикации')} на ${plural(r.trust.outlets, 'медия', 'медии')}. Може да има грешки: всяко твърдение води към публикацията, от която е взето, проверявай там. <a href="/about/">Как работи</a></p>
     <dl class="stats">
         ${stat('Може ли да се вярва', `<span class="trust trust-${r.trust.id}">${esc(r.trust.label)}</span>${coverageBar(s, { legend: true })}`)}
-        ${weightStat(s)}
         ${stat('Колко се пише', `<span class="stat-temp heat-${r.level.id}">${tempOf(r.heat)}°</span>${sparkSvg(sparkline(s, now))}<small>колкото повече медии пишат сега, толкова повече градуса; стълбчетата са последните 48 часа</small>`)}
     </dl>
 </header>
@@ -671,7 +640,7 @@ function sourcesPage(state, now) {
             .map((s) => {
                 const st = state.sources?.[s.id];
                 const status = st && !st.ok ? ' <span class="down">не отговаря в момента</span>' : '';
-                return `<li>${srcMark(s.id)}${ext(s.home, `<b>${sourceLabel(s.id)}</b>`)}${s.kind === 'video' ? ' <span class="yt-tag">YouTube</span>' : ''}${status} — ${esc(s.why)}</li>`;
+                return `<li>${srcMark(s.id)}${ext(s.home, `<b>${sourceLabel(s.id)}</b>`)}${s.kind === 'video' ? ' <span class="yt-tag">YouTube</span>' : ''}${status}</li>`;
             })
             .join('');
         return `<section class="panel"><h2 class="panel-title"><i class="kd k-${k}"></i>${esc(KINDS[k].long)} <span>${list.length}</span></h2><ul class="item-list">${rows}</ul></section>`;
@@ -687,10 +656,10 @@ ${topbar(state, now)}
 <main id="main" class="wrap narrow">
 <a class="back" href="/">← Всичко, което се случва сега</a>
 <header class="story-head"><h1>Източници и как се оценяват</h1>
-<p class="lede">Четем ${SOURCES.length} източника от всички страни: медии, телевизии, независими автори, институции и партии. Колкото повече гледни точки, толкова по-ясна картина.</p></header>
+<p class="lede">Четем ${SOURCES.length} източника от всички страни: медии, телевизии, независими автори, институции и партии.</p></header>
 <div class="prose panel">
 <p><b>Тежестта на източника</b> идва от проверими неща, не от политическата му линия: дали говори самата институция или човек, дали медията отговаря по закон за точността си, дали има известен собственик и подписани материали.</p>
-<p><b>Независимите автори</b> са журналисти, коментатори и малки екипи без медия зад тях: известен човек отговаря за казаното, но няма редакция, която да го проверява. Тежат малко по-малко от редакционните медии.</p>
+<p><b>Независимите автори</b> са журналисти и малки редакции без голяма медия зад тях: известен човек отговаря за казаното, но няма голяма редакция, която да го проверява. Тежат малко по-малко от редакционните медии. Канал или блог на човек, който не работи като журналист, не четем.</p>
 <p><b>Партийните канали</b> са първоизточник за това какво казват политиците, но казаното е тяхна позиция. Затова сами никога не потвърждават история.</p>
 <p><b>„Потвърдено“</b> значи: има първоизточник (институцията говори сама или медия съобщава какво е обявила) и още една медия, която пише от свое име, или поне три такива медии, сред които агенция или обществена медия. Медия, която само преразказва друга („според БТА“), разпространява новината, но не я потвърждава; интервю е мнение, не потвърден факт. Ако източниците си противоречат за съществен факт, историята не е „Потвърдено“, докато спорът не се разреши.</p>
 <p><b>Кого четем.</b> Източник влиза, ако го позволява законът (robots.txt, условията за ползване), ако някой отговаря за него (известен собственик или автор с име), ако редовно пише за България и ако е активен. Не четем източник, за който независима проверка е установила дезинформация или разпространение на санкционирани медии, нито такъв, който системно използва език на омразата, обиди, внушения без доказателства, клюки или скрита реклама. Политическата позиция, шумните заглавия и малката аудитория не са причина да махнем някого — те влияят само на тежестта му.</p>
@@ -734,7 +703,7 @@ ${operator}
 <h2 class="panel-title">Как работи</h2>
 <p>На всеки 10 минути през деня и на всеки 30 през нощта сайтът чете публичните емисии (RSS) на медиите и YouTube каналите от <a href="/sources/">списъка с източници</a>. Изкуствен интелект (Claude на Anthropic) подрежда материалите в истории и пише кратко обобщение. <b>Текстовете са генерирани от изкуствен интелект, без човешка редакция, и може да съдържат грешки.</b> Затова всяко твърдение води към материала, от който е взето, и показваме колко и какви медии потвърждават всяка история.</p>
 <p>Правилата, които изкуственият интелект спазва: всяко твърдение има източник; никой не се представя за виновен без окончателна присъда; не се назовават деца, пострадали, свидетели и заподозрени, които не са публични личности; не се цитират числа от социологически проучвания. При история, която засяга дете или пострадал от сексуално или домашно насилие, не показваме заглавията и видеата на медиите. В деня преди изборите и в изборния ден не показваме проучвания и партийни канали (Изборен кодекс, чл. 182 и 205).</p>
-<p>„Тежестта“ на източниците е автоматична статистика по проверими признаци, а не оценка на медиите. Описанията на това как медиите представят една история казват само какво подчертават заглавията им.</p>
+<p>„Тежестта“ на източниците е автоматична статистика по проверими признаци, а не оценка на медиите.</p>
 </div>
 <div class="prose panel">
 <h2 class="panel-title">Поправки, премахване и отговор</h2>
@@ -751,7 +720,7 @@ ${operator}
 </div>
 <div class="prose panel">
 <h2 class="panel-title">Лични данни</h2>
-<p><b>За посетителите.</b> Сайтът няма бисквитки, реклами, анализи на посещенията и проследяване. Страниците се доставят от Cloudflare, който обработва IP адреса на всеки посетител, за да ги достави и защити. Кои истории са отворени, кои се следят и дали обясненията са затворени, се пази само в браузъра на посетителя (localStorage) и не се изпраща никъде; може да се изтрие с бутона по-долу. Картинките на видеата се зареждат от сървъра за изображения на YouTube (i.ytimg.com), който вижда IP адреса на посетителя; самото видео се зарежда едва когато бъде пуснато, и тогава YouTube (Google) получава данни за посещението по своите правила.</p>
+<p><b>За посетителите.</b> Сайтът няма бисквитки, реклами, анализи на посещенията и проследяване. Страниците се доставят от Cloudflare, който обработва IP адреса на всеки посетител, за да ги достави и защити. Кога е последното посещение се пази само в браузъра на посетителя (localStorage) и не се изпраща никъде; може да се изтрие с бутона по-долу. Картинките на видеата се зареждат от сървъра за изображения на YouTube (i.ytimg.com), който вижда IP адреса на посетителя; самото видео се зарежда едва когато бъде пуснато, и тогава YouTube (Google) получава данни за посещението по своите правила.</p>
 <p><b>За хората в новините.</b> Историите съдържат имена и изявления на хора от публикувани материали. Те се обработват за журналистически цели, за свободата на изразяване и правото на информация (чл. 85 от Регламент (ЕС) 2016/679 и чл. 25з от Закона за защита на личните данни). Текстовете на материалите се обработват от Anthropic като обработващ лични данни. Всеки може да поиска поправка или премахване на ${mail}.</p>
 <p><button type="button" class="btn btn-ghost" data-forget>Изтрий какво помни браузърът ми за сайта</button></p>
 </div>
