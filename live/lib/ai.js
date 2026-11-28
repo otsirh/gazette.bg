@@ -40,6 +40,7 @@ export const OVERVIEW_MODEL = 'claude-sonnet-5-5';
 const PRICES = {
     [FAST_MODEL]: { input: 0.1, output: 0.5, cacheWrite: 0.2, cacheRead: 0.01 },
     [OVERVIEW_MODEL]: { input: 2, output: 10, cacheWrite: 4, cacheRead: 0.1 },
+    'claude-opus-5-5': { input: 4, output: 20, cacheWrite: 8, cacheRead: 0.2 },
 };
 
 export function costOf(model, usage) {
@@ -61,7 +62,7 @@ function getClient() {
     return client;
 }
 
-async function askJson({ model, system, user, schema, effort, meter, label }) {
+export async function askJson({ model, system, user, schema, effort, meter, label }) {
     const params = {
         model,
         max_tokens: 16000,
@@ -261,7 +262,16 @@ const WRITE_SCHEMA = {
 
 // `past`: earlier stories ({title, summary, at}) offered as context to a new
 // story, so it can say what came before. Only a new story gets them.
-export async function writeStory({ story, newItems, texts, sourceName, meter, past = [] }) {
+export async function writeStory({
+    story,
+    newItems,
+    texts,
+    sourceName,
+    meter,
+    past = [],
+    model = FAST_MODEL,
+    effort = 'medium',
+}) {
     const timeline = story.timeline
         .slice(-20)
         .map((e) => `- ${fmtTime(e.at)} · ${e.who}: ${e.what}`)
@@ -291,11 +301,11 @@ ${blocks.join('\n\n')}${
 
 Области: ${PLACE_NAMES.join(', ')}.`;
     return askJson({
-        model: FAST_MODEL,
+        model: model,
         system: WRITE_SYSTEM,
         user,
         schema: WRITE_SCHEMA,
-        effort: 'medium',
+        effort: effort,
         meter,
         label: `write ${story.id}`,
     });
@@ -642,7 +652,7 @@ export function isSmallFix(before, after) {
 }
 
 // texts: string[]; returns Map(index → corrected text).
-export async function proofread({ texts, meter, model = FAST_MODEL }) {
+export async function proofread({ texts, meter, model = FAST_MODEL, effort = 'high' }) {
     const out = new Map();
     const starts = [];
     for (let start = 0; start < texts.length; start += 60) starts.push(start);
@@ -657,7 +667,7 @@ export async function proofread({ texts, meter, model = FAST_MODEL }) {
                 system: PROOF_SYSTEM,
                 user: batch.map((t, i) => `[${i}] ${t}`).join('\n'),
                 schema: PROOF_SCHEMA,
-                effort: 'high',
+                effort,
                 meter,
                 label: `proof ${batch.length}`,
             });
