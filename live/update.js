@@ -24,7 +24,8 @@ import { buildSite, OUT_DIR } from './build.js';
 import { clusterItems, proofread, writeOverview, writeStory } from './lib/ai.js';
 import { fillPlaces, frameStories, mergeSame, pastFor, readParliament, retire } from './lib/depth.js';
 import { articleText, fetchText, isOffTopic, itemId, mapLimit, parseFeed, siteOf } from './lib/feeds.js';
-import { aiRefused } from './lib/robots.js';
+import { applyBlocklist, copiesSource, inElectionSilence, loadPolicy } from './lib/policy.js';
+import { aiRefused, pathAllowed, tdmReserved } from './lib/robots.js';
 import { pruneStories, rankStories } from './lib/stories.js';
 import { tidy } from './lib/text.js';
 import { SOURCE_BY_ID, SOURCES, sourceIdForName } from './sources.js';
@@ -46,17 +47,12 @@ const sourceName = (id) => SOURCE_BY_ID.get(id)?.name ?? id;
 const proxyFor = (sourceId) => (SOURCE_BY_ID.get(sourceId)?.viaBulgaria && process.env.LIVE_PROXY) || null;
 const FEED_ACCEPT = 'application/rss+xml, application/atom+xml, application/xml;q=0.9, text/xml;q=0.9, */*;q=0.8';
 
-// Direct first (or through Bulgaria for the sites known to need it); a site
-// that turns the direct request away gets a second try through Bulgaria, so
-// a newly blocked site is read without anyone marking it.
-async function fetchSmart(url, sourceId, opts) {
-    const proxy = proxyFor(sourceId);
-    try {
-        return await fetchText(url, { ...opts, proxy });
-    } catch (err) {
-        if (proxy || !process.env.LIVE_PROXY) throw err;
-        return fetchText(url, { ...opts, proxy: process.env.LIVE_PROXY });
-    }
+// Direct, or through Bulgaria for the sites that serve only Bulgarian
+// addresses (marked viaBulgaria by hand, after checking they answer a
+// Bulgarian reader). A site that refuses us is never retried another way:
+// a refusal is respected, not worked around.
+function fetchSmart(url, sourceId, opts) {
+    return fetchText(url, { ...opts, proxy: proxyFor(sourceId) });
 }
 
 export function emptyState() {
@@ -104,7 +100,12 @@ async function checkRobots(state, now) {
                 headers: { 'User-Agent': 'Mozilla/5.0 (compatible; live.gazette.bg/1.0; +https://live.gazette.bg)' },
                 signal: AbortSignal.timeout(12000),
             });
-            st.aiRefused = res.ok ? aiRefused(await res.text()) : false;
+            let refused = res.ok ? aiRefused(await res.text()) : false;
+            const tdm = await fetch(new URL('/.well-known/tdmrep.json', source.home), {
+                signal: AbortSignal.timeout(12000),
+            }).catch(() => null);
+            if (tdm?.ok) refused ||= tdmReserved(await tdm.text(), '/');
+            st.aiRefused = refused;
             st.robotsAt = now;
             if (st.aiRefused) log(`${source.id}: robots.txt refuses AI; not read.`, 'WARN');
         } catch {
@@ -113,9 +114,50 @@ async function checkRobots(state, now) {
     });
 }
 
-async function readFeeds(state, now) {
+// Per update, per site: robots.txt and tdmrep.json, to ask before reading a page.
+const siteRules = new Map();
+async function rulesFor(origin, sourceId) {
+    if (!siteRules.has(origin)) {
+        siteRules.set(
+            origin,
+            (async () => {
+                const get = async (p) => {
+                    try {
+                        return { ok: true, text: await fetchSmart(`${origin}${p}`, sourceId, { timeoutMs: 10000 }) };
+                    } catch (err) {
+                        // Missing files allow; anything else is unknown, and unknown means no.
+                        return { ok: /HTTP 404|HTTP 410/.test(err.message), text: '' };
+                    }
+                };
+                const [robots, tdm] = await Promise.all([get('/robots.txt'), get('/.well-known/tdmrep.json')]);
+                return { known: robots.ok, robots: robots.text, tdm: tdm.text };
+            })(),
+        );
+    }
+    return siteRules.get(origin);
+}
+
+async function mayRead(url, sourceId) {
+    const u = new URL(url);
+    const r = await rulesFor(u.origin, sourceId);
+    if (!r.known) return false;
+    return pathAllowed(r.robots, u.pathname) && !tdmReserved(r.tdm, u.pathname);
+}
+
+// A story leaving the page is kept for the record, outside the site: what
+// it said and which headlines and links it said it from (uploaded by the
+// workflow as a private-to-the-repo artifact for 90 days).
+function keepEvidence(stories, now) {
+    if (!stories.length) return;
+    const dir = path.join(path.dirname(LOCAL_STATE), '.evidence');
+    fs.mkdirSync(dir, { recursive: true });
+    fs.writeFileSync(path.join(dir, `retired-${now}.json`), JSON.stringify(stories));
+}
+
+async function readFeeds(state, now, silence) {
     const results = await mapLimit(SOURCES, 8, async (source) => {
         if (state.sources[source.id]?.aiRefused) return [];
+        if (silence && source.partisan) return [];
         try {
             const xml = await fetchSmart(source.feed, source.id, { accept: FEED_ACCEPT });
             const entries = parseFeed(xml, now);
@@ -157,6 +199,10 @@ function monthOf(ms) {
 
 export async function update({ now = Date.now() } = {}) {
     const state = await loadState();
+    const policy = loadPolicy();
+    const silence = inElectionSilence(policy, now);
+    if (silence) log('Election silence: no poll stories, no party channels (Изборен кодекс чл. 182, 205).', 'WARN');
+    applyBlocklist(state, policy);
     const meter = { usd: 0, calls: 0 };
     // Every text the model writes in this update, to be proofread at the end.
     const proof = [];
@@ -183,11 +229,9 @@ export async function update({ now = Date.now() } = {}) {
     if (!canSpend()) log('Claude is off for this update (no key, LIVE_NO_AI, or the budget is used up).', 'WARN');
 
     const kept = pruneStories(state.stories, now);
-    retire(
-        state,
-        state.stories.filter((s) => !kept.includes(s)),
-        now,
-    );
+    const dropped = state.stories.filter((s) => !kept.includes(s));
+    retire(state, dropped, now);
+    keepEvidence(dropped, now);
     state.stories = kept;
     for (const [id, at] of Object.entries(state.seen)) if (now - at > SEEN_TTL) delete state.seen[id];
 
@@ -198,7 +242,7 @@ export async function update({ now = Date.now() } = {}) {
     for (const s of state.stories) s.items = s.items.filter((i) => allowed(i.source));
     state.stories = state.stories.filter((s) => s.items.length);
     for (const id of Object.keys(state.sources)) if (!SOURCE_BY_ID.has(id)) delete state.sources[id];
-    const entries = await readFeeds(state, now);
+    const entries = await readFeeds(state, now, silence);
     const known = new Set(state.stories.flatMap((s) => s.items.map((i) => i.id)));
     const fresh = [];
     const batchIds = new Set();
@@ -297,7 +341,17 @@ export async function update({ now = Date.now() } = {}) {
                     // Only the source's own site: a feed cannot send the job
                     // (or the Mac mini) to any other address.
                     const site = siteOf(SOURCE_BY_ID.get(it.source)?.home);
+                    // The site's own rules for this very page: robots.txt
+                    // path rules and a TDM reservation, then the page's
+                    // own noai / tdm-reservation marks.
+                    if (!(await mayRead(it.url, it.source))) return;
                     const page = await fetchSmart(it.url, it.source, { timeoutMs: 12000, accept: 'text/html', site });
+                    if (
+                        /<meta[^>]+(name=["'](robots|tdm-reservation)["'][^>]+content=["'][^"']*(noai|1)|content=["'][^"']*noai[^"']*["'][^>]+name=["']robots)/i.test(
+                            page,
+                        )
+                    )
+                        return;
                     texts.set(it.id, articleText(page));
                 } catch {
                     // The feed's own excerpt stands in.
@@ -310,6 +364,12 @@ export async function update({ now = Date.now() } = {}) {
             const past = story.summary ? [] : pastFor(state, story, now);
             result = await writeStory({ story, newItems: pending, texts, sourceName, meter, past });
             result.past = past;
+            // Our own words only: anything that copies twelve words in a row
+            // from a source, outside a quote, is dropped.
+            const sources = [...texts.values(), ...pending.map((i) => `${i.title} ${i.description ?? ''}`)];
+            if (copiesSource(result.summary, sources)) result.summary = '';
+            if (copiesSource(result.background, sources)) result.background = '';
+            result.events = (result.events ?? []).filter((e) => !copiesSource(e.what, sources));
         } catch (err) {
             log(`Writing ${story.id} failed: ${err.message}`, 'WARN');
             for (const it of pending) {
@@ -358,6 +418,8 @@ export async function update({ now = Date.now() } = {}) {
         }
     }
 
+    applyBlocklist(state, policy);
+
     // ─── Proofreading: one pass over everything written in this update ───
     const queued = proof.filter(([o, f]) => typeof o[f] === 'string' && o[f].trim());
     if (queued.length && canSpend()) {
@@ -393,6 +455,16 @@ export function applyWrite(story, pending, result, now, proof = []) {
     story.disputed = tidy(result.disputed ?? '').slice(0, 400);
     proof.push([story, 'title'], [story, 'summary'], [story, 'disputed']);
     if (typeof result.place === 'string') story.place = result.place;
+    // A story about a child or a victim of violence shows no outlet's
+    // headline and no pictures: a headline may name or show them.
+    if (result.sensitive === true) story.sensitive = true;
+    if (story.sensitive) {
+        for (const it of story.items) {
+            it.title = '';
+            delete it.thumb;
+            delete it.videoId;
+        }
+    }
     const related = (result.related ?? []).map((n) => result.past?.[n]).filter(Boolean);
     if (related.length && result.background?.trim()) {
         story.context = {

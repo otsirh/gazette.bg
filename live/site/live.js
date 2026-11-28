@@ -358,6 +358,13 @@ document.addEventListener('click', (e) => {
         share(shareBtn);
         return;
     }
+    if (e.target.closest('[data-forget]')) {
+        try {
+            for (const k of Object.keys(localStorage)) if (k.startsWith('live:')) localStorage.removeItem(k);
+        } catch {}
+        toast('Изтрито. Браузърът вече не помни нищо за сайта.');
+        return;
+    }
     const follow = e.target.closest('[data-follow]');
     if (follow) {
         const on = follow.getAttribute('aria-pressed') !== 'true';

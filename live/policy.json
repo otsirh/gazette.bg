@@ -1,0 +1,12 @@
+{
+    "_comment": "Editorial and legal rules applied on every update and build. elections: election days (Europe/Sofia, YYYY-MM-DD); from 00:00 the day before until the end of the election day, poll stories and party channels are hidden (Изборен кодекс чл. 182(4), 205(5)). blocklist: stories (ids), items (urls), outlets (source ids), names (removed from every text) — for corrections and removal requests. corrections: the public log. replies: answers from candidates or parties (чл. 188 ИК) or anyone named, shown on the story.",
+    "elections": [],
+    "blocklist": {
+        "stories": [],
+        "items": [],
+        "outlets": [],
+        "names": []
+    },
+    "corrections": [],
+    "replies": []
+}

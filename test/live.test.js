@@ -307,3 +307,70 @@ test('a robots.txt that shuts out Anthropic or says ai-input=no refuses AI', asy
     assert.equal(aiRefused('User-agent: *\nContent-Signal: search=yes, ai-input=no\nAllow: /\n'), true);
     assert.equal(aiRefused('User-agent: *\nContent-Signal: ai-train=no, ai-input=yes\nAllow: /\n'), false);
 });
+
+test('robots.txt path rules and TDM reservations are respected', async () => {
+    const { pathAllowed, aiRefused, tdmReserved } = await import('../live/lib/robots.js');
+    const robots = 'User-agent: *\nDisallow: /premium/\nAllow: /premium/free\n\nUser-agent: GPTBot\nDisallow: /\n';
+    assert.equal(pathAllowed(robots, '/news/1'), true);
+    assert.equal(pathAllowed(robots, '/premium/x'), false);
+    assert.equal(pathAllowed(robots, '/premium/free/1'), true);
+    assert.equal(aiRefused(robots), false);
+    assert.equal(aiRefused('User-agent: *\nDisallow: /\n'), true);
+    assert.equal(tdmReserved('[{"location":"/*","tdm-reservation":1}]', '/a'), true);
+    assert.equal(tdmReserved('[{"location":"/premium/*","tdm-reservation":1}]', '/news'), false);
+});
+
+test('election silence hides polls and party channels, only around election day', async () => {
+    const { inElectionSilence, silenceFilter } = await import('../live/lib/policy.js');
+    const p = { elections: ['2026-11-29'] };
+    assert.equal(inElectionSilence(p, Date.parse('2026-11-28T10:00:00Z')), true);
+    assert.equal(inElectionSilence(p, Date.parse('2026-11-29T20:00:00Z')), true);
+    assert.equal(inElectionSilence(p, Date.parse('2026-11-26T10:00:00Z')), false);
+    const kept = silenceFilter([
+        story([item('a', 'bta', 1, { title: 'Проучване: 30% подкрепа за X' })], {
+            id: 'p1',
+            title: 'Ново социологическо проучване',
+        }),
+        story([item('b', 'gerb-yt', 1), item('c', 'bta', 1)], { id: 'p2', title: 'Министърът подаде оставка' }),
+    ]);
+    assert.deepEqual(
+        kept.map((s) => s.id),
+        ['p2'],
+    );
+    assert.deepEqual(
+        kept[0].items.map((i) => i.id),
+        ['c'],
+    );
+});
+
+test('the blocklist removes stories, outlets and names everywhere', async () => {
+    const { applyBlocklist } = await import('../live/lib/policy.js');
+    const state = {
+        stories: [
+            story([item('a', 'bta', 1)], { id: 'keep1', title: 'Иван Петров заяви нещо', summary: 'Иван Петров каза' }),
+            story([item('b', 'sega', 1)], { id: 'drop1' }),
+        ],
+        overview: { lines: [{ story: 'keep1', text: 'Иван Петров е тук' }] },
+    };
+    applyBlocklist(state, { blocklist: { stories: ['drop1'], items: [], outlets: [], names: ['Иван Петров'] } });
+    assert.deepEqual(
+        state.stories.map((s) => s.id),
+        ['keep1'],
+    );
+    assert.ok(!JSON.stringify(state).includes('Иван Петров'));
+});
+
+test('copying twelve words in a row from a source is caught, quotes are not', async () => {
+    const { copiesSource } = await import('../live/lib/policy.js');
+    const src =
+        'Министърът на финансите заяви днес пред журналисти в парламента че бюджетът ще бъде внесен до края на седмицата';
+    assert.equal(
+        copiesSource('Той заяви днес пред журналисти в парламента че бюджетът ще бъде внесен до края', [src]),
+        true,
+    );
+    assert.equal(copiesSource('Министърът обеща бюджетът да е готов до петък.', [src]), false);
+    assert.equal(
+        copiesSource('Той каза: „днес пред журналисти в парламента че бюджетът ще бъде внесен до края“.', [src]),
+        false,
+    );
+});
