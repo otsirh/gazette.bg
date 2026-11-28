@@ -488,17 +488,6 @@ export const SOURCES = [
         aliases: ['NOVA', 'Нова телевизия', 'Нова', 'nova.bg'],
     },
     {
-        id: 'nova-official-yt',
-        outlet: 'nova',
-        name: 'NOVA Official (видео)',
-        home: 'https://www.youtube.com/channel/UCKe2NUqtkmsbnaNG63L7hCQ',
-        feed: yt('UCKe2NUqtkmsbnaNG63L7hCQ'),
-        kind: 'video',
-        tier: 3,
-        why: 'Основният канал на NOVA: репортажи и предавания („Пресечна точка“, „Темата на NOVA“).',
-        aliases: ['NOVA Official'],
-    },
-    {
         id: 'tvoyatden-yt',
         outlet: 'nova',
         name: 'Твоят ден, NOVA NEWS (видео)',
