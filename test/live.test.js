@@ -912,3 +912,23 @@ test('a headlines-only source gives the model its headline and link, not its exc
     assert.equal(toItem({ ...e, source: 'bnt' }).description, '');
     assert.equal(toItem({ ...e, source: 'sega' }).description, 'Откъс от статията');
 });
+
+test('the build writes an RSS feed, story titles as headings, and a service worker tied to the asset version', async () => {
+    const out = fs.mkdtempSync(path.join(os.tmpdir(), 'live-'));
+    const outlets = ['bta', 'sega', 'mediapool', 'clubz', 'fakti', '24chasa'];
+    const s = story(
+        outlets.map((o, i) => item(`i${i}`, o, 0.5)),
+        { id: 'rss12345', title: 'Заглавие <с> „кавички“' },
+    );
+    await buildSite({ updatedAt: NOW, stories: [s], sources: {} }, { now: NOW, outDir: out, images: false });
+    const rss = fs.readFileSync(path.join(out, 'rss.xml'), 'utf8');
+    assert.match(rss, /<link>https:\/\/live\.gazette\.bg\/s\/rss12345\/<\/link>/);
+    assert.ok(rss.includes('Заглавие &lt;с&gt; „кавички“'), 'titles are escaped');
+    const home = fs.readFileSync(path.join(out, 'index.html'), 'utf8');
+    assert.match(home, /<h3 class="card-title">/);
+    assert.match(home, /application\/rss\+xml/);
+    const sw = fs.readFileSync(path.join(out, 'sw.js'), 'utf8');
+    const v = home.match(/style\.css\?v=(\w+)/)[1];
+    assert.ok(sw.includes(`const VERSION = '${v}'`), 'the worker keeps the styles the pages ask for');
+    fs.rmSync(out, { recursive: true, force: true });
+});
