@@ -3,15 +3,7 @@
 // it in parliament, and the outlets' track record once it is over.
 
 import { createHash } from 'node:crypto';
-import { outletOf, SOURCE_BY_ID, tierOf } from '../sources.js';
-import {
-    classifyPlaces,
-    classifyWeights,
-    findSameStories,
-    frameStory,
-    parliamentQuotes,
-    stillSensitive,
-} from './ai.js';
+import { classifyPlaces, classifyWeights, findSameStories, parliamentQuotes, stillSensitive } from './ai.js';
 import { fetchText, toText } from './feeds.js';
 import { rankStories } from './stories.js';
 import { clip, tidy } from './text.js';
@@ -121,59 +113,6 @@ export async function fillPlaces(state, meter, log) {
         for (const s of missing) s.place = places.get(s.id) ?? '';
     } catch (err) {
         log(`Places failed: ${err.message}`, 'WARN');
-    }
-}
-
-const KIND_LABEL = (id) => {
-    const s = SOURCE_BY_ID.get(id);
-    if (s?.partisan) return 'партиен канал';
-    if (s?.independent) return 'независим автор';
-    return ['първоизточник', 'първоизточник', 'обществена медия', 'редакционна медия', 'непроверен'][tierOf(id)];
-};
-
-// One headline per outlet, the earliest: the first take is the framing.
-// An item whose headline is not known (or hidden) says nothing about it.
-function framingLines(story) {
-    const seen = new Set();
-    const lines = [];
-    for (const it of [...story.items].sort((a, b) => a.at - b.at)) {
-        if (!it.title?.trim()) continue;
-        const o = outletOf(it.source);
-        if (seen.has(o)) continue;
-        seen.add(o);
-        lines.push({
-            item: it,
-            sourceName: SOURCE_BY_ID.get(it.source)?.name ?? it.source,
-            kindLabel: KIND_LABEL(it.source),
-        });
-    }
-    return lines;
-}
-
-// How each side tells it: for the busiest stories, again once two more
-// outlets have joined since the last look. Never for a story about a child
-// or a victim: its headlines are not shown, so they are not compared either.
-export async function frameStories(state, now, meter, canSpend, log, proof = []) {
-    const due = rankStories(state.stories, now)
-        .filter((r) => !r.story.sensitive && r.trust.outlets >= 4)
-        .filter((r) => !r.story.framing || r.trust.outlets - r.story.framing.outlets >= 2)
-        .map((r) => ({ ...r, lines: framingLines(r.story) }))
-        .filter((r) => r.lines.length >= 4)
-        .slice(0, 5);
-    for (const r of due) {
-        if (!canSpend()) return;
-        const lines = r.lines;
-        try {
-            const framing = await frameStory({ story: r.story, lines: lines.slice(0, 60), meter });
-            for (const a of framing.angles) {
-                a.label = tidy(a.label);
-                a.summary = tidy(a.summary);
-                proof.push([a, 'label'], [a, 'summary']);
-            }
-            r.story.framing = { ...framing, outlets: r.trust.outlets, at: now };
-        } catch (err) {
-            log(`Framing ${r.story.id} failed: ${err.message}`, 'WARN');
-        }
     }
 }
 

@@ -5,10 +5,9 @@
 // - New updates slide in: a bar offers them, a tap swaps the page in place,
 //   so the reader keeps their scroll and never sees a reload.
 // - A returning reader sees what changed since their last visit, marked on
-//   the cards, with a filter for just that.
+//   the cards.
 // - A first-time reader gets three lines on how to read the page, once.
-// - Filters, sharing (the phone's own share sheet, or a copied link), and
-//   videos that load from YouTube only when asked.
+// - Videos load from YouTube only when asked.
 
 const MINUTE = 60 * 1000;
 const store = {
@@ -104,7 +103,6 @@ function markSince() {
 
 function sinceBar({ fresh, updated }) {
     const box = document.querySelector('[data-since]');
-    const mineFilter = document.querySelector('[data-filter="mine"]');
     if (!box || (!fresh && !updated)) return;
     const parts = [];
     if (fresh) parts.push(`<span class="pill">${fresh} ${fresh === 1 ? 'нова история' : 'нови истории'}</span>`);
@@ -112,45 +110,8 @@ function sinceBar({ fresh, updated }) {
         parts.push(
             `<span class="pill" style="background:none;box-shadow:inset 0 0 0 1px var(--line);color:var(--text-2)">${updated} с нови развития</span>`,
         );
-    box.innerHTML = `<span>Откакто беше тук <b>${relTime(previousVisit)}</b>:</span>${parts.join('')}<button type="button" data-show-mine>Покажи само тях →</button>`;
+    box.innerHTML = `<span>Откакто беше тук <b>${relTime(previousVisit)}</b>:</span>${parts.join('')}`;
     box.hidden = false;
-    if (mineFilter) mineFilter.hidden = false;
-}
-
-// ─── Filters ────────────────────────────────────────────────────────────
-
-const FILTERS = {
-    all: () => true,
-    hot: (el) => el.dataset.level === 'hot',
-    video: (el) => el.dataset.video === '1',
-    confirmed: (el) => el.dataset.trust === 'confirmed',
-    important: (el) => Number(el.dataset.weight || 0) >= 5,
-    mine: (el) => el.dataset.mine === '1',
-    follow: (el) => followed().has(el.dataset.story),
-};
-
-function applyFilter(id) {
-    const test = FILTERS[id] ?? FILTERS.all;
-    let shown = 0;
-    for (const el of document.querySelectorAll('.feed [data-story]')) {
-        const ok = test(el);
-        el.hidden = !ok;
-        if (ok) shown++;
-    }
-    for (const group of document.querySelectorAll('.feed .group')) {
-        // A group without cards (the map) shows only under "all".
-        if (group.querySelector('[data-story]')) group.hidden = !group.querySelector('[data-story]:not([hidden])');
-        else group.hidden = id !== 'all';
-    }
-    for (const b of document.querySelectorAll('[data-filter]')) {
-        const on = b.dataset.filter === id;
-        b.classList.toggle('on', on);
-        b.setAttribute('aria-pressed', String(on));
-    }
-    const empty = document.querySelector('[data-filter-empty]');
-    if (empty) empty.hidden = shown > 0;
-    layoutHot();
-    store.set('live:filter', id === 'mine' ? 'all' : id);
 }
 
 // ─── Welcome, once ──────────────────────────────────────────────────────
@@ -165,46 +126,7 @@ function welcome() {
     });
 }
 
-// ─── Sharing ────────────────────────────────────────────────────────────
-
-async function share(btn) {
-    const url = btn.dataset.shareUrl || location.href;
-    const title = btn.dataset.shareTitle || document.title;
-    if (navigator.share) {
-        try {
-            await navigator.share({ title, text: `${title} — live.gazette.bg`, url });
-            return;
-        } catch (err) {
-            if (err?.name === 'AbortError') return;
-        }
-    }
-    try {
-        await navigator.clipboard.writeText(url);
-        toast('Връзката е копирана');
-    } catch {
-        prompt('Копирай връзката:', url);
-    }
-}
-
 // ─── Live updates without a reload ──────────────────────────────────────
-
-// The hot cards still shown, laid out again (see wideCards in build.js): the
-// first, video cards and a lone text card take the whole row; two text cards
-// share one.
-function layoutHot() {
-    for (const list of document.querySelectorAll('.cards-big')) {
-        const cards = [...list.children].filter((c) => !c.hidden);
-        for (let i = 0; i < cards.length; i++) {
-            const pair =
-                i > 0 &&
-                i + 1 < cards.length &&
-                !cards[i].classList.contains('with-video') &&
-                !cards[i + 1].classList.contains('with-video');
-            cards[i].classList.toggle('wide', !pair);
-            if (pair) cards[++i].classList.remove('wide');
-        }
-    }
-}
 
 const version = () => document.body.dataset.version;
 
@@ -264,7 +186,7 @@ async function checkForUpdate() {
     }
 }
 
-// ─── Following a story, and what is new in it for you ───────────────────
+// ─── What is new in a story for you ──────────────────────────────────────
 
 const json = (key, fallback) => {
     try {
@@ -273,47 +195,8 @@ const json = (key, fallback) => {
         return fallback;
     }
 };
-const followed = () => new Set(json('live:follow', []));
-
-function setFollow(id, on) {
-    const set = followed();
-    if (on) set.add(id);
-    else set.delete(id);
-    store.set('live:follow', JSON.stringify([...set].slice(-100)));
-}
-
 // When you last opened each story, so its page can mark what came after.
 const storySeen = json('live:storySeen', {});
-
-function decorateFollow() {
-    const set = followed();
-    for (const btn of document.querySelectorAll('[data-follow]')) {
-        const on = set.has(btn.dataset.follow);
-        btn.setAttribute('aria-pressed', String(on));
-        btn.textContent = on ? '★ Следиш' : '☆ Следи';
-    }
-    let withNews = 0;
-    for (const card of document.querySelectorAll('.feed [data-story]')) {
-        const id = card.dataset.story;
-        if (!set.has(id)) continue;
-        card.classList.add('is-followed');
-        if (Number(card.dataset.last) > (storySeen[id] ?? 0)) {
-            withNews++;
-            if (!card.querySelector('.badge-follow')) {
-                const b = document.createElement('span');
-                b.className = 'badge-new badge-follow';
-                b.textContent = '★ НОВО В ИСТОРИЯТА';
-                if (card.classList.contains('row')) card.querySelector('a').append(b);
-                else (card.querySelector('.ago') ?? card).before(b);
-            }
-        }
-    }
-    const filter = document.querySelector('[data-filter="follow"]');
-    if (filter) {
-        filter.hidden = set.size === 0;
-        filter.textContent = withNews ? `★ Следени · ${withNews} с ново` : '★ Следени';
-    }
-}
 
 // On a story page: mark the steps since your last visit, then remember now.
 function markStoryNews() {
@@ -366,84 +249,14 @@ document.addEventListener('keydown', (e) => {
 
 // ─── The river of the day ───────────────────────────────────────────────
 
-// Along the river, any half hour: the time and what was written about most
-// then. Pointer or finger over the river, or the arrow keys.
-function initRiver() {
-    const box = document.querySelector('[data-river]');
-    if (!box) return;
-    let data;
-    try {
-        data = JSON.parse(box.querySelector('[data-river-json]').textContent);
-    } catch {
-        return;
-    }
-    const read = box.querySelector('[data-river-read]');
-    const clock = new Intl.DateTimeFormat('bg-BG', { timeZone: 'Europe/Sofia', hour: '2-digit', minute: '2-digit' });
-    let at = data.bins - 1;
-    const show = (b) => {
-        at = Math.max(0, Math.min(data.bins - 1, b));
-        for (const svg of box.querySelectorAll('svg.river')) {
-            const x = String((at / (data.bins - 1)) * svg.viewBox.baseVal.width);
-            const cursor = svg.querySelector('.river-cursor');
-            cursor.setAttribute('x1', x);
-            cursor.setAttribute('x2', x);
-        }
-        const top = data.s
-            .map((s) => ({ s, v: s.b[at] }))
-            .filter((r) => r.v > 0)
-            .sort((a, c) => c.v - a.v)
-            .slice(0, 3);
-        const time = document.createElement('b');
-        time.className = 'river-time';
-        time.textContent = clock.format(data.start + at * data.binMs);
-        const rows = top.length
-            ? top.map(({ s, v }) => {
-                  const a = document.createElement('a');
-                  a.href = `/s/${s.id}/`;
-                  const n = document.createElement('span');
-                  n.className = 'river-n';
-                  n.textContent = String(v);
-                  a.append(n, document.createTextNode(s.t));
-                  return a;
-              })
-            : [Object.assign(document.createElement('span'), { textContent: 'Тишина: почти никой не пише.' })];
-        read.replaceChildren(time, ...rows);
-    };
-    for (const svg of box.querySelectorAll('svg.river')) {
-        svg.addEventListener('pointermove', (e) => {
-            const r = svg.getBoundingClientRect();
-            const b = Math.round(((e.clientX - r.left) / r.width) * (data.bins - 1));
-            // only a new half hour is read out (and announced)
-            if (b !== at) show(b);
-        });
-    }
-    read.addEventListener('keydown', (e) => {
-        if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
-            e.preventDefault();
-            show(at + (e.key === 'ArrowLeft' ? -1 : 1));
-        }
-    });
-    show(at);
-}
-
 function decorate() {
-    initRiver();
     tick();
     const counts = markSince();
     sinceBar(counts);
     welcome();
-    decorateFollow();
-    const saved = store.get('live:filter');
-    if (saved && saved !== 'all' && document.querySelector(`[data-filter="${saved}"]`)) applyFilter(saved);
 }
 
 document.addEventListener('click', (e) => {
-    const shareBtn = e.target.closest('[data-share]');
-    if (shareBtn) {
-        e.preventDefault();
-        share(shareBtn);
-        return;
-    }
     if (e.target.closest('[data-forget]')) {
         try {
             for (const k of Object.keys(localStorage)) if (k.startsWith('live:')) localStorage.removeItem(k);
@@ -451,28 +264,10 @@ document.addEventListener('click', (e) => {
         toast('Изтрито. Браузърът вече не помни нищо за сайта.');
         return;
     }
-    const follow = e.target.closest('[data-follow]');
-    if (follow) {
-        const on = follow.getAttribute('aria-pressed') !== 'true';
-        setFollow(follow.dataset.follow, on);
-        decorateFollow();
-        toast(on ? 'Ще виждаш, когато има ново в тази история' : 'Вече не я следиш');
-        return;
-    }
-    const filter = e.target.closest('[data-filter]');
-    if (filter) {
-        applyFilter(filter.dataset.filter);
-        return;
-    }
     const more = e.target.closest('[data-brief-more]');
     if (more) {
         document.querySelector('[data-brief]')?.classList.add('open');
         more.remove();
-        return;
-    }
-    if (e.target.closest('[data-show-mine]')) {
-        applyFilter('mine');
-        document.querySelector('.filters')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
         return;
     }
     const play = e.target.closest('.video-play');
