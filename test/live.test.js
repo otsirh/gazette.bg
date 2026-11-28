@@ -440,7 +440,7 @@ test('built pages: counts agree with their nouns', async () => {
     const out = fs.mkdtempSync(path.join(os.tmpdir(), 'live-plurals-'));
     const vid = (n, h) =>
         item(`v${n}`, 'bnt-yt', h, { videoId: `vid${n}abcdef`, url: `https://www.youtube.com/watch?v=vid${n}abcdef` });
-    // Seven videos (four shown, "Още 3 видеа"), and a story with one of each.
+    // Seven videos (all shown at once), and a story with one of each.
     const many = story(
         [item('a', 'mediapool', 1), item('b', 'sega', 1), ...[1, 2, 3, 4, 5, 6, 7].map((n) => vid(n, n / 10))],
         {
@@ -469,7 +469,9 @@ test('built pages: counts agree with their nouns', async () => {
     };
     walk(out);
     assert.deepEqual(bad, []);
-    assert.match(fs.readFileSync(path.join(out, 's', 'many', 'index.html'), 'utf8'), /Още 3 видеа/);
+    const many7 = fs.readFileSync(path.join(out, 's', 'many', 'index.html'), 'utf8');
+    assert.equal((many7.match(/class="video-play"/g) ?? []).length, 7, 'every video is shown at once');
+    assert.ok(!many7.includes('Още 3'));
     fs.rmSync(out, { recursive: true, force: true });
 });
 
@@ -785,7 +787,7 @@ test('only a busy or unreachable API counts as passing trouble', () => {
 
 test('a card says when its story last gained a step; the trend never reads like the group', async () => {
     const out = fs.mkdtempSync(path.join(os.tmpdir(), 'live-'));
-    const s = story([item('a', 'bta', 9), item('b', 'sega', 8), item('c', 'mediapool', 7)], {
+    const s = story([item('a', 'bta', 0.5), item('b', 'sega', 0.5), item('c', 'mediapool', 0.5)], {
         id: 'step1234',
         timeline: [{ at: NOW - 8 * HOUR, who: 'МВР', what: 'съобщи', items: ['b'] }],
     });
@@ -963,5 +965,18 @@ test('plain words: a name with a number gets quotes, kinds and trust in everyday
     assert.ok(page.includes('„24 часа“'));
     assert.ok(page.includes('Още не е потвърдено'));
     assert.ok(page.includes('частни медии') || page.includes('частна медия'));
+    fs.rmSync(out, { recursive: true, force: true });
+});
+
+test('„Току-що“ opens the outlet’s own article, not our page', async () => {
+    const out = fs.mkdtempSync(path.join(os.tmpdir(), 'live-'));
+    const s = story([item('a', 'bta', 0.5, { url: 'https://www.bta.bg/a1' }), item('b', 'sega', 0.4)], {
+        id: 'just1234',
+    });
+    await buildSite({ updatedAt: NOW, stories: [s], sources: {} }, { now: NOW, outDir: out, images: false });
+    const home = fs.readFileSync(path.join(out, 'index.html'), 'utf8');
+    const rail = home.slice(home.indexOf('class="justin"'), home.indexOf('</ol>', home.indexOf('class="justin"')));
+    assert.ok(rail.includes('href="https://www.bta.bg/a1" rel="noopener" target="_blank"'));
+    assert.ok(!rail.includes('href="/s/'));
     fs.rmSync(out, { recursive: true, force: true });
 });

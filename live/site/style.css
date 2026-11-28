@@ -287,176 +287,16 @@ button {
     box-shadow: inset 0 0 0 1px var(--line);
 }
 
-/* ─── Hero ──────────────────────────────────────────── */
-
-.hero {
-    position: relative;
-    margin: 18px 0 22px;
-    padding: 30px clamp(18px, 4vw, 40px) 28px;
-    border-radius: 24px;
-    background:
-        radial-gradient(120% 140% at 100% 0%, color-mix(in srgb, var(--hot) 22%, transparent) 0%, transparent 52%),
-        radial-gradient(90% 120% at 0% 100%, color-mix(in srgb, var(--warm) 12%, transparent) 0%, transparent 55%),
-        var(--surface);
-    box-shadow: var(--shadow);
+.sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    margin: -1px;
+    padding: 0;
     overflow: hidden;
-}
-
-.hero-note {
-    margin: 6px 0 0;
-    color: var(--muted);
-    font-size: 14px;
-}
-.hero-kicker {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    margin: 0 0 14px;
-    font-size: 14px;
-    font-weight: 600;
-    color: var(--muted);
-}
-.hero-kicker::first-letter {
-    text-transform: uppercase;
-}
-.hero-title {
-    margin: 0;
-    font: 700 clamp(30px, 5.6vw, 62px) / 1.04 var(--display);
-    letter-spacing: -0.02em;
-}
-.hero-stats {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 6px 22px;
-    margin: 16px 0 0;
-    font-size: 14.5px;
-    color: var(--muted);
-}
-.hero-stats b {
-    font: 700 17px var(--display);
-    color: var(--text);
-    margin-right: 4px;
-}
-.hero-stats b.t-hot {
-    color: var(--hot);
-}
-
-.brief {
-    list-style: none;
-    margin: 24px 0 0;
-    padding: 0;
-    display: grid;
-    gap: 8px 22px;
-    grid-template-columns: repeat(auto-fill, minmax(min(100%, 420px), 1fr));
-}
-.brief a {
-    display: flex;
-    gap: 14px;
-    align-items: baseline;
-    padding: 9px 12px 9px 0;
-    border-radius: 10px;
-    transition: transform 0.15s var(--ease);
-}
-.brief a:hover {
-    transform: translateX(4px);
-}
-.brief a:hover .brief-text {
-    color: var(--text);
-}
-.brief-temp {
-    flex: 0 0 46px;
-    text-align: right;
-    font: 700 16px / 1 var(--display);
-    color: var(--cool);
-}
-.brief .heat-hot .brief-temp {
-    color: var(--hot);
-}
-.brief .heat-warm .brief-temp {
-    color: var(--warm);
-}
-.brief-text {
-    font-size: 16px;
-    line-height: 1.45;
-    color: var(--text-2);
-}
-
-/* ─── Welcome and since-your-last-visit ─────────────── */
-
-/* The intro: one line under the brief, opened on demand. */
-.welcome {
-    margin: 12px 0 0;
-    border-radius: 14px;
-    background: var(--surface);
-    box-shadow: inset 0 0 0 1px var(--line);
-}
-.welcome > summary {
-    list-style: none;
-    cursor: pointer;
-    padding: 11px 16px;
-    font-size: 14px;
-    color: var(--text-2);
-}
-.welcome > summary::-webkit-details-marker {
-    display: none;
-}
-.welcome > summary::before {
-    content: "▸ ";
-    color: var(--link);
-}
-.welcome[open] > summary::before {
-    content: "▾ ";
-}
-.welcome > summary b {
-    color: var(--link);
-    font-weight: 650;
-}
-.welcome[open] {
-    padding-bottom: 16px;
-}
-.welcome-points,
-.welcome .btn {
-    margin-left: 16px;
-    margin-right: 16px;
-}
-.welcome-points {
-    list-style: none;
-    margin-top: 4px;
-    margin-bottom: 14px;
-    padding: 0;
-    display: grid;
-    gap: 12px;
-    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-}
-.welcome-points li {
-    display: flex;
-    gap: 12px;
-    font-size: 14.5px;
-    line-height: 1.45;
-    opacity: 0.92;
-}
-.wp-icon {
-    flex: none;
-    display: grid;
-    place-items: center;
-    width: 42px;
-    height: 42px;
-    border-radius: 12px;
-    font: 700 14px var(--display);
-    color: #fff;
-}
-.wp-hot {
-    background: linear-gradient(135deg, var(--hot-2), var(--hot));
-}
-.wp-ok {
-    background: var(--k-first);
-}
-.wp-vid {
-    background: var(--k-public);
-}
-.welcome .btn {
-    background: var(--bg);
-    color: var(--text);
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+    border: 0;
 }
 
 .since {
@@ -522,9 +362,6 @@ button {
 @media (max-width: 1119px) {
     .rail {
         order: -1;
-    }
-    .rail .how {
-        display: none;
     }
     .justin {
         display: flex !important;
@@ -895,66 +732,6 @@ button {
 .badge-new.upd {
     background: var(--k-public);
     box-shadow: 0 0 0 3px color-mix(in srgb, var(--k-public) 25%, transparent);
-}
-.row .badge-new {
-    position: static;
-    margin-left: 8px;
-    flex: none;
-}
-
-/* ─── Rows: cooling and single-source stories ───────── */
-
-.rows {
-    list-style: none;
-    margin: 0;
-    padding: 0;
-    background: var(--surface);
-    border-radius: var(--radius);
-    box-shadow: var(--shadow);
-    overflow: hidden;
-}
-.row + .row {
-    border-top: 1px solid var(--line);
-}
-.row a {
-    display: flex;
-    align-items: baseline;
-    gap: 14px;
-    padding: 12px 16px;
-    transition: background 0.15s;
-}
-.row a:hover {
-    background: var(--surface-2);
-}
-.row .temp {
-    flex: 0 0 34px;
-}
-.row .temp b {
-    font-size: 13px;
-}
-.row-title {
-    flex: 1;
-    font-size: 15px;
-    color: var(--text-2);
-}
-.row-meta {
-    flex: none;
-    font-size: 13px;
-    color: var(--muted);
-    white-space: nowrap;
-}
-.rows-single .row-title {
-    color: var(--muted);
-}
-@media (max-width: 560px) {
-    .row a {
-        flex-wrap: wrap;
-        gap: 4px 12px;
-    }
-    .row-meta {
-        flex-basis: 100%;
-        padding-left: 46px;
-    }
 } /* ─── Rail ──────────────────────────────────────────── */
 
 .rail-box {
@@ -1004,15 +781,6 @@ button {
     line-height: 1.38;
     font-weight: 550;
     margin-top: 2px;
-}
-.how p {
-    margin: 0 0 10px;
-    font-size: 13.5px;
-    color: var(--text-2);
-}
-.how a {
-    color: var(--link);
-    font-weight: 600;
 }
 
 /* ─── Story page ────────────────────────────────────── */
@@ -1230,25 +998,6 @@ button {
 .item-list a:hover {
     text-decoration: underline;
 }
-
-.all-items summary {
-    cursor: pointer;
-    color: var(--link);
-    font-weight: 600;
-    font-size: 14px;
-}
-
-/* All items */
-.all-items summary {
-    list-style: none;
-    margin: 0;
-}
-.all-items summary::-webkit-details-marker {
-    display: none;
-}
-.all-items[open] summary {
-    margin-bottom: 14px;
-}
 .item-list {
     list-style: none;
     margin: 0;
@@ -1374,10 +1123,6 @@ button {
     .brand-name {
         display: none;
     }
-    .hero {
-        border-radius: 20px;
-        margin-top: 12px;
-    }
     .card-body {
         padding: 14px 15px 14px 18px;
     }
@@ -1442,19 +1187,6 @@ button {
 
 /* ─── Place, context, quotes ────────────────────────── */
 
-.place {
-    display: inline-flex;
-    align-items: center;
-    gap: 3px;
-    color: var(--text-2);
-    font-weight: 600;
-}
-.place svg {
-    width: 13px;
-    height: 13px;
-    color: var(--hot);
-}
-
 .quote {
     display: block;
     margin: 6px 0 2px;
@@ -1485,41 +1217,6 @@ button {
         padding: 0 14px;
         font-size: 14px;
     }
-}
-
-/* ─── Visual review fixes ───────────────────────────── */
-
-/* The brief fills two columns like a newspaper, with no holes between
-   lines of different length. */
-.brief {
-    display: block;
-    columns: 2 380px;
-    column-gap: 28px;
-}
-.brief li {
-    break-inside: avoid;
-}
-.brief-temp {
-    text-align: left;
-}
-.brief-more {
-    display: none;
-}
-@media (max-width: 560px) {
-    .brief:not(.open) li:nth-child(n + 4) {
-        display: none;
-    }
-    .brief-more {
-        display: block;
-        margin: 6px 0 0 44px;
-        padding: 6px 0;
-        border: 0;
-        background: none;
-        color: var(--link);
-        font-weight: 650;
-        font-size: 14.5px;
-        cursor: pointer;
-    }
 } /* Marks for what is new since the last visit sit in the card's top row. */
 .card-top .badge-new {
     position: static;
@@ -1548,11 +1245,9 @@ button {
     vertical-align: 1px;
 }
 
-.all-items summary::before,
 .more summary::before {
     content: "▸ ";
 }
-.all-items[open] summary::before,
 .more[open] summary::before {
     content: "▾ ";
 }
@@ -1652,8 +1347,7 @@ button {
 .ai-note a,
 .item-list a,
 .prose a,
-.footer a,
-.how a {
+.footer a {
     text-decoration: underline;
     text-decoration-thickness: 1px;
     text-underline-offset: 2px;
@@ -1673,16 +1367,6 @@ button {
 }
 .skip:focus {
     top: 12px;
-}
-kbd {
-    display: inline-block;
-    min-width: 20px;
-    padding: 1px 6px;
-    border-radius: 5px;
-    background: var(--surface-2);
-    box-shadow: inset 0 -1px 0 var(--line);
-    font: 600 12px var(--font);
-    text-align: center;
 }
 .card-link:focus-visible {
     outline: 3px solid var(--link);

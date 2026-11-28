@@ -6,7 +6,6 @@
 //   so the reader keeps their scroll and never sees a reload.
 // - A returning reader sees what changed since their last visit, marked on
 //   the cards.
-// - A first-time reader gets three lines on how to read the page, once.
 // - Videos load from YouTube only when asked.
 
 const MINUTE = 60 * 1000;
@@ -114,18 +113,6 @@ function sinceBar({ fresh, updated }) {
     box.hidden = false;
 }
 
-// ─── Welcome, once ──────────────────────────────────────────────────────
-
-function welcome() {
-    const box = document.querySelector('[data-welcome]');
-    if (!box || store.get('live:welcomed')) return;
-    box.hidden = false;
-    box.querySelector('[data-welcome-close]')?.addEventListener('click', () => {
-        store.set('live:welcomed', '1');
-        box.hidden = true;
-    });
-}
-
 // ─── Live updates without a reload ──────────────────────────────────────
 
 const version = () => document.body.dataset.version;
@@ -215,7 +202,6 @@ function decorate() {
     tick();
     const counts = markSince();
     sinceBar(counts);
-    welcome();
 }
 
 document.addEventListener('click', (e) => {
@@ -224,12 +210,6 @@ document.addEventListener('click', (e) => {
             for (const k of Object.keys(localStorage)) if (k.startsWith('live:')) localStorage.removeItem(k);
         } catch {}
         toast('Изтрито. Браузърът вече не помни нищо за сайта.');
-        return;
-    }
-    const more = e.target.closest('[data-brief-more]');
-    if (more) {
-        document.querySelector('[data-brief]')?.classList.add('open');
-        more.remove();
         return;
     }
     const play = e.target.closest('.video-play');

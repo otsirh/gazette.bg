@@ -348,54 +348,6 @@ ${blocks.join('\n\n')}${
     });
 }
 
-// ─── The overview at the top of the page ────────────────────────────────
-
-const OVERVIEW_SYSTEM = `Пишеш най-горния блок на сайт, от който човек за половин минута разбира какво се случва в България в момента. Получаваш най-обсъжданите истории с обобщенията им.
-
-Върни 4–7 реда, по един за историята, най-важното първо. Всеки ред е едно изречение до 170 знака: какво се случва и защо е важно за хората, конкретно (кой, какво, колко). Без оценки, без „според някои“, без прилагателни за ефект. Не обединявай различни истории в един ред. Не измисляй нищо извън дадените обобщения.
-
-${BULGARIAN}
-
-${CAREFUL}`;
-
-const OVERVIEW_SCHEMA = {
-    type: 'object',
-    properties: {
-        lines: {
-            type: 'array',
-            items: {
-                type: 'object',
-                properties: { story: { type: 'string' }, text: { type: 'string' } },
-                required: ['story', 'text'],
-                additionalProperties: false,
-            },
-        },
-    },
-    required: ['lines'],
-    additionalProperties: false,
-};
-
-export async function writeOverview({ ranked, meter }) {
-    const lines = ranked.map(
-        (r) =>
-            `${r.story.id} | ${r.level.label.toLowerCase()}, ${r.trust.outlets} медии | ${oneLine(r.story.title, 120)} | ${oneLine(r.story.summary, 320)}`,
-    );
-    const result = await askJson({
-        model: OVERVIEW_MODEL,
-        system: OVERVIEW_SYSTEM,
-        user: `Истории (id | нажеженост | заглавие | обобщение), най-обсъжданите първи:\n${lines.join('\n')}`,
-        schema: OVERVIEW_SCHEMA,
-        effort: 'medium',
-        meter,
-        label: 'overview',
-    });
-    const ids = new Set(ranked.map((r) => r.story.id));
-    return result.lines
-        .filter((l) => ids.has(l.story))
-        .slice(0, 7)
-        .map((l) => ({ story: l.story, text: String(l.text).slice(0, 300) }));
-}
-
 // ─── Places for stories written before places existed ───────────────────
 
 const PLACE_SCHEMA = {
