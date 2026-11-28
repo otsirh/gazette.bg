@@ -219,18 +219,42 @@ test("a party's own channel never confirms a story on its own", () => {
     assert.equal(t.id, 'several');
 });
 
-test('spreadSvg draws a lane per outlet and links a citing item to its source', async () => {
-    const { spreadSvg } = await import('../live/build.js');
-    const svg = spreadSvg(
+test('the relay lists each source once, first to last, with how long after the first', async () => {
+    const { relayBlock } = await import('../live/build.js');
+    const html = relayBlock(
         story([
             item('a', 'bta', 3, { cites: 'МВР', citesKind: 'institution' }),
-            item('b', 'mediapool', 2, { citesKind: 'media', citesSource: 'bta' }),
+            item('b', 'mediapool', 1.25, { citesKind: 'media', citesSource: 'bta' }),
+            item('c', 'bta', 1),
+            item('d', 'sega', 0.5, { citesKind: 'own' }),
         ]),
         NOW,
     );
-    assert.match(svg, /Първоизточник/);
-    assert.equal((svg.match(/class="sp-lane"/g) ?? []).length, 3);
-    assert.equal((svg.match(/class="sp-link"/g) ?? []).length, 1);
+    assert.equal((html.match(/class="relay-row/g) ?? []).length, 3, 'one row per source');
+    assert.match(html, /<b>Първи<\/b>/);
+    assert.match(html, /след 1 ч и 45 мин/);
+    assert.match(html, /след 2 ч и 30 мин/);
+    assert.match(html, /по съобщение на МВР/);
+    assert.match(html, /по материал на БТА/);
+    assert.match(html, /собствен материал/);
+    assert.match(html, /и още 1 материал по-късно/);
+    assert.match(html, /3 източника съобщиха новината в рамките на 2 ч и 30 мин\./);
+    assert.equal(relayBlock(story([item('a', 'bta', 1), item('b', 'bta', 0)]), NOW), '', 'one source: nothing to show');
+    const selfCite = relayBlock(
+        story([item('a', 'bta', 2), item('b', 'mediapool', 1, { cites: 'Медиапул', citesKind: 'media' })]),
+        NOW,
+    );
+    assert.doesNotMatch(selfCite, /по Медиапул/);
+    assert.match(selfCite, /собствен материал/);
+});
+
+test('afterFirst says how long after, in words', async () => {
+    const { afterFirst } = await import('../live/build.js');
+    assert.equal(afterFirst(20 * 1000), 'веднага');
+    assert.equal(afterFirst(15 * 60000), 'след 15 мин');
+    assert.equal(afterFirst(4 * HOUR), 'след 4 ч');
+    assert.equal(afterFirst(30 * HOUR), 'след 1 ден');
+    assert.equal(afterFirst(60 * HOUR), 'след 3 дни');
 });
 
 test('the track record counts who was first and who cites whom', async () => {
