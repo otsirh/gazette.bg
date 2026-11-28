@@ -77,9 +77,14 @@ export function applyBlocklist(state, policy) {
     state.stories = state.stories.filter((s) => s.items.length);
     // A remembered story has a page too: a blocked one has none.
     state.memory = (state.memory ?? []).filter((m) => !stories.has(m.id));
+    if (state.ledger) state.ledger = state.ledger.filter((e) => !stories.has(e.story));
     const names = b.names.filter((n) => n.trim().length >= 3);
     if (!names.length) return;
     const re = new RegExp(names.map(escapeRe).join('|'), 'gi');
+    // A deadline is kept word for word, so one that names a blocked person
+    // is not scrubbed but dropped.
+    const named = new RegExp(names.map(escapeRe).join('|'), 'i');
+    if (state.ledger) state.ledger = state.ledger.filter((e) => !named.test(`${e.owner} ${e.quote}`));
     const scrub = (t) => (typeof t === 'string' ? t.replace(re, '[името е премахнато]') : t);
     for (const s of state.stories) {
         s.title = scrub(s.title);
@@ -111,7 +116,7 @@ export function applyBlocklist(state, policy) {
 // stands in „…“ or "…" and has at least four words; a shorter one is a name
 // („Топлофикация София“). An ellipsis inside marks a cut, so each part is
 // looked for on its own. Case, punctuation and spacing do not matter.
-const squash = (t) =>
+export const squash = (t) =>
     String(t ?? '')
         .toLowerCase()
         .split(/[^\p{L}\d]+/u)
