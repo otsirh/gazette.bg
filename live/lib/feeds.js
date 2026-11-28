@@ -302,8 +302,11 @@ export function parseList(html, baseUrl, pattern, now = Date.now()) {
         const path = decodeURIComponent(url.pathname) + url.search;
         if (!re.test(path)) continue;
         const titleAttr = decodeEntities(attrs.match(/title\s*=\s*["']([^"']+)["']/i)?.[1] ?? '');
-        let title = toText(m[2]) || titleAttr;
-        if (titleAttr.length > title.length) title = titleAttr;
+        // A whole card in one link (picture, rubric, heading, date): its
+        // heading is the headline.
+        const inner = m[2].match(/<h[1-6]\b[^>]*>([\s\S]*?)<\/h[1-6]>/i);
+        let title = (inner && toText(inner[1])) || toText(m[2]) || titleAttr;
+        if (!inner && titleAttr.length > title.length) title = titleAttr;
         // A "Прочети" or image link: the headline is the nearest heading
         // just above it, in the same card.
         if (title.length < 20) {

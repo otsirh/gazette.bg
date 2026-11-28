@@ -41,7 +41,7 @@ import {
     unquote,
     unverifiedQuotes,
 } from './lib/policy.js';
-import { aiRefused, pathAllowed, tdmReserved } from './lib/robots.js';
+import { aiRefused, crawlDelay, pathAllowed, tdmReserved } from './lib/robots.js';
 import { openSeals, publicState } from './lib/seal.js';
 import { pruneStories, rankStories, scoreStories } from './lib/stories.js';
 import { aiTexts, clip, recutOld, tidy, tidyState } from './lib/text.js';
@@ -173,11 +173,26 @@ async function rulesFor(origin, sourceId) {
     return siteRules.get(origin);
 }
 
+// A site's Crawl-delay is kept: its pages are read one at a time, that many
+// seconds apart. One that asks for more than this is not worth the wait in
+// one update: its articles are not read, its feed's excerpt stands in.
+export const MAX_CRAWL_DELAY = 15;
+const nextSlot = new Map();
+async function waitTurn(origin, seconds) {
+    const at = Math.max(Date.now(), nextSlot.get(origin) ?? 0);
+    nextSlot.set(origin, at + seconds * 1000);
+    if (at > Date.now()) await new Promise((r) => setTimeout(r, at - Date.now()));
+}
+
 async function mayRead(url, sourceId) {
     const u = new URL(url);
     const r = await rulesFor(u.origin, sourceId);
     if (!r.known) return false;
-    return pathAllowed(r.robots, u.pathname) && !tdmReserved(r.tdm, u.pathname);
+    if (!pathAllowed(r.robots, u.pathname) || tdmReserved(r.tdm, u.pathname)) return false;
+    const delay = crawlDelay(r.robots);
+    if (delay > MAX_CRAWL_DELAY) return false;
+    if (delay > 0) await waitTurn(u.origin, delay);
+    return true;
 }
 
 // A story leaving the page is kept for the record, outside the site: what

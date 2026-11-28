@@ -27,6 +27,7 @@ export function parseRobots(text) {
         } else {
             if (cur) cur.closed = true;
             if ((key === 'disallow' || key === 'allow') && cur) cur.rules.push([key, val]);
+            if (key === 'crawl-delay' && cur) cur.delay = Number.parseFloat(val) || 0;
         }
     }
     return groups;
@@ -84,4 +85,11 @@ export function tdmReserved(tdmrep, path) {
     return rules.some(
         (r) => Number(r?.['tdm-reservation']) === 1 && matches(String(r.location ?? '').replace(/^\/?/, '/'), path),
     );
+}
+
+// The pause, in seconds, a site asks between two requests (Crawl-delay: not
+// in RFC 9309, but the site's wish): the longest of the groups that apply
+// to us.
+export function crawlDelay(robots) {
+    return Math.max(0, ...ourGroups(parseRobots(robots)).map((g) => g.delay ?? 0));
 }

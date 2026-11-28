@@ -69,16 +69,6 @@ export const SOURCES = [
     },
 
     {
-        id: 'mvr-yt',
-        name: 'МВР (видео)',
-        home: 'https://www.youtube.com/channel/UCgdB6nA-V2LkY6PRyyeRGhw',
-        feed: yt('UCgdB6nA-V2LkY6PRyyeRGhw'),
-        kind: 'video',
-        tier: 1,
-        why: 'Каналът на Министерството на вътрешните работи: брифинги и изявления.',
-        aliases: ['МВР', 'Министерството на вътрешните работи'],
-    },
-    {
         id: 'gov-yt',
         name: 'Министерски съвет (видео)',
         home: 'https://www.youtube.com/channel/UCW9EdtT4kCtntp4igyp7o7Q',
@@ -1071,6 +1061,7 @@ export const SOURCES = [
     },
     {
         id: 'azbuki',
+        headlinesOnly: true,
         name: 'Аз-буки',
         home: 'https://azbuki.bg',
         feed: 'https://azbuki.bg/feed/',
@@ -1580,6 +1571,18 @@ export const SOURCES = [
         partisan: true,
         why: 'Официалният сайт на партията: говорят самите политици. Казаното е тяхна позиция, не проверен факт.',
         aliases: ['ГЕРБ', 'ГЕРБ-СДС'],
+    },
+    {
+        id: 'progbg',
+        list: '^/news/.+',
+        name: 'Прогресивна България',
+        home: 'https://progresivnabulgaria.com',
+        feed: 'https://progresivnabulgaria.com/news',
+        kind: 'article',
+        tier: 1,
+        partisan: true,
+        why: 'Официалният сайт на партията: говорят самите политици. Казаното е тяхна позиция, не проверен факт.',
+        aliases: ['Прогресивна България', 'ПБ'],
     },
     {
         id: 'dps-yt',

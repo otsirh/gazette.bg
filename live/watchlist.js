@@ -29,6 +29,15 @@
 
 export const WANTED = [
     {
+        id: 'mvr-yt',
+        name: 'МВР (видео)',
+        why: 'gone',
+        since: '2026-11',
+        check: { robotsOf: 'https://www.mvr.bg', channel: 'UCgdB6nA-V2LkY6PRyyeRGhw' },
+        contact: '',
+        note: 'Махнат 2026-11: каналът се представя за официален, но mvr.bg никъде не сочи към него, а каналът ще се показва като „от първа ръка“. Да се върне, щом сайтът на МВР го посочи. МВР се чете от сайта си.',
+    },
+    {
         id: '24chasa',
         name: '24 часа',
         why: 'terms',
@@ -502,7 +511,7 @@ export const WANTED = [
             robotsOf: 'https://progresivnabulgaria.com',
         },
         contact: '',
-        note: 'Управляващата партия. Каналът UCPsX7wNd3YHBlg9gRRYZU8w се представя за официален, но сайтът на партията не го посочва — чакаме потвърждение (връзка от сайта им).',
+        note: 'Партията се чете от сайта си (progresivnabulgaria.com/news, от 2026-11). Сайтът няма връзки към YouTube; два канала с името на партията (UCDg4fvIG8MA6BFu4H5eteGA, UCQLghzohgCbHCKBSzfvsFlQ) не могат да се свържат с нея — каналът се добавя, щом сайтът го посочи.',
     },
     {
         id: 'zhechev',
