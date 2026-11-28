@@ -1104,3 +1104,15 @@ test('a story page: why it is hot, how it grew, and its timeline from the first 
     assert.match(home, /За последните 24 часа: <b>8 публикации<\/b> от <b>8 източника<\/b>/);
     fs.rmSync(out, { recursive: true, force: true });
 });
+
+test('a site’s Crawl-delay is read for us, and a card’s heading is its headline', async () => {
+    const { crawlDelay } = await import('../live/lib/robots.js');
+    assert.equal(crawlDelay('User-agent: *\nCrawl-delay: 60\nDisallow: /feed/'), 60);
+    assert.equal(crawlDelay('User-agent: ClaudeBot\nCrawl-delay: 10\n\nUser-agent: *\nAllow: /'), 10);
+    assert.equal(crawlDelay('User-agent: AhrefsBot\nCrawl-Delay: 10\n\nUser-agent: *\nDisallow: /a/'), 0);
+    const { parseList } = await import('../live/lib/feeds.js');
+    const html =
+        '<a href="/news/x-y"><img alt="Снимка"/><span>Новини</span><h3>Министърът обяви нов срок за ремонта</h3><time>26 ноември 2026</time><span>Прочети</span></a>';
+    const [it] = parseList(html, 'https://example.bg/news', '^/news/.+', NOW);
+    assert.equal(it.title, 'Министърът обяви нов срок за ремонта');
+});
