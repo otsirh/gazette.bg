@@ -2474,3 +2474,27 @@ kbd {
     border-left: 4px solid var(--warn);
     font-weight: 600;
 }
+
+.src-ini {
+    display: inline-grid;
+    place-items: center;
+    background: var(--surface-2);
+    color: var(--text-2);
+    font: 700 8px / 1 var(--font);
+    letter-spacing: -0.02em;
+}
+
+.yt-src {
+    font-weight: 600;
+}
+.thumb-src {
+    position: absolute;
+    left: 8px;
+    bottom: 8px;
+    padding: 2px 7px;
+    border-radius: 6px;
+    background: rgb(0 0 0 / 0.65);
+    color: #fff;
+    font-size: 11px;
+    font-weight: 700;
+}
