@@ -978,7 +978,7 @@ test('the river of the day: half-hour counts, plain words, and nothing raw from 
         'nothing six hours ago, so that line is left out',
     );
     assert.equal(say[0].id, 'bbbb2222');
-    const svg = riverSvg(data, { clock: (ms, hourOnly) => (hourOnly ? 12 : '12:00') });
+    const svg = riverSvg(data, { clock: (_ms, hourOnly) => (hourOnly ? 12 : '12:00') });
     assert.ok(!svg.includes('<b>'), 'titles are escaped');
     assert.match(svg, /href="\/s\/aaaa1111\/"/);
 });

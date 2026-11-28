@@ -43,7 +43,10 @@ export function riverLayout({ series }, w, h) {
     const order = [...series].sort((a, b) => b.total - a.total);
     // inside out: the biggest in the middle, then alternating above and below
     const arranged = [];
-    order.forEach((s, i) => (i % 2 ? arranged.push(s) : arranged.unshift(s)));
+    order.forEach((s, i) => {
+        if (i % 2) arranged.push(s);
+        else arranged.unshift(s);
+    });
     const totals = Array.from({ length: bins }, (_, b) => arranged.reduce((sum, s) => sum + s.bins[b], 0));
     const peak = Math.max(1, ...totals);
     const scale = (h - top - bottom) / peak;
