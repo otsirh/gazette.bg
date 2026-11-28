@@ -344,6 +344,7 @@ export const SOURCES = [
     },
     {
         id: 'api',
+        viaBulgaria: true,
         list: '^/bg/novini/.+',
         name: 'АПИ',
         home: 'https://www.api.bg',
@@ -1197,6 +1198,7 @@ export const SOURCES = [
     },
     {
         id: 'bnews',
+        viaBulgaria: true,
         headlinesOnly: true,
         name: 'Bnews (Бургас)',
         home: 'https://bnews.bg',
@@ -1230,6 +1232,7 @@ export const SOURCES = [
     },
     {
         id: 'marica',
+        viaBulgaria: true,
         headlinesOnly: true,
         name: 'Марица (Пловдив)',
         home: 'https://www.marica.bg',
@@ -1285,6 +1288,7 @@ export const SOURCES = [
     },
     {
         id: 'struma',
+        viaBulgaria: true,
         headlinesOnly: true,
         name: 'Струма (Благоевград)',
         home: 'https://struma.bg',
