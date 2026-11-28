@@ -13,7 +13,8 @@ import { fileURLToPath } from 'node:url';
 import { isMain as isMainModule } from '../scripts/lib/cli.js';
 import { isWebUrl } from './lib/feeds.js';
 import { homeImage, iconPng, storyImage } from './lib/og.js';
-import { lastAt, originOf, rankStories, sparkline, spreadTree } from './lib/stories.js';
+import { MAP, OUTLINE, placeOf } from './lib/places.js';
+import { addContributions, lastAt, originOf, rankStories, sparkline, spreadTree } from './lib/stories.js';
 import { outletOf, SOURCE_BY_ID, SOURCES, tierOf } from './sources.js';
 
 const require = createRequire(import.meta.url);
@@ -24,7 +25,7 @@ export const SITE_ORIGIN = 'https://live.gazette.bg';
 const HOUR = 3600 * 1000;
 
 // Bumped by hand when style.css or live.js change, so browsers fetch them anew.
-const ASSET_VERSION = '4';
+const ASSET_VERSION = '5';
 
 const esc = (s) =>
     String(s ?? '')
@@ -160,7 +161,8 @@ function tempBadge(r) {
 function chips(r, now) {
     const t = TREND[r.trend];
     const lastHour = r.story.items.filter((i) => now - i.at < HOUR).length;
-    return `<span class="lvl heat-${r.level.id}">${esc(r.level.label)}</span><span class="trend trend-${r.trend}">${t.sym} ${esc(t.label)}</span>${lastHour ? `<span class="fresh">+${lastHour} за последния час</span>` : ''}`;
+    const place = placeOf(r.story.place);
+    return `<span class="lvl heat-${r.level.id}">${esc(r.level.label)}</span><span class="trend trend-${r.trend}">${t.sym} ${esc(t.label)}</span>${lastHour ? `<span class="fresh">+${lastHour} за последния час</span>` : ''}${place ? `<span class="place">${ICONS.pin}${esc(place.name)}</span>` : ''}`;
 }
 
 const videosOf = (story) =>
@@ -171,6 +173,7 @@ const thumb = (videoId) => `https://i.ytimg.com/vi/${esc(videoId)}/mqdefault.jpg
 const ICONS = {
     share: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12M7 8l5-5 5 5M5 13v6a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>',
     play: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5.5v13l11-6.5z" fill="currentColor"/></svg>',
+    pin: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 22s7-6.2 7-12a7 7 0 1 0-14 0c0 5.8 7 12 7 12zm0-9.5a2.5 2.5 0 1 1 0-5 2.5 2.5 0 0 1 0 5z" fill="currentColor"/></svg>',
 };
 
 // ─── Page frame ─────────────────────────────────────────────────────────
@@ -221,7 +224,7 @@ function footer() {
         <div class="footer-brand"><span class="live-dot" aria-hidden="true"></span> live.gazette.bg</div>
         <ul class="legend">${KIND_ORDER.map((k) => `<li><i class="kd k-${k}"></i>${esc(KINDS[k].long)}</li>`).join('')}</ul>
         <p>Историите, обобщенията и хронологиите се съставят автоматично с изкуствен интелект (Claude на Anthropic) от ${SOURCES.length} медии, телевизии и официални канала и може да съдържат грешки. Всяко твърдение води към материала, от който е взето.</p>
-        <p><a href="/sources/">Източници и как се оценяват</a></p>
+        <p><a href="/sources/">Източници и как се оценяват</a> · <a href="/media/">Досие на медиите</a></p>
     </div>
 </footer>`;
 }
@@ -350,6 +353,45 @@ function howBox() {
 
 const isMain = (r) => r.trust.outlets >= 2 || r.trust.firstHand;
 
+// Local stories on a map: one dot per oblast, as big as its stories are hot,
+// the colour of the hottest one.
+function mapBlock(ranked, now) {
+    const byPlace = new Map();
+    for (const r of ranked) {
+        const p = placeOf(r.story.place);
+        if (!p) continue;
+        if (!byPlace.has(p.name)) byPlace.set(p.name, { p, list: [] });
+        byPlace.get(p.name).list.push(r);
+    }
+    if (!byPlace.size) return '';
+    const places = [...byPlace.values()].sort((a, b) => b.list[0].heat - a.list[0].heat);
+    const dots = places
+        .map(({ p, list }) => {
+            const heat = list.reduce((sum, r) => sum + r.heat, 0);
+            const rad = Math.min(34, 9 + Math.sqrt(heat) * 5);
+            const [x, y] = p.xy.map((v) => v.toFixed(0));
+            const titles = list.map((r) => r.story.title).join('\n');
+            return `<a href="/s/${esc(list[0].story.id)}/"><title>${esc(`${p.name}: ${titles}`)}</title><circle class="map-dot heat-${list[0].level.id}" cx="${x}" cy="${y}" r="${rad.toFixed(0)}"/><text class="map-label" x="${x}" y="${(Number(y) + rad + 22).toFixed(0)}" text-anchor="middle">${esc(p.seat)}${list.length > 1 ? ` · ${list.length}` : ''}</text></a>`;
+        })
+        .join('');
+    const rows = places
+        .flatMap(({ p, list }) =>
+            list
+                .slice(0, 3)
+                .map(
+                    (r) =>
+                        `<li class="heat-${r.level.id}"><a href="/s/${esc(r.story.id)}/"><span class="map-place">${esc(p.name)}</span><span class="map-title">${esc(r.story.title)}</span>${timeEl(lastAt(r.story), now, true)}</a></li>`,
+                ),
+        )
+        .slice(0, 12)
+        .join('');
+    return `<section class="group map-group" aria-labelledby="g-map"><h2 id="g-map" class="group-title">По места <span>местните истории в момента</span></h2>
+<div class="map-wrap">
+    <svg class="map" viewBox="-20 -20 ${MAP.width + 40} ${MAP.height + 40}" role="img" aria-label="Карта на България с местните истории"><path class="map-land" d="${OUTLINE}"/>${dots}</svg>
+    <ol class="map-list">${rows}</ol>
+</div></section>`;
+}
+
 function frontPage(state, ranked, now) {
     const main = ranked.filter(isMain);
     const hot = main.filter((r) => r.level.id === 'hot');
@@ -368,6 +410,8 @@ function frontPage(state, ranked, now) {
         groups.push(`<section class="group" aria-labelledby="g-warm"><h2 id="g-warm" class="group-title t-warm">Актуално</h2>
 <ol class="cards">${warm.map((r) => storyCard(r, now)).join('')}</ol></section>`);
     }
+    const map = mapBlock(main, now);
+    if (map) groups.push(map);
     if (cool.length) {
         groups.push(`<section class="group" aria-labelledby="g-cool"><h2 id="g-cool" class="group-title">Утихва <span>вече се пише по-малко</span></h2>
 <ol class="rows">${cool.map((r) => rowItem(r, now, `${plural(r.trust.outlets, 'медия', 'медии')} · `)).join('')}</ol></section>`);
@@ -444,6 +488,74 @@ function initials(name) {
     );
 }
 
+// A quote from the parliament's verbatim record: where it is, and the
+// sitting's video.
+function recordLinks(e) {
+    const parts = [ext(e.url, `🏛 ${esc(e.label || 'Стенограма')}`)];
+    if (e.video) parts.push(ext(e.video, '▶ запис на заседанието'));
+    return parts.join(' · ');
+}
+
+function contextBlock(story, now) {
+    const c = story.context;
+    if (!c?.background) return '';
+    const rel = (c.related ?? [])
+        .map(
+            (p) => `<li><time>${esc(when(p.at, now))}</time> <b>${esc(p.title)}</b><span>${esc(p.summary)}</span></li>`,
+        )
+        .join('');
+    return `<section class="context" aria-labelledby="context">
+    <h2 id="context" class="context-title">Какво стана преди</h2>
+    <p>${esc(c.background)}</p>
+    ${rel ? `<details><summary>${plural(c.related.length, 'по-ранна история', 'по-ранни истории')}</summary><ul>${rel}</ul></details>` : ''}
+</section>`;
+}
+
+function framingBlock(story, now) {
+    const f = story.framing;
+    if (!f?.angles?.length) return '';
+    const byId = new Map(story.items.map((i) => [i.id, i]));
+    const angles = f.angles
+        .map((a) => {
+            const outlets = new Map();
+            for (const id of a.items) {
+                const it = byId.get(id);
+                if (it && !outlets.has(outletOf(it.source))) outlets.set(outletOf(it.source), it);
+            }
+            const chipsHtml = [...outlets.values()]
+                .map(
+                    (it) =>
+                        `<a class="src-chip" href="${href(it.url)}" target="_blank" rel="noopener" title="${esc(it.title)}">${kindDot(it.source)}${sourceLabel(it.source)}</a>`,
+                )
+                .join('');
+            return `<li class="angle"><b>${esc(a.label)}</b><p>${esc(a.summary)}</p><div class="src-chips">${chipsHtml}</div></li>`;
+        })
+        .join('');
+    // Every outlet's first headline, side by side, by kind of source.
+    const seen = new Set();
+    const firsts = [];
+    for (const it of [...story.items].sort((a, b) => a.at - b.at)) {
+        const o = outletOf(it.source);
+        if (seen.has(o)) continue;
+        seen.add(o);
+        firsts.push(it);
+    }
+    const byKind = KIND_ORDER.map((k) => {
+        const list = firsts.filter((it) => kindOf(it.source) === k);
+        if (!list.length) return '';
+        return `<div class="hl-group"><h3><i class="kd k-${k}"></i>${esc(KINDS[k].many[0].toUpperCase() + KINDS[k].many.slice(1))}</h3><ul>${list
+            .map((it) => `<li><span>${sourceLabel(it.source)}</span>${ext(it.url, esc(it.title))}</li>`)
+            .join('')}</ul></div>`;
+    }).join('');
+    return `<section class="panel" aria-labelledby="framing">
+    <h2 id="framing" class="panel-title">Как го представят <span>една и съща новина, различни ъгли</span></h2>
+    <ul class="angles">${angles}</ul>
+    ${f.missing ? `<p class="missing"><b>Никой не казва:</b> ${esc(f.missing)}</p>` : ''}
+    <details class="headlines"><summary>Заглавията един до друг (${firsts.length})</summary><div class="hl-grid">${byKind}</div></details>
+    <p class="quiet small">Описанието е автоматично, по заглавията; ${timeEl(f.at, now, true)}.</p>
+</section>`;
+}
+
 function actorsBlock(story, now) {
     const actors = actorsOf(story);
     if (actors.length < 2) return '';
@@ -465,8 +577,8 @@ function actorsBlock(story, now) {
                 : '';
         return `<li class="voice">
     <div class="voice-head"><span class="avatar" aria-hidden="true">${initials(a.name)}</span><span><b>${esc(a.name)}</b>${a.role ? `<small>${esc(a.role)}</small>` : ''}</span></div>
-    <p class="voice-what">${esc(latest.what)}</p>
-    <p class="voice-src">${timeEl(latest.at, now)}${src ? ` · ${src}` : ''}</p>
+    <p class="voice-what">${latest.quote ? `<q class="quote">${esc(latest.quote)}</q>` : esc(latest.what)}</p>
+    <p class="voice-src">${timeEl(latest.at, now)}${latest.source === 'parliament' ? ` · ${recordLinks(latest)}` : src ? ` · ${src}` : ''}</p>
     ${more}
 </li>`;
     });
@@ -634,14 +746,15 @@ function timelineBlock(story) {
         .sort((a, b) => b.at - a.at)
         .map((e) => {
             const refs = e.items.map((id) => byId.get(id)).filter(Boolean);
-            const kind = refs.length ? kindOf(refs[0].source) : 'editorial';
-            const links = refs.map((i) => ext(i.url, sourceLabel(i.source))).join(', ');
+            const kind = e.source === 'parliament' ? 'first' : refs.length ? kindOf(refs[0].source) : 'editorial';
+            let links = refs.map((i) => ext(i.url, sourceLabel(i.source))).join(', ');
+            if (e.source === 'parliament') links = recordLinks(e);
             const day = dayKey.format(e.at);
             const sep = day !== lastDay ? `<li class="tl-day">${esc(fmtLongDay.format(e.at))}</li>` : '';
             lastDay = day;
             return `${sep}<li class="tl tl-${kind}">
     <span class="tl-time">${esc(fmtClock.format(e.at))}</span>
-    <span class="tl-body"><b class="tl-who">${esc(e.who)}</b> ${esc(e.what)}${links ? `<span class="tl-src">${links}</span>` : ''}</span>
+    <span class="tl-body"><b class="tl-who">${esc(e.who)}</b> ${esc(e.what)}${e.quote ? `<q class="quote">${esc(e.quote)}</q>` : ''}${links ? `<span class="tl-src">${links}</span>` : ''}</span>
 </li>`;
         });
     return `<section class="panel" aria-labelledby="timeline">
@@ -712,12 +825,93 @@ ${topbar(state, now)}
     </dl>
     ${r.trust.disputed ? `<p class="disputed"><b>⚠ Спорно:</b> ${esc(r.trust.disputed)}</p>` : ''}
 </header>
+${contextBlock(s, now)}
 ${videoBlock(s, now)}
+${framingBlock(s, now)}
 ${actorsBlock(s, now)}
 ${spreadBlock(s, now)}
 ${timelineBlock(s)}
 ${sourcesBlock(s, now)}
 ${moreBlock(r, ranked, now)}
+</main>
+${footer()}
+</body>
+</html>
+`;
+}
+
+// ─── The outlets' track record ──────────────────────────────────────────
+
+const outletName = (o) =>
+    SOURCE_BY_ID.get(o)?.name ?? SOURCE_BY_ID.get(`${o}-yt`)?.name.replace(/ \(видео\)$/, '') ?? o;
+const outletKind = (o) => kindOf(SOURCE_BY_ID.has(o) ? o : `${o}-yt`);
+
+export function outletTotals(state) {
+    const totals = structuredClone(state.outletStats?.outlets ?? {});
+    for (const s of state.stories) addContributions(totals, s);
+    return totals;
+}
+
+function fmtDelay(min) {
+    if (min < 60) return `${Math.round(min)} мин`;
+    if (min < 24 * 60) return `${(min / 60).toFixed(min < 600 ? 1 : 0).replace('.', ',')} ч`;
+    return '1+ ден';
+}
+
+const pct = (a, b) => (b ? Math.round((a / b) * 100) : 0);
+
+function mediaPage(state, now) {
+    const totals = outletTotals(state);
+    const rows = Object.entries(totals)
+        .filter(([, t]) => t.stories >= 2)
+        .sort((a, b) => b[1].stories - a[1].stories)
+        .map(([o, t]) => {
+            const delay = t.delaySum / t.stories;
+            const k = outletKind(o);
+            return `<tr>
+    <th scope="row"><i class="kd k-${k}" title="${esc(KINDS[k].long)}"></i>${esc(outletName(o))}</th>
+    <td data-v="${t.stories}">${t.stories}</td>
+    <td data-v="${pct(t.first, t.stories)}">${t.first}<small>${pct(t.first, t.stories)}%</small></td>
+    <td data-v="${Math.round(delay)}">${fmtDelay(delay)}</td>
+    <td data-v="${pct(t.attributed, t.items)}"><span class="bar"><i style="width:${pct(t.attributed, t.items)}%"></i></span>${pct(t.attributed, t.items)}%</td>
+    <td data-v="${pct(t.own, t.items)}">${pct(t.own, t.items)}%</td>
+    <td data-v="${t.citedBy}">${t.citedBy}</td>
+</tr>`;
+        })
+        .join('');
+    const since = state.outletStats?.since ?? state.updatedAt;
+    return `${head({
+        title: 'Досие на медиите — live.gazette.bg',
+        description:
+            'Коя медия съобщава първа, коя посочва откъде знае и коя цитират другите — по данни, не по мнение.',
+        canonical: `${SITE_ORIGIN}/media/`,
+        image: `${SITE_ORIGIN}/og/home.png?v=${state.updatedAt}`,
+    })}
+<body class="media" data-version="${state.updatedAt}">
+${topbar(state, now)}
+<main class="wrap">
+<a class="back" href="/">← Всичко, което се случва сега</a>
+<header class="story-head"><h1>Досие на медиите</h1>
+<p class="lede">Как всяка медия се държи в новините, които следим: съобщава ли първа, посочва ли откъде знае, цитират ли я другите. Само данни, събирани от ${esc(fmtLongDay.format(since))} насам, без мнение. С всеки ден картината е по-точна.</p></header>
+<div class="panel table-panel">
+<table class="dossier" data-sortable>
+    <thead><tr>
+        <th scope="col">Медия</th>
+        <th scope="col" data-sort title="В колко истории с поне 3 медии участва">Истории</th>
+        <th scope="col" data-sort title="Колко пъти е съобщила първа">Първа</th>
+        <th scope="col" data-sort title="Средно колко след първия материал по историята (до 6 часа)">Закъснение</th>
+        <th scope="col" data-sort title="Каква част от материалите ѝ казват откъде е информацията">Посочва източник</th>
+        <th scope="col" data-sort title="Собствен репортаж или разследване">Собствени</th>
+        <th scope="col" data-sort title="Колко пъти други медии я цитират">Цитирана</th>
+    </tr></thead>
+    <tbody>${rows || '<tr><td colspan="7" class="quiet">Още няма достатъчно данни.</td></tr>'}</tbody>
+</table>
+</div>
+<div class="prose panel">
+<p><b>Истории</b> — само истории, отразени от поне 3 медии: там има кой да е пръв. <b>Първа</b> — най-ранният материал по историята. <b>Закъснение</b> — средно колко след първия излиза нейният материал (бавно не е лошо, ако е проверено).</p>
+<p><b>Посочва източник</b> — материалите, които казват откъде е новината: друга медия, институция или човек, който говори. <b>Собствени</b> — собствен репортаж без чужд източник. <b>Цитирана</b> — колко пъти други материали я посочват като източник.</p>
+<p>Кой какво цитира, определя автоматично изкуствен интелект по текста на материалите и може да греши в отделни случаи. Сортирай с клик върху заглавие на колона.</p>
+</div>
 </main>
 ${footer()}
 </body>
@@ -845,6 +1039,7 @@ export async function buildSite(state, { now = Date.now(), outDir = OUT_DIR, ima
     write(path.join(outDir, 'index.html'), frontPage(state, ranked, now));
     for (const r of ranked) write(path.join(outDir, 's', r.story.id, 'index.html'), storyPage(state, r, ranked, now));
     write(path.join(outDir, 'sources', 'index.html'), sourcesPage(state, now));
+    write(path.join(outDir, 'media', 'index.html'), mediaPage(state, now));
     write(path.join(outDir, 'state.json'), JSON.stringify(state));
     write(path.join(outDir, 'version.json'), JSON.stringify({ updatedAt: state.updatedAt }));
     write(path.join(outDir, '_headers'), HEADERS);

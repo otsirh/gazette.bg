@@ -143,3 +143,57 @@ export function pruneStories(stories, now) {
 export function lastAt(story) {
     return Math.max(...story.items.map((i) => i.at));
 }
+
+// ─── The outlets' track record ──────────────────────────────────────────
+
+// What one story says about each outlet that carried it: was it first, how
+// far behind the first it came, whether its items say where they got the
+// news, and how often others cite it. Only stories with three or more
+// outlets count: with fewer there is no race to be first.
+export function outletContributions(story) {
+    const items = [...story.items].sort((a, b) => a.at - b.at);
+    const out = new Map();
+    if (new Set(items.map((i) => outletOf(i.source))).size < 3) return out;
+    const t0 = items[0].at;
+    for (const it of items) {
+        const o = outletOf(it.source);
+        if (!out.has(o)) {
+            out.set(o, {
+                stories: 1,
+                first: out.size === 0 ? 1 : 0,
+                delayMin: Math.round((it.at - t0) / 60000),
+                items: 0,
+                attributed: 0,
+                own: 0,
+                citedBy: 0,
+            });
+        }
+        const c = out.get(o);
+        c.items++;
+        if (['media', 'institution', 'person'].includes(it.citesKind)) c.attributed++;
+        if (it.citesKind === 'own') c.own++;
+    }
+    // Cited by others: counted only for outlets that carried the story too.
+    for (const it of items) {
+        if (!it.citesSource) continue;
+        const cited = outletOf(it.citesSource);
+        if (cited !== outletOf(it.source) && out.has(cited)) out.get(cited).citedBy++;
+    }
+    return out;
+}
+
+// Adds one story's contributions to the running totals (kept across updates).
+export function addContributions(totals, story) {
+    for (const [o, c] of outletContributions(story)) {
+        if (!totals[o]) totals[o] = { stories: 0, first: 0, delaySum: 0, items: 0, attributed: 0, own: 0, citedBy: 0 };
+        const t = totals[o];
+        t.stories += c.stories;
+        t.first += c.first;
+        t.delaySum += Math.min(c.delayMin, 6 * 60);
+        t.items += c.items;
+        t.attributed += c.attributed;
+        t.own += c.own;
+        t.citedBy += c.citedBy;
+    }
+    return totals;
+}

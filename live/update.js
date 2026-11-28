@@ -21,6 +21,7 @@ import path from 'node:path';
 import { createLogger, isMain } from '../scripts/lib/cli.js';
 import { buildSite, OUT_DIR } from './build.js';
 import { clusterItems, writeOverview, writeStory } from './lib/ai.js';
+import { fillPlaces, frameStories, pastFor, readParliament, retire } from './lib/depth.js';
 import { articleText, fetchText, isOffTopic, itemId, mapLimit, parseFeed } from './lib/feeds.js';
 import { pruneStories, rankStories } from './lib/stories.js';
 import { SOURCE_BY_ID, SOURCES, sourceIdForName } from './sources.js';
@@ -50,6 +51,9 @@ export function emptyState() {
         stories: [],
         overview: null,
         sources: {},
+        memory: [],
+        outletStats: null,
+        parliament: { done: [] },
     };
 }
 
@@ -128,7 +132,13 @@ export async function update({ now = Date.now() } = {}) {
         meter.usd < perRun;
     if (!canSpend()) log('Claude is off for this update (no key, LIVE_NO_AI, or the budget is used up).', 'WARN');
 
-    state.stories = pruneStories(state.stories, now);
+    const kept = pruneStories(state.stories, now);
+    retire(
+        state,
+        state.stories.filter((s) => !kept.includes(s)),
+        now,
+    );
+    state.stories = kept;
     for (const [id, at] of Object.entries(state.seen)) if (now - at > SEEN_TTL) delete state.seen[id];
 
     // ─── New items ───────────────────────────────────────────────────────
@@ -239,7 +249,10 @@ export async function update({ now = Date.now() } = {}) {
         );
         let result;
         try {
-            result = await writeStory({ story, newItems: pending, texts, sourceName, meter });
+            // A story written for the first time may continue an earlier one.
+            const past = story.summary ? [] : pastFor(state, story, now);
+            result = await writeStory({ story, newItems: pending, texts, sourceName, meter, past });
+            result.past = past;
         } catch (err) {
             log(`Writing ${story.id} failed: ${err.message}`, 'WARN');
             for (const it of pending) {
@@ -256,6 +269,11 @@ export async function update({ now = Date.now() } = {}) {
             if (it.pending && (it.tries ?? 0) >= MAX_TRIES) delete it.pending;
         }
     }
+
+    // ─── Depth: places, how each side tells it, parliament ──────────────
+    if (canSpend()) await fillPlaces(state, meter, log);
+    await frameStories(state, now, meter, canSpend, log);
+    await readParliament(state, now, meter, canSpend, log);
 
     // ─── Overview ────────────────────────────────────────────────────────
     const ranked = rankStories(state.stories, now)
@@ -292,6 +310,14 @@ export function applyWrite(story, pending, result, now) {
     if (result.title?.trim()) story.title = result.title.trim().slice(0, 140);
     if (result.summary?.trim()) story.summary = result.summary.trim().slice(0, 600);
     story.disputed = (result.disputed ?? '').trim().slice(0, 400);
+    if (typeof result.place === 'string') story.place = result.place;
+    const related = (result.related ?? []).map((n) => result.past?.[n]).filter(Boolean);
+    if (related.length && result.background?.trim()) {
+        story.context = {
+            background: result.background.trim().slice(0, 500),
+            related: related.slice(0, 3).map((p) => ({ title: p.title, summary: p.summary, at: p.at })),
+        };
+    }
     for (const r of result.items ?? []) {
         const it = pending[r.n];
         if (!it) continue;
