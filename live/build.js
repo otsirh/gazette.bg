@@ -4,7 +4,7 @@
 // The page answers three questions in this order: what is happening (the
 // brief), what is hottest (temperature, colour, size), and can I trust it
 // (who carries it, who said it first). A story page then lets you hear the
-// people themselves, see who said what, and watch how the news spread.
+// people themselves, and see who said what.
 // Every value from a feed or the model is escaped.
 import fs from 'node:fs';
 import { createRequire } from 'node:module';
@@ -16,7 +16,7 @@ import { homeImage, iconPng, storyImage } from './lib/og.js';
 import { MAP, OUTLINE, placeOf } from './lib/places.js';
 import { inElectionSilence, loadPolicy, POLL, silenceFilter } from './lib/policy.js';
 import { addContributions, lastAt, originOf, rankStories, sparkline } from './lib/stories.js';
-import { outletOf, SOURCE_BY_ID, SOURCES, sourceIdForName, tierOf } from './sources.js';
+import { outletOf, SOURCE_BY_ID, SOURCES, tierOf } from './sources.js';
 
 const require = createRequire(import.meta.url);
 const HERE = path.dirname(fileURLToPath(import.meta.url));
@@ -33,7 +33,7 @@ const CONTACT = /^[^\s@<>"]+@[^\s@<>"]+\.[a-z]{2,}$/i.test(process.env.LIVE_CONT
 const HOUR = 3600 * 1000;
 
 // Bumped by hand when style.css or live.js change, so browsers fetch them anew.
-const ASSET_VERSION = '18';
+const ASSET_VERSION = '19';
 
 const esc = (s) =>
     String(s ?? '')
@@ -694,71 +694,6 @@ function actorsBlock(story, now) {
 </section>`;
 }
 
-// How long after the first report: "15 мин", "4 ч и 40 мин", "2 дни".
-export function afterFirst(ms) {
-    const min = Math.round(ms / 60000);
-    if (min < 1) return 'веднага';
-    if (min < 60) return `след ${min} мин`;
-    const h = Math.floor(min / 60);
-    const m = min % 60;
-    if (h < 24) return `след ${h} ч${m ? ` и ${m} мин` : ''}`;
-    const d = Math.round(h / 24);
-    return `след ${d} ${d === 1 ? 'ден' : 'дни'}`;
-}
-
-// Where an item says it got the news from, in plain words.
-function howItKnows(it) {
-    if (SOURCE_BY_ID.get(it.source)?.partisan) return 'собственият канал на партията';
-    if (tierOf(it.source) === 1) return 'официално съобщение';
-    // An outlet naming itself ("според Медиапул" in Медиапул) is its own report.
-    const cited = it.citesSource ?? (it.citesKind === 'media' ? sourceIdForName(it.cites) : null);
-    const self =
-        (cited && outletOf(cited) === outletOf(it.source)) ||
-        (it.cites && it.cites.trim().toLowerCase() === displayName(it.source).toLowerCase());
-    if (self) return 'собствен материал';
-    if (it.citesSource) return `по материал на ${sourceLabel(it.citesSource)}`;
-    if (it.cites && it.citesKind === 'person') return `по думите на ${esc(it.cites)}`;
-    if (it.cites && it.citesKind === 'institution') return `по съобщение на ${esc(it.cites)}`;
-    if (it.cites && it.citesKind === 'media') return `по ${esc(it.cites)}`;
-    if (it.citesKind === 'own') return 'собствен материал';
-    return '';
-}
-
-const RELAY_SHOWN = 8;
-
-// Who reported the story first and who followed, one row per source in the
-// order they first reported it: when, how long after the first, where they
-// say they got it, and their headline.
-export function relayBlock(story, now) {
-    const items = [...story.items].sort((a, b) => a.at - b.at);
-    const firsts = [];
-    const count = new Map();
-    for (const it of items) {
-        const o = outletOf(it.source);
-        if (!count.has(o)) firsts.push(it);
-        count.set(o, (count.get(o) ?? 0) + 1);
-    }
-    if (firsts.length < 2) return '';
-    const t0 = firsts[0].at;
-    const row = (it, i) => {
-        const more = count.get(outletOf(it.source)) - 1;
-        const how = howItKnows(it);
-        return `<li class="relay-row${i === 0 ? ' relay-first' : ''}">
-    <span class="relay-when">${i === 0 ? '<b>Първи</b>' : `<b>${afterFirst(it.at - t0)}</b>`}${timeEl(it.at, now)}</span>
-    <span class="relay-body"><span class="relay-src">${srcMark(it.source)}${sourceLabel(it.source)}${it.kind === 'video' ? ' <span class="relay-video">▶ видео</span>' : ''}</span>${how ? `<span class="relay-how">${how}</span>` : ''}${ext(it.url, esc(itemTitle(it)))}${more ? `<span class="relay-more">и още ${plural(more, 'материал', 'материала')} по-късно</span>` : ''}</span>
-</li>`;
-    };
-    const shown = firsts.slice(0, RELAY_SHOWN).map(row).join('');
-    const rest = firsts.slice(RELAY_SHOWN);
-    const span = afterFirst(firsts.at(-1).at - t0).replace(/^след /, '');
-    return `<section class="panel" aria-labelledby="spread">
-    <h2 id="spread" class="panel-title">Кой я съобщи пръв <span>и кой след него</span></h2>
-    <p class="relay-sum">${firsts.length} ${firsts.length === 1 ? 'източник' : 'източника'} съобщиха новината ${span === 'веднага' ? 'почти едновременно' : `в рамките на ${span}`}.</p>
-    <ol class="relay">${shown}</ol>
-    ${rest.length ? `<details class="more relay-rest"><summary>Още ${rest.length} ${rest.length === 1 ? 'източник' : 'източника'}</summary><ol class="relay">${rest.map((it, i) => row(it, i + RELAY_SHOWN)).join('')}</ol></details>` : ''}
-</section>`;
-}
-
 function videoTile(v, now) {
     return `<li class="video">
     <button type="button" class="video-play" data-video="${esc(v.videoId)}" aria-label="Пусни: ${esc(v.title)}">
@@ -870,14 +805,12 @@ function storyPage(state, r, ranked, now) {
         videos: videoBlock(s, now),
         framing: framingBlock(s, now),
         voices: actorsBlock(s, now),
-        spread: relayBlock(s, now),
         timeline: timelineBlock(s),
     };
     const nav = [
         ['videos', `▶ ${plural(videos, 'видео', 'видеа')}`],
         ['framing', 'Как го представят'],
         ['voices', 'Кой какво казва'],
-        ['spread', 'Кой пръв'],
         ['timeline', 'Хронология'],
     ]
         .filter(([id]) => blocks[id] && (id !== 'timeline' || s.timeline.length))
@@ -936,7 +869,6 @@ ${blocks.context}
 ${blocks.videos}
 ${blocks.framing}
 ${blocks.voices}
-${blocks.spread}
 ${repliesBlock(s)}
 ${blocks.timeline}
 ${sourcesBlock(s, now)}
