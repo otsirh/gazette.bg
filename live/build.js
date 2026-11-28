@@ -34,7 +34,7 @@ const CONTACT = /^[^\s@<>"]+@[^\s@<>"]+\.[a-z]{2,}$/i.test(process.env.LIVE_CONT
 const HOUR = 3600 * 1000;
 
 // Bumped by hand when style.css or live.js change, so browsers fetch them anew.
-const ASSET_VERSION = '25';
+const ASSET_VERSION = '26';
 
 const esc = (s) =>
     String(s ?? '')
@@ -275,12 +275,13 @@ function head({ title, description, canonical, image, ld = null, noindex = false
 </head>`;
 }
 
-function topbar(state, now) {
+// A page that never changes (a remembered story) shows no update time.
+function topbar(state, now, { status = true } = {}) {
     return `<header class="topbar">
     <div class="wrap topbar-inner">
         <a class="skip" href="#main">Към съдържанието</a>
         <a class="brand" href="/"><span class="live-dot" aria-hidden="true"></span><span class="brand-live">НА ЖИВО</span><span class="brand-name">live.gazette.bg</span></a>
-        <span class="status" data-status>обновено ${timeEl(state.updatedAt || now, now, true)}</span>
+        ${status ? `<span class="status" data-status>обновено ${timeEl(state.updatedAt || now, now, true)}</span>` : '<span class="status"></span>'}
         <button type="button" class="icon-btn" data-share data-share-title="Какво се случва в България сега" data-share-url="${SITE_ORIGIN}/" aria-label="Сподели сайта">${ICONS.share}</button>
     </div>
 </header>`;
@@ -462,9 +463,15 @@ function mapBlock(ranked, now) {
         .map(({ p, list }) => {
             const heat = list.reduce((sum, r) => sum + r.heat, 0);
             const rad = Math.min(34, 9 + Math.sqrt(heat) * 5);
-            const [x, y] = p.xy.map((v) => v.toFixed(0));
+            const [x, y] = p.xy.map((v) => Number(v.toFixed(0)));
             const titles = list.map((r) => r.story.title).join('\n');
-            return `<a href="/s/${esc(list[0].story.id)}/"><title>${esc(`${p.name}: ${titles}`)}</title><circle class="map-dot heat-${list[0].level.id}" cx="${x}" cy="${y}" r="${rad.toFixed(0)}"/><text class="map-label" x="${x}" y="${(Number(y) + rad + 22).toFixed(0)}" text-anchor="middle">${esc(p.seat)}${list.length > 1 ? ` · ${list.length}` : ''}</text></a>`;
+            const label = {
+                below: [x, y + rad + 22, 'middle'],
+                above: [x, y - rad - 10, 'middle'],
+                left: [x - rad - 8, y + 7, 'end'],
+                right: [x + rad + 8, y + 7, 'start'],
+            }[p.side];
+            return `<a href="/s/${esc(list[0].story.id)}/"><title>${esc(`${p.name}: ${titles}`)}</title><circle class="map-dot heat-${list[0].level.id}" cx="${x}" cy="${y}" r="${rad.toFixed(0)}"/><text class="map-label" x="${label[0].toFixed(0)}" y="${label[1].toFixed(0)}" text-anchor="${label[2]}">${esc(p.seat)}${list.length > 1 ? ` · ${list.length}` : ''}</text></a>`;
         })
         .join('');
     const rows = places
@@ -832,7 +839,7 @@ function storyPage(state, r, ranked, now, { cold = false } = {}) {
         .join('');
     const originStat = origin
         ? stat(
-              'Първи съобщи',
+              'Първи сред следените',
               `${esc(origin.name)}<small>${timeEl(origin.at, now)}${origin.via && sourceLabel(origin.via) !== esc(origin.name) ? ` · по материал на ${sourceLabel(origin.via)}` : ''}${origin.words ? ` · по думите на ${esc(origin.words)}` : ''}</small>`,
           )
         : '';
@@ -899,8 +906,10 @@ ${footer()}
 
 // A story that has left the state is remembered for a while with its title
 // and summary only: its address shows that much, so a shared link never
-// ends in "not found" while the site still knows what it was.
-function memoryPage(state, m, ranked, now) {
+// ends in "not found" while the site still knows what it was. The page is
+// the same on every update (no update time, no other stories, no polling),
+// so it is uploaded once, not on every update.
+function memoryPage(m) {
     const url = `${SITE_ORIGIN}/s/${m.id}/`;
     return `${head({
         title: `${m.title} — live.gazette.bg`,
@@ -909,8 +918,8 @@ function memoryPage(state, m, ranked, now) {
         image: `${SITE_ORIGIN}/og/home.png`,
         noindex: true,
     })}
-<body class="story" data-version="${state.updatedAt}">
-${topbar(state, now)}
+<body class="story" data-static>
+${topbar({}, m.at, { status: false })}
 <main id="main" class="wrap">
 <a class="back" href="/">← Всичко, което се случва сега</a>
 <p class="cold-note">Тази история е от ${esc(fmtDate.format(m.at))}. Вече не се следи и подробностите ѝ не се пазят: тук е само обобщението ѝ.</p>
@@ -918,8 +927,8 @@ ${topbar(state, now)}
     <h1>${esc(m.title)}</h1>
     ${m.summary ? `<p class="lede">${esc(m.summary)}</p>` : ''}
     <p class="ai-note">Обобщено автоматично с изкуствен интелект. <a href="/about/">Как работи</a></p>
+    <p><a class="btn" href="/">Виж какво се случва сега →</a></p>
 </header>
-${moreBlock({ story: { id: m.id } }, ranked, now)}
 </main>
 ${footer()}
 </body>
@@ -1005,7 +1014,7 @@ ${operator}
 <div class="prose panel">
 <h2 class="panel-title">Поправки, премахване и отговор</h2>
 <p>Ако нещо е невярно, назовава човек, който не бива да бъде назован, или е съдържание, което трябва да махнем, пиши на ${mail} с връзката към страницата. Отговаряме до 24 часа; невярното поправяме или махаме, а поправките записваме в <a href="/corrections/">дневника на поправките</a>.</p>
-<p>Всеки, когото една история засяга — включително кандидати и партии по време на избори (Изборен кодекс, чл. 188), — може да изпрати отговор. Публикуваме го незабавно, на страницата на историята, без коментар.</p>
+<p>Всеки, когото една история засяга — включително кандидати и партии по време на избори (Изборен кодекс, чл. 188), — може да изпрати отговор. Публикуваме го до 24 часа, на страницата на историята, без коментар.</p>
 <p>Медия, която не иска да бъде четена или да бъде показвана с лого, може да ни пише или просто да го забрани в robots.txt — спираме сами.</p>
 </div>
 <div class="prose panel">
@@ -1017,7 +1026,7 @@ ${operator}
 </div>
 <div class="prose panel">
 <h2 class="panel-title">Лични данни</h2>
-<p><b>За посетителите.</b> Сайтът няма бисквитки, реклами, анализи на посещенията и проследяване. Страниците се доставят от Cloudflare, който обработва IP адреса на всеки посетител, за да ги достави и защити. Кои истории са отворени, кои се следят и дали обясненията са затворени, се пази само в браузъра на посетителя (localStorage) и не се изпраща никъде; може да се изтрие с бутона по-долу. Видео от YouTube се зарежда едва когато бъде пуснато; тогава YouTube (Google) получава данни за посещението по своите правила.</p>
+<p><b>За посетителите.</b> Сайтът няма бисквитки, реклами, анализи на посещенията и проследяване. Страниците се доставят от Cloudflare, който обработва IP адреса на всеки посетител, за да ги достави и защити. Кои истории са отворени, кои се следят и дали обясненията са затворени, се пази само в браузъра на посетителя (localStorage) и не се изпраща никъде; може да се изтрие с бутона по-долу. Картинките на видеата се зареждат от сървъра за изображения на YouTube (i.ytimg.com), който вижда IP адреса на посетителя; самото видео се зарежда едва когато бъде пуснато, и тогава YouTube (Google) получава данни за посещението по своите правила.</p>
 <p><b>За хората в новините.</b> Историите съдържат имена и изявления на хора от публикувани материали. Те се обработват за журналистически цели, за свободата на изразяване и правото на информация (чл. 85 от Регламент (ЕС) 2016/679 и чл. 25з от Закона за защита на личните данни). Текстовете на материалите се обработват от Anthropic като обработващ лични данни. Всеки може да поиска поправка или премахване на ${mail}.</p>
 <p><button type="button" class="btn btn-ghost" data-forget>Изтрий какво помни браузърът ми за сайта</button></p>
 </div>
@@ -1193,7 +1202,7 @@ export async function buildSite(state, { now = Date.now(), outDir = OUT_DIR, ima
         // During an election silence, nothing about polls, here either.
         if (state.silence && isPollStory(m)) continue;
         built.add(m.id);
-        write(path.join(outDir, 's', m.id, 'index.html'), memoryPage(state, m, ranked, now));
+        write(path.join(outDir, 's', m.id, 'index.html'), memoryPage(m));
     }
     const urls = ['/', '/about/', '/corrections/', '/sources/', ...ranked.map((r) => `/s/${r.story.id}/`)];
     write(

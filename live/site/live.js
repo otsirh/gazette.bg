@@ -234,7 +234,8 @@ async function swapIn() {
 }
 
 async function checkForUpdate() {
-    if (document.hidden) return;
+    // A page that never changes (a remembered story) is not refreshed.
+    if (document.hidden || document.body.dataset.static !== undefined) return;
     try {
         const res = await fetch(`/version.json?t=${Date.now()}`, { cache: 'no-store' });
         if (!res.ok) return;

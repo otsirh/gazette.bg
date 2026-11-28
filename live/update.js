@@ -21,7 +21,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createLogger, isMain } from '../scripts/lib/cli.js';
 import { buildSite, OUT_DIR } from './build.js';
-import { clusterItems, OVERVIEW_MODEL, proofread, writeOverview, writeStory } from './lib/ai.js';
+import { clusterItems, OVERVIEW_MODEL, proofread, rewordSummary, writeOverview, writeStory } from './lib/ai.js';
 import { fillPlaces, frameStories, mergeSame, pastFor, readParliament, recheckSensitive, retire } from './lib/depth.js';
 import { articleText, fetchText, isOffTopic, itemId, mapLimit, parseFeed, parseList, siteOf } from './lib/feeds.js';
 import { acceptCommitments, recordCommitments } from './lib/ledger.js';
@@ -235,7 +235,7 @@ function newStoryId(seed) {
     return createHash('sha256').update(seed).digest('base64url').replace(/[-_]/g, '').slice(0, 8).toLowerCase();
 }
 
-function toItem(e) {
+export function toItem(e) {
     const item = {
         id: itemId(e.url),
         source: e.source,
@@ -243,7 +243,9 @@ function toItem(e) {
         title: e.title,
         url: e.url,
         at: e.at,
-        description: e.description,
+        // A source whose terms allow only its headline and link gives the
+        // model nothing more, not even its feed's excerpt.
+        description: SOURCE_BY_ID.get(e.source)?.headlinesOnly ? '' : e.description,
         pending: true,
     };
     if (e.videoId) item.videoId = e.videoId;
@@ -451,12 +453,25 @@ export async function update({ now = Date.now() } = {}) {
         let result;
         try {
             // A story written for the first time may continue an earlier one.
-            const past = story.summary ? [] : pastFor(state, story, now);
+            const past = story.summary ? [] : pastFor(state, story, now, pending);
             result = await writeStory({ story, newItems: pending, texts, sourceName, meter, past });
             result.past = past;
             // Our own words only: anything that copies twelve words in a row
             // from a source, outside a quote, is dropped.
             const sources = [...texts.values(), ...pending.map((i) => `${i.title} ${i.description ?? ''}`)];
+            // A story with no summary yet gets one in other words, rather
+            // than none: a card without a summary says nothing.
+            if (copiesSource(result.summary, sources) && !story.summary && canSpend()) {
+                try {
+                    result.summary = await rewordSummary({
+                        summary: result.summary,
+                        meter,
+                        label: `reword ${story.id}`,
+                    });
+                } catch (err) {
+                    log(`Rewording ${story.id} failed: ${err.message}`, 'WARN');
+                }
+            }
             if (copiesSource(result.summary, sources)) result.summary = '';
             if (copiesSource(result.background, sources)) result.background = '';
             result.events = (result.events ?? []).filter((e) => !copiesSource(e.what, sources));

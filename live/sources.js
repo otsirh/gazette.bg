@@ -661,16 +661,6 @@ export const SOURCES = [
         why: 'Емисиите на Euronews Bulgaria.',
         aliases: [],
     },
-    {
-        id: 'evrokom-yt',
-        name: 'Евроком (видео)',
-        home: 'https://www.youtube.com/channel/UCYRY_SSdXPpeV8oxI96Q51w',
-        feed: yt('UCYRY_SSdXPpeV8oxI96Q51w'),
-        kind: 'video',
-        tier: 3,
-        why: 'Телевизия с лиценз от СЕМ; предаванията ѝ.',
-        aliases: ['Евроком', 'ТВ „Евроком“'],
-    },
 
     // 3 — independent authors: a known person, no outlet behind them
     {
