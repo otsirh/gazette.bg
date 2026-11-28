@@ -383,6 +383,15 @@ export const WANTED = [
         contact: '',
         note: 'Каналът UCGKMX5rSDuaEnfN5d9FjfgQ няма клип от май 2026; партията не е в парламента.',
     },
+    {
+        id: 'tasheva-yt',
+        name: 'Отвъд заглавията (видео)',
+        why: 'gone',
+        since: '2026-11',
+        check: { robotsOf: 'https://www.youtube.com' },
+        contact: '',
+        note: 'Каналът UCMNokTD7DK4o22P6UrIqm-g беше на Магдалена Ташева, която почина на 19.10.2025; продължава да публикува, но не е ясно кой отговаря за него (правило 2). Да се върне, ако каналът посочи автор.',
+    },
 ];
 
 export const DECLINED = [

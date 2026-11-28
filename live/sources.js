@@ -718,17 +718,6 @@ export const SOURCES = [
         aliases: ['Явор Дачков', 'Гласове'],
     },
     {
-        id: 'tasheva-yt',
-        name: 'Магдалена Ташева (видео)',
-        home: 'https://www.youtube.com/channel/UCMNokTD7DK4o22P6UrIqm-g',
-        feed: yt('UCMNokTD7DK4o22P6UrIqm-g'),
-        kind: 'video',
-        tier: 3,
-        independent: true,
-        why: 'Журналист, бивш депутат; „Отвъд заглавията“, издържа се от абонати.',
-        aliases: ['Магдалена Ташева'],
-    },
-    {
         id: 'ahchieva-yt',
         name: 'Валя Ахчиева (видео)',
         home: 'https://www.youtube.com/channel/UCQ3OQJj6xio_-7bzNLtSo_g',
