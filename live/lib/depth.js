@@ -3,10 +3,11 @@
 // it in parliament, and the outlets' track record once it is over.
 
 import { outletOf, SOURCE_BY_ID, tierOf } from '../sources.js';
-import { classifyPlaces, findSameStories, frameStory, parliamentQuotes } from './ai.js';
+import { classifyPlaces, findSameStories, frameStory, parliamentQuotes, stillSensitive } from './ai.js';
 import { fetchText, toText } from './feeds.js';
 import { addContributions, rankStories } from './stories.js';
 import { tidy } from './text.js';
+import { videoDetails, videoIdOf } from './youtube.js';
 
 const DAY = 24 * 3600 * 1000;
 const MEMORY_DAYS = 90;
@@ -149,6 +150,46 @@ export async function mergeSame(state, now, meter, log) {
         state.stories = state.stories.filter((s) => !g.merge.includes(s.id));
         log(`Merged ${g.merge.join(', ')} into ${g.keep}: ${keep.title}`);
     }
+}
+
+// ─── The narrower sensitive rule (2) ────────────────────────────────────
+
+// Once: stories flagged under the first, broader rule (any victim of
+// violence) are checked again under the narrower one. A story that no longer
+// qualifies gets its videos back, with title and "made for kids" read again
+// from YouTube. Outlet headlines removed under the old rule stay removed.
+export async function recheckSensitive(state, meter, log, ytKey) {
+    if ((state.sensitiveRule ?? 1) >= 2) return;
+    const flagged = state.stories.filter((s) => s.sensitive);
+    if (!flagged.length) {
+        state.sensitiveRule = 2;
+        return;
+    }
+    if (!ytKey) return;
+    let keep;
+    let details;
+    const cleared = [];
+    try {
+        keep = await stillSensitive({ stories: flagged, meter });
+        for (const s of flagged) if (!keep.has(s.id)) cleared.push(s);
+        const ids = cleared.flatMap((s) => s.items.filter((i) => i.kind === 'video').map((i) => videoIdOf(i.url)));
+        details = await videoDetails([...new Set(ids.filter(Boolean))], ytKey);
+    } catch (err) {
+        log(`Sensitive recheck failed: ${err.message}`, 'WARN');
+        return;
+    }
+    for (const s of cleared) {
+        delete s.sensitive;
+        for (const i of s.items) {
+            const d = i.kind === 'video' && details.get(videoIdOf(i.url));
+            if (!d) continue;
+            i.videoId = videoIdOf(i.url);
+            i.title = d.title;
+            if (d.forKids) i.forKids = true;
+        }
+        log(`No longer sensitive under the narrower rule: ${s.title}`);
+    }
+    state.sensitiveRule = 2;
 }
 
 // ─── Parliament ─────────────────────────────────────────────────────────

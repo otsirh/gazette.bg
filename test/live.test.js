@@ -447,3 +447,19 @@ test('hot cards: video cards and lone text cards take the whole row, text cards 
     assert.deepEqual(wideCards([true, false, false, false, true]), [true, false, false, true, true]);
     assert.deepEqual(wideCards([]), []);
 });
+
+test('video ids come back from watch links only', async () => {
+    const { videoIdOf } = await import('../live/lib/youtube.js');
+    assert.equal(videoIdOf('https://www.youtube.com/watch?v=KijPv5Z9N9M'), 'KijPv5Z9N9M');
+    assert.equal(videoIdOf('https://www.youtube.com/watch?v=<script>'), null);
+    assert.equal(videoIdOf('https://btvnovinite.bg/a/b'), null);
+    assert.equal(videoIdOf('not a url'), null);
+});
+
+test('the sensitive rule names children, sexual and domestic violence, not every victim', async () => {
+    const { SENSITIVE_RULE } = await import('../live/lib/ai.js');
+    assert.match(SENSITIVE_RULE, /под 18/);
+    assert.match(SENSITIVE_RULE, /сексуално насилие/);
+    assert.match(SENSITIVE_RULE, /домашно насилие/);
+    assert.match(SENSITIVE_RULE, /не е основание/);
+});

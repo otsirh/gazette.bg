@@ -61,3 +61,27 @@ export async function madeForKids(ids, key) {
     }
     return out;
 }
+
+// The video id in a watch link.
+export const videoIdOf = (url) => {
+    try {
+        const id = new URL(url).searchParams.get('v');
+        return /^[\w-]{6,20}$/.test(id ?? '') ? id : null;
+    } catch {
+        return null;
+    }
+};
+
+// Title and "made for kids" for each video that still exists.
+export async function videoDetails(ids, key) {
+    const out = new Map();
+    for (let i = 0; i < ids.length; i += 50) {
+        const data = await call('videos', { part: 'snippet,status', id: ids.slice(i, i + 50).join(',') }, key);
+        for (const v of data.items ?? [])
+            out.set(v.id, {
+                title: String(v.snippet?.title ?? '').slice(0, 300),
+                forKids: Boolean(v.status?.madeForKids),
+            });
+    }
+    return out;
+}

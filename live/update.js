@@ -22,7 +22,7 @@ import { fileURLToPath } from 'node:url';
 import { createLogger, isMain } from '../scripts/lib/cli.js';
 import { buildSite, OUT_DIR } from './build.js';
 import { clusterItems, proofread, writeOverview, writeStory } from './lib/ai.js';
-import { fillPlaces, frameStories, mergeSame, pastFor, readParliament, retire } from './lib/depth.js';
+import { fillPlaces, frameStories, mergeSame, pastFor, readParliament, recheckSensitive, retire } from './lib/depth.js';
 import { articleText, fetchText, isOffTopic, itemId, mapLimit, parseFeed, parseList, siteOf } from './lib/feeds.js';
 import { applyBlocklist, copiesSource, inElectionSilence, loadPolicy } from './lib/policy.js';
 import { aiRefused, pathAllowed, tdmReserved } from './lib/robots.js';
@@ -427,6 +427,7 @@ export async function update({ now = Date.now() } = {}) {
 
     // ─── Depth: places, how each side tells it, parliament ──────────────
     if (canSpend()) await mergeSame(state, now, meter, log);
+    if (canSpend()) await recheckSensitive(state, meter, log, process.env.YOUTUBE_API_KEY);
     if (canSpend()) await fillPlaces(state, meter, log);
     await frameStories(state, now, meter, canSpend, log, proof);
     await readParliament(state, now, meter, canSpend, log, proof);
