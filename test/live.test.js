@@ -526,3 +526,12 @@ test('originOf: an institution broke the news, a quoted person did not', async (
     assert.equal(byPerson.name, 'Медиапул');
     assert.equal(byPerson.words, 'Бойко Борисов');
 });
+
+test("one outlet's channels count as one outlet", async () => {
+    const { outletOf } = await import('../live/sources.js');
+    assert.equal(outletOf('nova-yt'), 'nova');
+    assert.equal(outletOf('nova-official-yt'), 'nova');
+    assert.equal(outletOf('tvoyatden-yt'), 'nova');
+    const s = story([item('a', 'nova-yt', 2), item('b', 'tvoyatden-yt', 1), item('c', 'nova-official-yt', 1)]);
+    assert.equal(trustOf(s).outlets, 1);
+});
