@@ -980,3 +980,21 @@ test('„Току-що“ opens the outlet’s own article, not our page', async
     assert.ok(!rail.includes('href="/s/'));
     fs.rmSync(out, { recursive: true, force: true });
 });
+
+test('one answer from the writer only asks to hide a story; a check that cannot run hides it anyway', async () => {
+    const { confirmSensitive } = await import('../live/lib/depth.js');
+    const a = item('a', 'bta', 1, { pending: true });
+    const s = story([a], { id: 'ask12345' });
+    applyWrite(s, [a], { title: 'Т', summary: 'О', disputed: '', items: [], events: [], sensitive: true }, NOW);
+    assert.equal(s.sensitive, undefined, 'not hidden on the writer’s word alone');
+    assert.equal(s.sensitiveAsked, true);
+    const state = { stories: [s] };
+    await confirmSensitive(
+        state,
+        { usd: 0, calls: 0 },
+        () => false,
+        () => {},
+    );
+    assert.equal(s.sensitive, true, 'no check possible: hidden, to be safe');
+    assert.equal(s.sensitiveAsked, undefined);
+});
