@@ -954,3 +954,31 @@ test('a story that weighs much but is little written about is shown under „Т�
     assert.ok(!section.includes('loud1234'));
     fs.rmSync(out, { recursive: true, force: true });
 });
+
+test('the river of the day: half-hour counts, plain words, and nothing raw from a title', async () => {
+    const { riverData, riverSay, riverSvg, RIVER } = await import('../live/lib/river.js');
+    const mk = (id, title, hours) => ({
+        story: { id, title, items: hours.map((h, i) => item(`${id}${i}`, 'bta', h)) },
+        heat: hours.length,
+        level: { id: 'hot' },
+    });
+    const a = mk('aaaa1111', 'Снегът <b>', [23, 22, 21, 20, 13, 12, 1, 0.5, 0.2]);
+    const b = mk('bbbb2222', 'Протестът', [12.5, 12.2, 11.8, 11.5]);
+    const data = riverData([a, b], NOW);
+    assert.equal(data.series.length, 2);
+    assert.equal(
+        data.series[0].raw.reduce((x, y) => x + y, 0),
+        9,
+    );
+    assert.equal(data.series[0].raw[RIVER.bins - 1], 2, 'the last half hour holds the two newest items');
+    const say = riverSay(data);
+    assert.deepEqual(
+        say.map((l) => l.when),
+        ['Преди 12 часа', 'Сега'],
+        'nothing six hours ago, so that line is left out',
+    );
+    assert.equal(say[0].id, 'bbbb2222');
+    const svg = riverSvg(data, { clock: (ms, hourOnly) => (hourOnly ? 12 : '12:00') });
+    assert.ok(!svg.includes('<b>'), 'titles are escaped');
+    assert.match(svg, /href="\/s\/aaaa1111\/"/);
+});

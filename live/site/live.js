@@ -364,7 +364,70 @@ document.addEventListener('keydown', (e) => {
 
 // ─── Wiring ─────────────────────────────────────────────────────────────
 
+// ─── The river of the day ───────────────────────────────────────────────
+
+// Along the river, any half hour: the time and what was written about most
+// then. Pointer or finger over the river, or the arrow keys.
+function initRiver() {
+    const box = document.querySelector('[data-river]');
+    if (!box) return;
+    let data;
+    try {
+        data = JSON.parse(box.querySelector('[data-river-json]').textContent);
+    } catch {
+        return;
+    }
+    const read = box.querySelector('[data-river-read]');
+    const clock = new Intl.DateTimeFormat('bg-BG', { timeZone: 'Europe/Sofia', hour: '2-digit', minute: '2-digit' });
+    let at = data.bins - 1;
+    const show = (b) => {
+        at = Math.max(0, Math.min(data.bins - 1, b));
+        for (const svg of box.querySelectorAll('svg.river')) {
+            const x = String((at / (data.bins - 1)) * svg.viewBox.baseVal.width);
+            const cursor = svg.querySelector('.river-cursor');
+            cursor.setAttribute('x1', x);
+            cursor.setAttribute('x2', x);
+        }
+        const top = data.s
+            .map((s) => ({ s, v: s.b[at] }))
+            .filter((r) => r.v > 0)
+            .sort((a, c) => c.v - a.v)
+            .slice(0, 3);
+        const time = document.createElement('b');
+        time.className = 'river-time';
+        time.textContent = clock.format(data.start + at * data.binMs);
+        const rows = top.length
+            ? top.map(({ s, v }) => {
+                  const a = document.createElement('a');
+                  a.href = `/s/${s.id}/`;
+                  const n = document.createElement('span');
+                  n.className = 'river-n';
+                  n.textContent = String(v);
+                  a.append(n, document.createTextNode(s.t));
+                  return a;
+              })
+            : [Object.assign(document.createElement('span'), { textContent: 'Тишина: почти никой не пише.' })];
+        read.replaceChildren(time, ...rows);
+    };
+    for (const svg of box.querySelectorAll('svg.river')) {
+        svg.addEventListener('pointermove', (e) => {
+            const r = svg.getBoundingClientRect();
+            const b = Math.round(((e.clientX - r.left) / r.width) * (data.bins - 1));
+            // only a new half hour is read out (and announced)
+            if (b !== at) show(b);
+        });
+    }
+    read.addEventListener('keydown', (e) => {
+        if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
+            e.preventDefault();
+            show(at + (e.key === 'ArrowLeft' ? -1 : 1));
+        }
+    });
+    show(at);
+}
+
 function decorate() {
+    initRiver();
     tick();
     const counts = markSince();
     sinceBar(counts);

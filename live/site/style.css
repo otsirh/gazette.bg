@@ -329,6 +329,103 @@ button {
     box-shadow: var(--shadow);
     overflow: hidden;
 }
+.river-box {
+    margin: 0 0 22px;
+}
+.river-say {
+    display: grid;
+    gap: 4px;
+    margin: 0 0 6px;
+    font-size: 16px;
+    line-height: 1.4;
+}
+.river-say b {
+    color: var(--muted);
+    font-weight: 650;
+}
+.river-say a {
+    color: var(--text);
+    font-weight: 650;
+}
+.river-how {
+    margin: 0 0 10px;
+    color: var(--muted);
+    font-size: 13.5px;
+}
+.river {
+    display: block;
+    width: 100%;
+    height: auto;
+    touch-action: pan-y;
+    cursor: crosshair;
+}
+.river-narrow {
+    display: none;
+}
+@media (max-width: 640px) {
+    .river-wide {
+        display: none;
+    }
+    .river-narrow {
+        display: block;
+    }
+}
+.river-band {
+    stroke: var(--bg);
+    stroke-width: 0.6;
+    opacity: 0.92;
+}
+.river-band:hover {
+    opacity: 1;
+}
+.river-night {
+    fill: var(--text);
+    opacity: 0.035;
+}
+.river-label {
+    fill: #121418;
+    font-weight: 700;
+    text-anchor: middle;
+    pointer-events: none;
+}
+.river-tick {
+    fill: var(--muted);
+    text-anchor: middle;
+}
+.river-cursor {
+    stroke: var(--text);
+    stroke-width: 1.5;
+    opacity: 0.75;
+}
+.river-read {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px 16px;
+    align-items: baseline;
+    min-height: 2.6em;
+    margin-top: 8px;
+    font-size: 14.5px;
+}
+.river-time {
+    font-family: var(--display);
+    font-size: 18px;
+    font-variant-numeric: tabular-nums;
+}
+.river-read a {
+    color: var(--text);
+    text-decoration: none;
+    min-width: 0;
+}
+.river-read a:hover {
+    text-decoration: underline;
+}
+.river-n {
+    color: var(--hot);
+    font-weight: 750;
+    margin-right: 6px;
+    font-variant-numeric: tabular-nums;
+}
+
 .hero-kicker {
     display: flex;
     align-items: center;
