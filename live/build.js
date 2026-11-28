@@ -35,7 +35,7 @@ const CONTACT = /^[^\s@<>"]+@[^\s@<>"]+\.[a-z]{2,}$/i.test(process.env.LIVE_CONT
 const HOUR = 3600 * 1000;
 
 // Bumped by hand when style.css or live.js change, so browsers fetch them anew.
-const ASSET_VERSION = '32';
+const ASSET_VERSION = '33';
 
 const shortHash = (t) => createHash('sha1').update(String(t)).digest('base64url').slice(0, 8);
 
@@ -81,40 +81,49 @@ const timeEl = (ms, now, rel = false) =>
 
 // The outlet's name; its YouTube channel is the same outlet, shown with ▶
 // where it matters rather than "(видео)" after every name.
-const displayName = (id) => (SOURCE_BY_ID.get(id)?.name ?? id).replace(/ \(видео\)$/, '');
+// A name with a number in it reads like a time („24 часа · преди 26 мин“):
+// it goes in quotes.
+const displayName = (id) => {
+    const name = (SOURCE_BY_ID.get(id)?.name ?? id).replace(/ \(видео\)$/, '');
+    return /\d/.test(name) && !/[„"]/.test(name) ? `„${name}“` : name;
+};
 const sourceLabel = (id) => esc(displayName(id));
 // An outlet's headline, or, where a story touches a child or a victim and the
 // headline is withheld, just whose material it is.
-const itemTitle = (it) => it.title || `Материал на ${displayName(it.source)}`;
+const itemTitle = (it) => it.title || `Публикация на ${displayName(it.source)}`;
 const plural = (n, one, many) => `${n} ${n === 1 ? one : many}`;
 
 // ─── What kind of voice a source is ─────────────────────────────────────
 
 const KINDS = {
     first: {
-        one: 'първоизточник',
-        many: 'първоизточника',
-        title: 'Първоизточници',
-        long: 'Първоизточник — институцията или човекът говорят сами',
+        one: 'от първа ръка',
+        many: 'от първа ръка',
+        title: 'От първа ръка',
+        long: 'От първа ръка – самата институция или човекът казват това',
     },
-    public: { one: 'обществена медия', many: 'обществени медии', long: 'Агенция или обществена медия' },
-    editorial: { one: 'редакционна медия', many: 'редакционни медии', long: 'Редакционна медия с известен собственик' },
+    public: {
+        one: 'обществена медия',
+        many: 'обществени медии',
+        long: 'Обществена медия или агенция (БНТ, БНР, БТА)',
+    },
+    editorial: { one: 'частна медия', many: 'частни медии', long: 'Частна медия с редакция и известен собственик' },
     independent: {
-        one: 'независим автор',
-        many: 'независими автори',
-        long: 'Независим автор — известен човек, без редакция зад него',
+        one: 'автор на своя страница',
+        many: 'автори на свои страници',
+        long: 'Автор на своя страница – известен човек, без редакция',
     },
     partisan: {
-        one: 'партиен канал',
-        many: 'партийни канала',
-        title: 'Партийни канали',
-        long: 'Партиен канал — позиция, не проверен факт',
+        one: 'канал на партия',
+        many: 'канала на партии',
+        title: 'Канали на партии',
+        long: 'Канал на партия – мнението на партията, не проверен факт',
     },
     unverified: {
-        one: 'непроверен източник',
-        many: 'непроверени източника',
-        title: 'Непроверени източници',
-        long: 'Непроверен източник или без подпис',
+        one: 'сайт с неясен собственик',
+        many: 'сайта с неясен собственик',
+        title: 'Сайтове с неясен собственик',
+        long: 'Сайт, за който не знаем кой стои зад него, или текст без автор',
     },
 };
 const kindCount = (k, n) => `${n} ${n === 1 ? KINDS[k].one : KINDS[k].many}`;
@@ -191,9 +200,9 @@ export const tempOf = (heat) => Math.max(1, Math.min(99, Math.round((Math.log1p(
 
 const TREND = {
     new: { sym: '✦', label: 'нова' },
-    up: { sym: '▲', label: 'разгаря се' },
-    steady: { sym: '■', label: 'държи се' },
-    down: { sym: '▼', label: 'отслабва' },
+    up: { sym: '▲', label: 'пишат все повече' },
+    steady: { sym: '●', label: 'пишат все така' },
+    down: { sym: '▼', label: 'пишат все по-малко' },
 };
 
 function sparkSvg(counts) {
@@ -212,7 +221,7 @@ function sparkSvg(counts) {
 }
 
 function tempBadge(r) {
-    return `<span class="temp heat-${r.level.id}" title="Нажеженост: колко се говори в момента"><b>${tempOf(r.heat)}°</b></span>`;
+    return `<span class="temp heat-${r.level.id}" title="Колко медии пишат за новината сега (градусите не са времето навън)"><b>${tempOf(r.heat)}°</b></span>`;
 }
 
 // On a card: only which way it is going. The level ("Гореща") is the group
@@ -225,7 +234,7 @@ function cardTrend(r) {
 function chips(r, now) {
     const t = TREND[r.trend];
     const lastHour = r.story.items.filter((i) => now - i.at < HOUR).length;
-    return `<span class="lvl heat-${r.level.id}">${esc(r.level.label)}</span><span class="trend trend-${r.trend}">${t.sym} ${esc(t.label)}</span>${lastHour ? `<span class="fresh">+${lastHour} за последния час</span>` : ''}`;
+    return `<span class="lvl heat-${r.level.id}">${esc(r.level.label)}</span><span class="trend trend-${r.trend}">${t.sym} ${esc(t.label)}</span>${lastHour ? `<span class="fresh">+${plural(lastHour, 'публикация', 'публикации')} за последния час</span>` : ''}`;
 }
 
 const videosOf = (story) =>
@@ -283,7 +292,7 @@ function topbar(state, now, { status = true } = {}) {
     <div class="wrap topbar-inner">
         <a class="skip" href="#main">Към съдържанието</a>
         <a class="brand" href="/"><span class="live-dot" aria-hidden="true"></span><span class="brand-live">НА ЖИВО</span><span class="brand-name">live.gazette.bg</span></a>
-        ${status ? `<span class="status" data-status>обновено ${timeEl(state.updatedAt || now, now, true)}</span>` : '<span class="status"></span>'}
+        ${status ? `<span class="status" data-status>проверено ${timeEl(state.updatedAt || now, now, true)}</span>` : '<span class="status"></span>'}
     </div>
 </header>`;
 }
@@ -293,7 +302,7 @@ function footer() {
     <div class="wrap footer-inner">
         <div class="footer-brand"><span class="live-dot" aria-hidden="true"></span> live.gazette.bg</div>
         <ul class="legend">${KIND_ORDER.map((k) => `<li><i class="kd k-${k}"></i>${esc(KINDS[k].long)}</li>`).join('')}</ul>
-        <p>Историите и обобщенията се съставят автоматично с изкуствен интелект (Claude на Anthropic) от ${SOURCES.length} източника и може да съдържат грешки. Всяко твърдение води към материала, от който е взето.</p>
+        <p>Текстовете тук не ги пише журналист: пише ги компютърна програма с изкуствен интелект (Claude на фирмата Anthropic) по публикациите на ${SOURCES.length} медии и институции. Може да сбърка. Всяко твърдение води към публикацията, от която е взето – проверявай там.</p>
         <p><a href="/about/">За сайта, поправки и поверителност</a> · <a href="/corrections/">Поправки</a> · <a href="/sources/">Източници и как се оценяват</a></p>
     </div>
 </footer>`;
@@ -394,12 +403,13 @@ function heroBlock(state, ranked, mainCount, now) {
               })
               .join(
                   '',
-              )}</ol>${lines.length > 3 ? `<button type="button" class="brief-more" data-brief-more>Още ${lines.length - 3} ↓</button>` : ''}`
+              )}</ol>${lines.length > 3 ? `<button type="button" class="brief-more" data-brief-more>Още ${plural(lines.length - 3, 'новина', 'новини')} ↓</button>` : ''}`
         : '';
     return `<section class="hero" aria-labelledby="hero-title">
     <p class="hero-kicker"><span class="live-dot" aria-hidden="true"></span>${esc(fmtLongDay.format(now))}</p>
     <h1 id="hero-title" class="hero-title">Какво се случва<br>в България сега</h1>
-    <p class="hero-stats"><span><b>${mainCount}</b> ${mainCount === 1 ? 'актуална история' : 'актуални истории'}</span><span><b class="t-hot">${hot}</b> ${hot === 1 ? 'гореща' : 'горещи'}</span><span><b>${outletsToday}</b> ${outletsToday === 1 ? 'медия' : 'медии'} днес</span></p>
+    <p class="hero-stats"><span><b>${mainCount}</b> ${mainCount === 1 ? 'новина сега' : 'новини сега'}</span><span><b class="t-hot">${hot}</b> ${hot === 1 ? 'гореща' : 'горещи'}</span><span><b>${outletsToday}</b> ${outletsToday === 1 ? 'медия' : 'медии'} днес</span></p>
+    <p class="hero-note"><b class="t-hot">°</b> Градусите показват колко се пише за новината сега, а не времето навън.</p>
     ${brief}
 </section>`;
 }
@@ -409,11 +419,11 @@ function welcomeBlock() {
     return `<details class="welcome" data-welcome hidden>
     <summary><span>Нов си тук? <b>Как се чете страницата</b></span></summary>
     <ul class="welcome-points">
-        <li><span class="wp-icon wp-hot">87°</span><span><b>Горещото е отгоре.</b> Колкото повече медии пишат, толкова по-високо. Щом спрат, историята изстива и изчезва.</span></li>
+        <li><span class="wp-icon wp-hot">87°</span><span><b>Горещото е отгоре.</b> Градусите не са времето навън: колкото повече медии пишат за новината, толкова повече градуса. Щом спрат, новината изстива и изчезва.</span></li>
         <li><span class="wp-icon wp-ok">✓</span><span><b>Знаеш на кого да вярваш.</b> Кой пръв е съобщил новината, колко медии я потвърждават и какви са.</span></li>
         <li><span class="wp-icon wp-vid">▶</span><span><b>Чуваш хората сами.</b> Видеата от телевизиите, институциите и партиите, на едно място.</span></li>
     </ul>
-    <button type="button" class="btn" data-welcome-close>Ясно, скрий</button>
+    <button type="button" class="btn" data-welcome-close>Ясно, затвори</button>
 </details>`;
 }
 
@@ -438,11 +448,11 @@ function justIn(ranked, now) {
 
 function howBox() {
     return `<section class="rail-box how" aria-labelledby="how">
-    <h2 id="how" class="rail-title">Как да четеш</h2>
-    <p><b class="t-hot">87°</b> Нажеженост: колко медии пишат сега. Без нови материали пада наполовина за около 6 часа; нощем, когато никой не пише, почти не изстива.</p>
-    <p><span class="cov cov-mini"><span class="cov-bar"><i class="k-first" style="flex:1"></i><i class="k-public" style="flex:1"></i><i class="k-editorial" style="flex:3"></i><i class="k-independent" style="flex:1"></i><i class="k-partisan" style="flex:1"></i><i class="k-unverified" style="flex:1"></i></span></span>Кой отразява историята: първоизточници, обществени и редакционни медии, независими автори, партийни канали, непроверени.</p>
-    <p><b class="t-weight">⚖ Важно</b> Тежест: кого засяга историята, колко обществени пари, дали вече е решено правило за много хора и колко ще трае. Не зависи от това колко се пише.</p>
-    <p>Щом с <kbd>Tab</kbd> стигнеш до история: <kbd>J</kbd> <kbd>K</kbd> – следваща и предишна, <kbd>Enter</kbd> – отвори.</p>
+    <h2 id="how" class="rail-title">Как се чете страницата</h2>
+    <p><b class="t-hot">87°</b> Градусите показват колко медии пишат за новината сега, не времето навън. Щом спрат да пишат, градусите падат; нощем, когато почти никой не пише, падат бавно.</p>
+    <p><span class="cov cov-mini"><span class="cov-bar"><i class="k-first" style="flex:1"></i><i class="k-public" style="flex:1"></i><i class="k-editorial" style="flex:3"></i><i class="k-independent" style="flex:1"></i><i class="k-partisan" style="flex:1"></i><i class="k-unverified" style="flex:1"></i></span></span>Цветната лента показва кой пише: от първа ръка, обществени медии, частни медии, автори на свои страници, канали на партии, сайтове с неясен собственик.</p>
+    <p><b class="t-weight">⚖ Засяга много хора</b>: вече приет закон или правило, пари от държавата или общината, последици за дълго. Не зависи от това колко се пише.</p>
+    <p>Щом с <kbd>Tab</kbd> стигнеш до новина: <kbd>J</kbd> <kbd>K</kbd> – следваща и предишна, <kbd>Enter</kbd> – отвори.</p>
     <p><a href="/sources/">Всички ${SOURCES.length} източника →</a></p>
 </section>`;
 }
@@ -467,7 +477,7 @@ function frontPage(state, ranked, now) {
         .slice(0, 15);
     const groups = [];
     if (hot.length) {
-        groups.push(`<section class="group" aria-labelledby="g-hot"><h2 id="g-hot" class="group-title t-hot">Горещо <span>за това се говори най-много</span></h2>
+        groups.push(`<section class="group" aria-labelledby="g-hot"><h2 id="g-hot" class="group-title t-hot">Горещо <span>за това се пише най-много сега</span></h2>
 <ol class="cards cards-big">${(() => {
             const wide = wideCards(hot.map((r) => videosOf(r.story).length > 0));
             return hot.map((r, i) => storyCard(r, now, { big: true, wide: wide[i] })).join('');
@@ -478,15 +488,15 @@ function frontPage(state, ranked, now) {
 <ol class="cards">${quiet.map((r) => storyCard(r, now)).join('')}</ol></section>`);
     }
     if (warm.length) {
-        groups.push(`<section class="group" aria-labelledby="g-warm"><h2 id="g-warm" class="group-title t-warm">Актуално</h2>
+        groups.push(`<section class="group" aria-labelledby="g-warm"><h2 id="g-warm" class="group-title t-warm">Още новини <span>пише се за тях, но не колкото за горещите</span></h2>
 <ol class="cards">${warm.map((r) => storyCard(r, now)).join('')}</ol></section>`);
     }
     if (cool.length) {
-        groups.push(`<section class="group" aria-labelledby="g-cool"><h2 id="g-cool" class="group-title">Утихва <span>вече се пише по-малко</span></h2>
+        groups.push(`<section class="group" aria-labelledby="g-cool"><h2 id="g-cool" class="group-title">По-тихо <span>за тези новини вече се пише рядко</span></h2>
 <ol class="rows">${cool.map((r) => rowItem(r, now, `${plural(r.trust.outlets, 'медия', 'медии')} · `)).join('')}</ol></section>`);
     }
     if (singles.length) {
-        groups.push(`<section class="group" aria-labelledby="g-single"><h2 id="g-single" class="group-title">Само от един източник <span>още непотвърдени</span></h2>
+        groups.push(`<section class="group" aria-labelledby="g-single"><h2 id="g-single" class="group-title">Пише само една медия <span>още не е потвърдено</span></h2>
 <ol class="rows rows-single">${singles.map((r) => rowItem(r, now, `${sourceLabel(r.story.items[0].source)} · `)).join('')}</ol></section>`);
     }
     const body = groups.length
@@ -600,7 +610,7 @@ function stat(label, value) {
 function moreBlock(r, ranked, now) {
     const others = ranked.filter((o) => o.story.id !== r.story.id && isMain(o)).slice(0, 4);
     if (!others.length) return '';
-    return `<section class="group more-stories" aria-labelledby="more"><h2 id="more" class="group-title t-hot">Още за това се говори сега</h2>
+    return `<section class="group more-stories" aria-labelledby="more"><h2 id="more" class="group-title t-hot">Още за това се пише сега</h2>
 <ol class="cards">${others.map((o) => storyCard(o, now)).join('')}</ol></section>`;
 }
 
@@ -630,7 +640,7 @@ function storyPage(state, r, ranked, now, { cold = false } = {}) {
     };
     const originStat = origin
         ? stat(
-              'Първи сред следените',
+              'Пръв написа',
               `${esc(origin.name)}<small>${timeEl(origin.at, now)}${origin.via && sourceLabel(origin.via) !== esc(origin.name) ? ` · по материал на ${sourceLabel(origin.via)}` : ''}${origin.words ? ` · по думите на ${esc(origin.words)}` : ''}</small>`,
           )
         : '';
@@ -662,18 +672,18 @@ function storyPage(state, r, ranked, now, { cold = false } = {}) {
 ${topbar(state, now)}
 <main id="main" class="wrap">
 <a class="back" href="/">← Всичко, което се случва сега</a>
-${cold ? '<p class="cold-note">Тази история изстина: за нея вече почти не се пише и я няма на началната страница. Страницата остава, за да работят споделените линкове.</p>' : ''}
+${cold ? '<p class="cold-note">Тази новина изстина: за нея вече почти не се пише и я няма на началната страница. Страницата остава, за да работят споделените линкове.</p>' : ''}
 <header class="story-head">
     <div class="card-top">${tempBadge(r)}${chips(r, now)}</div>
     <h1>${esc(s.title)}</h1>
     ${s.summary ? `<p class="lede">${esc(s.summary)}</p>` : ''}
-    <p class="ai-note">Обобщено автоматично с изкуствен интелект от ${plural(s.items.length, 'материал', 'материала')} на ${plural(r.trust.outlets, 'медия', 'медии')}. Всяко твърдение води към материала, от който е взето — проверявай там. <a href="/about/">Как работи</a></p>
+    <p class="ai-note">Написано автоматично от изкуствен интелект по ${plural(s.items.length, 'публикация', 'публикации')} на ${plural(r.trust.outlets, 'медия', 'медии')}. Може да има грешки: всяко твърдение води към публикацията, от която е взето, проверявай там. <a href="/about/">Как работи</a></p>
     <dl class="stats">
-        ${stat('Потвърждение', `<span class="trust trust-${r.trust.id}">${esc(r.trust.label)}</span>${coverageBar(s, { legend: true })}`)}
+        ${stat('Може ли да се вярва', `<span class="trust trust-${r.trust.id}">${esc(r.trust.label)}</span>${coverageBar(s, { legend: true })}`)}
         ${originStat}
-        ${stat('Медии', `${r.trust.outlets}<small>${plural(s.items.length, 'материал', 'материала')}${videos ? `, ${plural(videos, 'видео', 'видеа')}` : ''}</small>`)}
+        ${stat('Пишат', `${plural(r.trust.outlets, 'медия', 'медии')}<small>${plural(s.items.length, 'публикация', 'публикации')}${videos ? `, от тях ${plural(videos, 'видео', 'видеа')}` : ''}</small>`)}
         ${weightStat(s)}
-        ${stat('Нажеженост', `<span class="stat-temp heat-${r.level.id}">${tempOf(r.heat)}°</span>${sparkSvg(sparkline(s, now))}<small>колко се пише, последни 48 ч</small>`)}
+        ${stat('Колко се пише', `<span class="stat-temp heat-${r.level.id}">${tempOf(r.heat)}°</span>${sparkSvg(sparkline(s, now))}<small>колкото повече медии пишат сега, толкова повече градуса; стълбчетата са последните 48 часа</small>`)}
     </dl>
 </header>
 ${blocks.videos}
@@ -705,11 +715,11 @@ function memoryPage(m) {
 ${topbar({}, m.at, { status: false })}
 <main id="main" class="wrap">
 <a class="back" href="/">← Всичко, което се случва сега</a>
-<p class="cold-note">Тази история е от ${esc(fmtDate.format(m.at))}. Вече не се следи и подробностите ѝ не се пазят: тук е само обобщението ѝ.</p>
+<p class="cold-note">Тази новина е от ${esc(fmtDate.format(m.at))}. Вече не се следи и подробностите ѝ не се пазят: тук е само обобщението ѝ.</p>
 <header class="story-head">
     <h1>${esc(m.title)}</h1>
     ${m.summary ? `<p class="lede">${esc(m.summary)}</p>` : ''}
-    <p class="ai-note">Обобщено автоматично с изкуствен интелект. <a href="/about/">Как работи</a></p>
+    <p class="ai-note">Написано автоматично от изкуствен интелект. <a href="/about/">Как работи</a></p>
     <p><a class="btn" href="/">Виж какво се случва сега →</a></p>
 </header>
 </main>
@@ -1030,8 +1040,8 @@ export async function buildSite(state, { now = Date.now(), outDir = OUT_DIR, ima
     );
     write(
         path.join(outDir, '404.html'),
-        `${head({ title: 'Няма такава страница — live.gazette.bg', description: 'Тази история вече не е актуална.', canonical: `${SITE_ORIGIN}/`, image: `${SITE_ORIGIN}/og/home.png` })}
-<body data-version="${state.updatedAt}">${topbar(state, now)}<main id="main" class="wrap narrow"><header class="story-head"><h1>Тази история изстина</h1><p class="lede">За нея отдавна не се пише, затова е махната. Но точно сега се случва друго.</p><p><a class="btn" href="/">Виж какво се случва сега →</a></p></header></main>${footer()}</body></html>\n`,
+        `${head({ title: 'Няма такава страница — live.gazette.bg', description: 'Тази новина вече не е актуална.', canonical: `${SITE_ORIGIN}/`, image: `${SITE_ORIGIN}/og/home.png` })}
+<body data-version="${state.updatedAt}">${topbar(state, now)}<main id="main" class="wrap narrow"><header class="story-head"><h1>Тази новина изстина</h1><p class="lede">За нея отдавна не се пише, затова е махната. Но точно сега се случва друго.</p><p><a class="btn" href="/">Виж какво се случва сега →</a></p></header></main>${footer()}</body></html>\n`,
     );
     for (const f of ['style.css', 'live.js', 'favicon.svg']) {
         fs.copyFileSync(path.join(HERE, 'site', f), path.join(outDir, f));

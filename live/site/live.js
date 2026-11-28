@@ -92,7 +92,7 @@ function markSince() {
         if (card.tagName === 'BODY') continue;
         const badge = document.createElement('span');
         badge.className = `badge-new${kind === 'upd' ? ' upd' : ''}`;
-        badge.textContent = kind === 'new' ? 'НОВО' : 'ОБНОВЕНО';
+        badge.textContent = kind === 'new' ? 'НОВО' : 'НОВО РАЗВИТИЕ';
         if (card.classList.contains('row')) card.querySelector('a').append(badge);
         else (card.querySelector('.ago') ?? card).before(badge);
         if (kind === 'new') fresh++;
@@ -105,7 +105,7 @@ function sinceBar({ fresh, updated }) {
     const box = document.querySelector('[data-since]');
     if (!box || (!fresh && !updated)) return;
     const parts = [];
-    if (fresh) parts.push(`<span class="pill">${fresh} ${fresh === 1 ? 'нова история' : 'нови истории'}</span>`);
+    if (fresh) parts.push(`<span class="pill">${fresh === 1 ? '1 е нова' : `${fresh} са нови`}</span>`);
     if (updated)
         parts.push(
             `<span class="pill" style="background:none;box-shadow:inset 0 0 0 1px var(--line);color:var(--text-2)">${updated} с нови развития</span>`,
@@ -153,7 +153,7 @@ async function swapIn() {
     document.title = doc.title;
     decorate();
     scrollTo({ top: scroll });
-    toast('Обновено');
+    toast('Ето най-новото');
 }
 
 async function checkForUpdate() {
