@@ -420,7 +420,8 @@ function welcomeBlock() {
 }
 
 function justIn(ranked, now) {
-    // An item without its own headline (a protected story) shows the story's.
+    // Each line opens the outlet's own article, in a new tab. An item
+    // without its own headline (a protected story) shows the story's.
     const latest = ranked
         .filter((r) => r.trust.outlets >= 2 || r.trust.firstHand)
         .flatMap((r) => r.story.items.map((it) => ({ it, r })))
@@ -432,7 +433,7 @@ function justIn(ranked, now) {
     <ol class="justin">${latest
         .map(
             ({ it, r }) =>
-                `<li><a href="/s/${esc(r.story.id)}/"><span class="ji-meta">${srcMark(it.source)}${sourceLabel(it.source)}${it.kind === 'video' ? ' ▶' : ''} · ${timeEl(it.at, now, true)}</span><span class="ji-title">${esc(it.title?.trim() ? itemTitle(it) : r.story.title)}</span></a></li>`,
+                `<li><a href="${href(it.url)}" rel="noopener" target="_blank"><span class="ji-meta">${srcMark(it.source)}${sourceLabel(it.source)}${it.kind === 'video' ? ' ▶' : ''} · ${timeEl(it.at, now, true)}</span><span class="ji-title">${esc(it.title?.trim() ? itemTitle(it) : r.story.title)}</span></a></li>`,
         )
         .join('')}</ol>
 </section>`;

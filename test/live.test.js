@@ -965,3 +965,16 @@ test('plain words: a name with a number gets quotes, kinds and trust in everyday
     assert.ok(page.includes('частни медии') || page.includes('частна медия'));
     fs.rmSync(out, { recursive: true, force: true });
 });
+
+test('„Току-що“ opens the outlet’s own article, not our page', async () => {
+    const out = fs.mkdtempSync(path.join(os.tmpdir(), 'live-'));
+    const s = story([item('a', 'bta', 0.5, { url: 'https://www.bta.bg/a1' }), item('b', 'sega', 0.4)], {
+        id: 'just1234',
+    });
+    await buildSite({ updatedAt: NOW, stories: [s], sources: {} }, { now: NOW, outDir: out, images: false });
+    const home = fs.readFileSync(path.join(out, 'index.html'), 'utf8');
+    const rail = home.slice(home.indexOf('class="justin"'), home.indexOf('</ol>', home.indexOf('class="justin"')));
+    assert.ok(rail.includes('href="https://www.bta.bg/a1" rel="noopener" target="_blank"'));
+    assert.ok(!rail.includes('href="/s/'));
+    fs.rmSync(out, { recursive: true, force: true });
+});
