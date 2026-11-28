@@ -440,7 +440,7 @@ test('built pages: counts agree with their nouns', async () => {
     const out = fs.mkdtempSync(path.join(os.tmpdir(), 'live-plurals-'));
     const vid = (n, h) =>
         item(`v${n}`, 'bnt-yt', h, { videoId: `vid${n}abcdef`, url: `https://www.youtube.com/watch?v=vid${n}abcdef` });
-    // Seven videos (four shown, "Още 3 видеа"), and a story with one of each.
+    // Seven videos (all shown at once), and a story with one of each.
     const many = story(
         [item('a', 'mediapool', 1), item('b', 'sega', 1), ...[1, 2, 3, 4, 5, 6, 7].map((n) => vid(n, n / 10))],
         {
@@ -469,7 +469,9 @@ test('built pages: counts agree with their nouns', async () => {
     };
     walk(out);
     assert.deepEqual(bad, []);
-    assert.match(fs.readFileSync(path.join(out, 's', 'many', 'index.html'), 'utf8'), /Още 3 видеа/);
+    const many7 = fs.readFileSync(path.join(out, 's', 'many', 'index.html'), 'utf8');
+    assert.equal((many7.match(/class="video-play"/g) ?? []).length, 7, 'every video is shown at once');
+    assert.ok(!many7.includes('Още 3'));
     fs.rmSync(out, { recursive: true, force: true });
 });
 

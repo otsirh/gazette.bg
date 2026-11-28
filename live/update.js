@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 import { createHash } from 'node:crypto';
 // One update of live.gazette.bg: read every feed, sort what is new into
-// stories, write the touched stories up, refresh the overview, build the site.
+// stories, write the touched stories up, build the site.
 //
 // The state lives in the published site itself (state.json), so an update
 // needs no database: it reads the last one back, changes it, and publishes.
@@ -21,7 +21,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createLogger, isMain } from '../scripts/lib/cli.js';
 import { buildSite, OUT_DIR } from './build.js';
-import { clusterItems, OVERVIEW_MODEL, proofread, rewordSummary, writeOverview, writeStory } from './lib/ai.js';
+import { clusterItems, OVERVIEW_MODEL, proofread, rewordSummary, writeStory } from './lib/ai.js';
 import { fillPlaces, fillWeights, mergeSame, pastFor, readParliament, recheckSensitive, retire } from './lib/depth.js';
 import { articleText, fetchText, isOffTopic, itemId, mapLimit, parseFeed, parseList, siteOf } from './lib/feeds.js';
 import { acceptCommitments, recordCommitments } from './lib/ledger.js';
@@ -514,39 +514,9 @@ export async function update({ now = Date.now() } = {}) {
     if (canSpend()) await fillWeights(state, meter, log, proof);
     await readParliament(state, now, meter, canSpend, log, proof);
 
-    // ─── Overview ────────────────────────────────────────────────────────
-    const ranked = rankStories(state.stories, now)
-        .filter((r) => r.trust.outlets >= 2 || r.trust.firstHand)
-        .slice(0, 12);
-    // Written again when the five biggest stories change (which ones, not
-    // their order), at most once an hour, and at least every two hours; but
-    // within 20 minutes when the hottest story is not in it at all.
-    const topKey = ranked
-        .slice(0, 5)
-        .map((r) => r.story.id)
-        .sort()
-        .join(',');
-    const last = state.overview?.at ?? 0;
-    const inOverview = new Set((state.overview?.lines ?? []).map((l) => l.story));
-    const newTop = ranked.length > 0 && !inOverview.has(ranked[0].story.id);
-    const due =
-        (newTop && now - last >= 20 * 60 * 1000) ||
-        (topKey !== state.overview?.topKey && now - last >= HOUR) ||
-        now - last > 2 * HOUR;
-    if (ranked.length && due && canSpend()) {
-        try {
-            const lines = await writeOverview({ ranked, meter });
-            if (lines.length) {
-                for (const l of lines) {
-                    l.text = tidy(l.text);
-                    proof.push([l, 'text']);
-                }
-                state.overview = { at: now, topKey, lines };
-            }
-        } catch (err) {
-            log(`Overview failed: ${err.message}`, 'WARN');
-        }
-    }
+    // The overview at the top of the page is gone (the list below says the
+    // same); an old one is not kept.
+    state.overview = null;
 
     applyBlocklist(state, policy);
 

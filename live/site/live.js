@@ -226,12 +226,6 @@ document.addEventListener('click', (e) => {
         toast('Изтрито. Браузърът вече не помни нищо за сайта.');
         return;
     }
-    const more = e.target.closest('[data-brief-more]');
-    if (more) {
-        document.querySelector('[data-brief]')?.classList.add('open');
-        more.remove();
-        return;
-    }
     const play = e.target.closest('.video-play');
     if (play) {
         const id = play.dataset.video;

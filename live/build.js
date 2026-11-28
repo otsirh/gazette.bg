@@ -17,7 +17,7 @@ import { homeImage, iconPng, storyImage } from './lib/og.js';
 import { placeOf } from './lib/places.js';
 import { inElectionSilence, isPollStory, loadPolicy, POLL, silenceFilter } from './lib/policy.js';
 import { publicState } from './lib/seal.js';
-import { IMPORTANT, lastAt, originOf, rankStories, scoreStories, sparkline, storyWeight } from './lib/stories.js';
+import { IMPORTANT, lastAt, rankStories, scoreStories, sparkline, storyWeight } from './lib/stories.js';
 import { outletOf, SOURCE_BY_ID, SOURCES, tierOf } from './sources.js';
 
 const require = createRequire(import.meta.url);
@@ -35,7 +35,7 @@ const CONTACT = /^[^\s@<>"]+@[^\s@<>"]+\.[a-z]{2,}$/i.test(process.env.LIVE_CONT
 const HOUR = 3600 * 1000;
 
 // Bumped by hand when style.css or live.js change, so browsers fetch them anew.
-const ASSET_VERSION = '34';
+const ASSET_VERSION = '35';
 
 const shortHash = (t) => createHash('sha1').update(String(t)).digest('base64url').slice(0, 8);
 
@@ -53,7 +53,6 @@ const ext = (u, text) => `<a href="${href(u)}" rel="noopener" target="_blank">${
 const sofia = (opts) => new Intl.DateTimeFormat('bg-BG', { timeZone: 'Europe/Sofia', ...opts });
 const fmtClock = sofia({ hour: '2-digit', minute: '2-digit' });
 const fmtDay = sofia({ day: 'numeric', month: 'short' });
-const fmtLongDay = sofia({ weekday: 'long', day: 'numeric', month: 'long' });
 const fmtDate = sofia({ day: 'numeric', month: 'long', year: 'numeric' });
 const dayKey = sofia({ year: 'numeric', month: '2-digit', day: '2-digit' });
 
@@ -377,35 +376,6 @@ function storyCard(r, now, { big = false, wide = false } = {}) {
 </li>`;
 }
 
-function heroBlock(state, ranked, mainCount, now) {
-    const byId = new Map(ranked.map((r) => [r.story.id, r]));
-    // Hottest first, like the rest of the page.
-    const lines = (state.overview?.lines ?? [])
-        .filter((l) => byId.has(l.story))
-        .sort((a, b) => byId.get(b.story).heat - byId.get(a.story).heat);
-    const hot = ranked.filter((r) => r.level.id === 'hot').length;
-    const outletsToday = new Set(
-        ranked.flatMap((r) => r.story.items.filter((i) => now - i.at < 24 * HOUR).map((i) => outletOf(i.source))),
-    ).size;
-    const brief = lines.length
-        ? `<ol class="brief" data-brief>${lines
-              .map((l) => {
-                  const r = byId.get(l.story);
-                  return `<li class="heat-${r.level.id}"><a href="/s/${esc(l.story)}/"><span class="brief-temp">${tempOf(r.heat)}°</span><span class="brief-text">${esc(l.text)}</span></a></li>`;
-              })
-              .join(
-                  '',
-              )}</ol>${lines.length > 3 ? `<button type="button" class="brief-more" data-brief-more>Още ${plural(lines.length - 3, 'новина', 'новини')} ↓</button>` : ''}`
-        : '';
-    return `<section class="hero" aria-labelledby="hero-title">
-    <p class="hero-kicker"><span class="live-dot" aria-hidden="true"></span>${esc(fmtLongDay.format(now))}</p>
-    <h1 id="hero-title" class="hero-title">Какво се случва<br>в България сега</h1>
-    <p class="hero-stats"><span><b>${mainCount}</b> ${mainCount === 1 ? 'новина сега' : 'новини сега'}</span><span><b class="t-hot">${hot}</b> ${hot === 1 ? 'гореща' : 'горещи'}</span><span><b>${outletsToday}</b> ${outletsToday === 1 ? 'медия' : 'медии'} днес</span></p>
-    <p class="hero-note"><b class="t-hot">°</b> Градусите показват колко се пише за новината сега, а не времето навън.</p>
-    ${brief}
-</section>`;
-}
-
 function welcomeBlock() {
     // Shown by live.js on a first visit only.
     return `<details class="welcome" data-welcome hidden>
@@ -465,7 +435,7 @@ function frontPage(state, ranked, now) {
     const warm = main.filter((r) => r.level.id === 'warm' && !inQuiet.has(r.story.id));
     const groups = [];
     if (hot.length) {
-        groups.push(`<section class="group" aria-labelledby="g-hot"><h2 id="g-hot" class="group-title t-hot">Горещо <span>за това се пише най-много сега</span></h2>
+        groups.push(`<section class="group" aria-labelledby="g-hot"><h2 id="g-hot" class="group-title t-hot">Горещо <span>за това се пише най-много сега; градусите показват колко медии пишат, а не времето навън</span></h2>
 <ol class="cards cards-big">${(() => {
             const wide = wideCards(hot.map((r) => videosOf(r.story).length > 0));
             return hot.map((r, i) => storyCard(r, now, { big: true, wide: wide[i] })).join('');
@@ -512,7 +482,7 @@ function frontPage(state, ranked, now) {
 ${topbar(state, now)}
 <main id="main" class="wrap">
 ${state.silence ? '<p class="silence">Изборен ден: до края на гласуването не показваме социологически проучвания и партийни канали (Изборен кодекс, чл. 182 и 205).</p>' : ''}
-${heroBlock(state, ranked, hot.length + quiet.length + warm.length, now)}
+<h1 class="sr-only">Какво се случва в България сега</h1>
 ${welcomeBlock()}
 <div class="since" data-since hidden></div>
 <div class="layout">
@@ -551,18 +521,7 @@ function videoBlock(story, now) {
     return `<section class="panel panel-video" aria-labelledby="videos">
     <h2 id="videos" class="panel-title">▶ Чуй какво казват <span>${plural(vids.length, 'видео', 'видеа')}, най-новото първо</span></h2>
     <p class="quiet small yt-note">Видеата са от YouTube и се зареждат едва при пускане; тогава важат <a href="https://www.youtube.com/t/terms" rel="noopener" target="_blank">Условията на YouTube</a> и <a href="https://policies.google.com/privacy" rel="noopener" target="_blank">Политиката за поверителност на Google</a>.</p>
-    <ul class="videos">${vids
-        .slice(0, 4)
-        .map((v) => videoTile(v, now))
-        .join('')}</ul>
-    ${
-        vids.length > 4
-            ? `<details class="more"><summary>Още ${plural(vids.length - 4, 'видео', 'видеа')}</summary><ul class="videos">${vids
-                  .slice(4)
-                  .map((v) => videoTile(v, now))
-                  .join('')}</ul></details>`
-            : ''
-    }
+    <ul class="videos">${vids.map((v) => videoTile(v, now)).join('')}</ul>
 </section>`;
 }
 
@@ -612,18 +571,11 @@ function repliesBlock(story) {
 // borrows the site's picture, since its own is no longer made.
 function storyPage(state, r, ranked, now, { cold = false } = {}) {
     const s = r.story;
-    const origin = originOf(s);
     const videos = videosOf(s).length;
     const url = `${SITE_ORIGIN}/s/${s.id}/`;
     const blocks = {
         videos: videoBlock(s, now),
     };
-    const originStat = origin
-        ? stat(
-              'Пръв написа',
-              `${esc(origin.name)}<small>${timeEl(origin.at, now)}${origin.via && sourceLabel(origin.via) !== esc(origin.name) ? ` · по материал на ${sourceLabel(origin.via)}` : ''}${origin.words ? ` · по думите на ${esc(origin.words)}` : ''}</small>`,
-          )
-        : '';
     const image = cold ? `${SITE_ORIGIN}/og/home.png` : `${SITE_ORIGIN}/og/${s.id}.png`;
     return `${head({
         title: `${s.title} — live.gazette.bg`,
@@ -660,7 +612,6 @@ ${cold ? '<p class="cold-note">Тази новина изстина: за нея
     <p class="ai-note">Написано автоматично от изкуствен интелект по ${plural(s.items.length, 'публикация', 'публикации')} на ${plural(r.trust.outlets, 'медия', 'медии')}. Може да има грешки: всяко твърдение води към публикацията, от която е взето, проверявай там. <a href="/about/">Как работи</a></p>
     <dl class="stats">
         ${stat('Може ли да се вярва', `<span class="trust trust-${r.trust.id}">${esc(r.trust.label)}</span>${coverageBar(s, { legend: true })}`)}
-        ${originStat}
         ${stat('Пишат', `${plural(r.trust.outlets, 'медия', 'медии')}<small>${plural(s.items.length, 'публикация', 'публикации')}${videos ? `, от тях ${plural(videos, 'видео', 'видеа')}` : ''}</small>`)}
         ${weightStat(s)}
         ${stat('Колко се пише', `<span class="stat-temp heat-${r.level.id}">${tempOf(r.heat)}°</span>${sparkSvg(sparkline(s, now))}<small>колкото повече медии пишат сега, толкова повече градуса; стълбчетата са последните 48 часа</small>`)}
