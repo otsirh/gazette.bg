@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Fetches each outlet's icon once and keeps it in live/site/icons/ as a 64 px
+// Fetches each outlet's icon once and keeps it in live/site/icons/ as a 32 px
 // PNG, so pages show it without sending readers to anyone else's server.
 //
 // A site gives its apple-touch-icon or a PNG/SVG icon from its home page; a
@@ -22,7 +22,7 @@ import { outletOf, SOURCES } from '../sources.js';
 const require = createRequire(import.meta.url);
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const DIR = path.join(HERE, '..', 'site', 'icons');
-const SIZE = 64;
+const SIZE = 32;
 
 async function get(url, { binary = false } = {}) {
     const res = await fetch(url, {

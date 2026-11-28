@@ -1983,7 +1983,7 @@ button {
     display: none;
 }
 @media (max-width: 560px) {
-    .brief:not(.open) li:nth-child(n + 5) {
+    .brief:not(.open) li:nth-child(n + 4) {
         display: none;
     }
     .brief-more {

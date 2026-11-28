@@ -34,7 +34,7 @@ const CONTACT = /^[^\s@<>"]+@[^\s@<>"]+\.[a-z]{2,}$/i.test(process.env.LIVE_CONT
 const HOUR = 3600 * 1000;
 
 // Bumped by hand when style.css or live.js change, so browsers fetch them anew.
-const ASSET_VERSION = '24';
+const ASSET_VERSION = '25';
 
 const esc = (s) =>
     String(s ?? '')
@@ -191,7 +191,7 @@ const TREND = {
     new: { sym: '✦', label: 'нова' },
     up: { sym: '▲', label: 'разгаря се' },
     steady: { sym: '■', label: 'държи се' },
-    down: { sym: '▼', label: 'утихва' },
+    down: { sym: '▼', label: 'отслабва' },
 };
 
 function sparkSvg(counts) {
@@ -299,9 +299,12 @@ function footer() {
 
 // ─── Front page ─────────────────────────────────────────────────────────
 
+// data-step: when the story last gained a step in its timeline, a real new
+// development; a new article retelling what is known does not count.
 function cardData(r) {
     const s = r.story;
-    return `data-story="${esc(s.id)}" data-first="${Math.min(...s.items.map((i) => i.at))}" data-last="${lastAt(s)}" data-level="${r.level.id}" data-trust="${r.trust.id}" data-video="${videosOf(s).length ? 1 : 0}"`;
+    const step = Math.max(0, ...s.timeline.map((e) => e.at));
+    return `data-story="${esc(s.id)}" data-first="${Math.min(...s.items.map((i) => i.at))}" data-last="${lastAt(s)}" data-step="${step}" data-level="${r.level.id}" data-trust="${r.trust.id}" data-video="${videosOf(s).length ? 1 : 0}"`;
 }
 
 function cardMeta(r) {
@@ -372,12 +375,12 @@ function heroBlock(state, ranked, mainCount, now) {
               })
               .join(
                   '',
-              )}</ol>${lines.length > 4 ? `<button type="button" class="brief-more" data-brief-more>Още ${lines.length - 4} ↓</button>` : ''}`
+              )}</ol>${lines.length > 3 ? `<button type="button" class="brief-more" data-brief-more>Още ${lines.length - 3} ↓</button>` : ''}`
         : '';
     return `<section class="hero" aria-labelledby="hero-title">
     <p class="hero-kicker"><span class="live-dot" aria-hidden="true"></span>${esc(fmtLongDay.format(now))}</p>
     <h1 id="hero-title" class="hero-title">Какво се случва<br>в България сега</h1>
-    <p class="hero-stats"><span><b>${mainCount}</b> ${mainCount === 1 ? 'актуална история' : 'актуални истории'}</span><span><b class="t-hot">${hot}</b> ${hot === 1 ? 'гореща' : 'горещи'}</span><span><b>${outletsToday}</b> ${outletsToday === 1 ? 'медия' : 'медии'} днес</span><span>обновено ${timeEl(state.updatedAt || now, now, true)}</span></p>
+    <p class="hero-stats"><span><b>${mainCount}</b> ${mainCount === 1 ? 'актуална история' : 'актуални истории'}</span><span><b class="t-hot">${hot}</b> ${hot === 1 ? 'гореща' : 'горещи'}</span><span><b>${outletsToday}</b> ${outletsToday === 1 ? 'медия' : 'медии'} днес</span></p>
     ${brief}
 </section>`;
 }
@@ -436,7 +439,7 @@ function howBox() {
     <h2 id="how" class="rail-title">Как да четеш</h2>
     <p><b class="t-hot">87°</b> Нажеженост: колко медии пишат сега. Без нови материали пада наполовина за около 6 часа; нощем, когато никой не пише, почти не изстива.</p>
     <p><span class="cov cov-mini"><span class="cov-bar"><i class="k-first" style="flex:1"></i><i class="k-public" style="flex:1"></i><i class="k-editorial" style="flex:3"></i><i class="k-independent" style="flex:1"></i><i class="k-partisan" style="flex:1"></i><i class="k-unverified" style="flex:1"></i></span></span>Кой отразява историята: първоизточници, обществени и редакционни медии, независими автори, партийни канали, непроверени.</p>
-    <p><kbd>J</kbd> <kbd>K</kbd> — следваща и предишна история, <kbd>Enter</kbd> — отвори.</p>
+    <p>Щом с <kbd>Tab</kbd> стигнеш до история: <kbd>J</kbd> <kbd>K</kbd> – следваща и предишна, <kbd>Enter</kbd> – отвори.</p>
     <p><a href="/sources/">Всички ${SOURCES.length} източника →</a></p>
 </section>`;
 }
@@ -1076,6 +1079,15 @@ const HEADERS = `/*
 /fonts/*
   ! Cache-Control
   Cache-Control: public, max-age=31536000, immutable
+/icons/*
+  ! Cache-Control
+  Cache-Control: public, max-age=604800
+/style.css
+  ! Cache-Control
+  Cache-Control: public, max-age=86400
+/live.js
+  ! Cache-Control
+  Cache-Control: public, max-age=86400
 `;
 
 const MANIFEST = {
