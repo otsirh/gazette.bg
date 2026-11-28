@@ -214,7 +214,7 @@ test('buildSite escapes everything from feeds and the model', async () => {
 });
 
 test("a party's own channel never confirms a story on its own", () => {
-    const s = story([item('a', 'gerb-yt', 1), item('b', 'sega', 1)]);
+    const s = story([item('a', 'dps-yt', 1), item('b', 'sega', 1)]);
     const t = trustOf(s);
     assert.equal(t.firstHand, false);
     assert.equal(t.id, 'several');
@@ -301,7 +301,7 @@ test('election silence hides polls and party channels, only around election day'
             id: 'p1',
             title: 'Ново социологическо проучване',
         }),
-        story([item('b', 'gerb-yt', 1), item('c', 'bta', 1)], { id: 'p2', title: 'Министърът подаде оставка' }),
+        story([item('b', 'dps-yt', 1), item('c', 'bta', 1)], { id: 'p2', title: 'Министърът подаде оставка' }),
     ]);
     assert.deepEqual(
         kept.map((s) => s.id),
@@ -547,4 +547,12 @@ test("robots: a group with only Crawl-delay does not take the next group's rules
         true,
         'consecutive agents share a group',
     );
+});
+
+test('parseFeed: a link in <url> and a zone-less date in Sofia time', () => {
+    const xml =
+        '<rss><channel><item><title>Заглавие на новината тук</title><url>https://varnautre.bg/2026/11/28/1-a</url><pubDate>2026-11-28 12:28:10</pubDate></item></channel></rss>';
+    const [e] = parseFeed(xml, Date.UTC(2026, 10, 29));
+    assert.equal(e.url, 'https://varnautre.bg/2026/11/28/1-a');
+    assert.equal(new Date(e.at).toISOString(), '2026-11-28T10:28:10.000Z');
 });
