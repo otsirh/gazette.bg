@@ -96,18 +96,22 @@ async function checkRobots(state, now) {
         if (!state.sources[source.id]) state.sources[source.id] = {};
         const st = state.sources[source.id];
         if (st.robotsAt && now - st.robotsAt < 24 * HOUR) return;
+        // Read the way the site's news is read (through Bulgaria where it needs
+        // that). A missing file allows; any other failure is unknown.
+        const get = async (p) => {
+            try {
+                return await fetchSmart(new URL(p, source.home).href, source.id, { timeoutMs: 12000 });
+            } catch (err) {
+                if (/HTTP 404|HTTP 410/.test(err.message)) return '';
+                throw err;
+            }
+        };
         try {
-            const res = await fetch(new URL('/robots.txt', source.home), {
-                headers: { 'User-Agent': 'Mozilla/5.0 (compatible; live.gazette.bg/1.0; +https://live.gazette.bg)' },
-                signal: AbortSignal.timeout(12000),
-            });
-            const robots = res.ok ? await res.text() : '';
+            const robots = await get('/robots.txt');
             // Refused for the whole site, or just for the feed we read.
-            let refused = res.ok ? aiRefused(robots) || !pathAllowed(robots, new URL(source.feed).pathname) : false;
-            const tdm = await fetch(new URL('/.well-known/tdmrep.json', source.home), {
-                signal: AbortSignal.timeout(12000),
-            }).catch(() => null);
-            if (tdm?.ok) refused ||= tdmReserved(await tdm.text(), '/');
+            let refused = aiRefused(robots) || !pathAllowed(robots, new URL(source.feed).pathname);
+            const tdm = await get('/.well-known/tdmrep.json').catch(() => '');
+            if (tdm) refused ||= tdmReserved(tdm, '/');
             st.aiRefused = refused;
             st.robotsAt = now;
             if (st.aiRefused) log(`${source.id}: robots.txt refuses AI; not read.`, 'WARN');
