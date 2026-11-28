@@ -585,19 +585,6 @@ button {
     color: var(--hot);
     font-weight: 700;
 }
-.card-why {
-    color: var(--link);
-    font-size: 14px;
-    font-weight: 600;
-    line-height: 1.35;
-}
-.t-weight,
-.stat-weight.big {
-    color: var(--link);
-}
-.stat-weight {
-    font-weight: 750;
-}
 
 .trust {
     font-weight: 700;
