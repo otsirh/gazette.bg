@@ -22,7 +22,16 @@ import { fileURLToPath } from 'node:url';
 import { createLogger, isMain } from '../scripts/lib/cli.js';
 import { buildSite, OUT_DIR } from './build.js';
 import { clusterItems, OVERVIEW_MODEL, proofread, rewordSummary, writeStory } from './lib/ai.js';
-import { fillPlaces, fillWeights, mergeSame, pastFor, readParliament, recheckSensitive, retire } from './lib/depth.js';
+import {
+    confirmSensitive,
+    fillPlaces,
+    fillWeights,
+    mergeSame,
+    pastFor,
+    readParliament,
+    recheckSensitive,
+    retire,
+} from './lib/depth.js';
 import { articleText, fetchText, isOffTopic, itemId, mapLimit, parseFeed, parseList, siteOf } from './lib/feeds.js';
 import { acceptCommitments, recordCommitments } from './lib/ledger.js';
 import {
@@ -509,6 +518,7 @@ export async function update({ now = Date.now() } = {}) {
         await mergeSame(state, now, meter, log);
         state.sameAt = now;
     }
+    await confirmSensitive(state, meter, canSpend, log);
     if (canSpend()) await recheckSensitive(state, meter, log, process.env.YOUTUBE_API_KEY);
     if (canSpend()) await fillPlaces(state, meter, log);
     if (canSpend()) await fillWeights(state, meter, log, proof);
@@ -627,7 +637,9 @@ export function applyWrite(story, pending, result, now, proof = []) {
     // headline and no pictures: a headline may name or show them. They are
     // hidden when the site is built and sealed in the published state
     // (lib/seal.js), not deleted, so one wrong flag costs nothing for good.
-    if (result.sensitive === true) story.sensitive = true;
+    // One answer from the writer does not hide a story: it asks, and a
+    // second, focused check (confirmSensitive) decides.
+    if (result.sensitive === true && !story.sensitive) story.sensitiveAsked = true;
     const related = (result.related ?? []).map((n) => result.past?.[n]).filter(Boolean);
     if (related.length && result.background?.trim()) {
         story.context = {

@@ -3,7 +3,14 @@
 // it in parliament, and the outlets' track record once it is over.
 
 import { createHash } from 'node:crypto';
-import { classifyPlaces, classifyWeights, findSameStories, parliamentQuotes, stillSensitive } from './ai.js';
+import {
+    classifyPlaces,
+    classifyWeights,
+    findSameStories,
+    OVERVIEW_MODEL,
+    parliamentQuotes,
+    stillSensitive,
+} from './ai.js';
 import { fetchText, toText } from './feeds.js';
 import { rankStories } from './stories.js';
 import { clip, tidy } from './text.js';
@@ -141,6 +148,7 @@ export function mergeInto(keep, others) {
         if (!keep.place && o.place) keep.place = o.place;
         // A sensitive story's items stay hidden in whatever story they join.
         if (o.sensitive) keep.sensitive = true;
+        if (o.sensitiveAsked && !keep.sensitive) keep.sensitiveAsked = true;
     }
     keep.timeline.sort((a, b) => a.at - b.at);
     if (keep.timeline.length > 80) keep.timeline = keep.timeline.slice(-80);
@@ -180,10 +188,10 @@ export async function mergeSame(state, now, meter, log) {
 // qualifies gets its videos back, with title and "made for kids" read again
 // from YouTube. Outlet headlines removed under the old rule stay removed.
 export async function recheckSensitive(state, meter, log, ytKey) {
-    if ((state.sensitiveRule ?? 1) >= 2) return;
+    if ((state.sensitiveRule ?? 1) >= SENSITIVE_RULE_VERSION) return;
     const flagged = state.stories.filter((s) => s.sensitive);
     if (!flagged.length) {
-        state.sensitiveRule = 2;
+        state.sensitiveRule = SENSITIVE_RULE_VERSION;
         return;
     }
     if (!ytKey) return;
@@ -191,9 +199,13 @@ export async function recheckSensitive(state, meter, log, ytKey) {
     let details;
     const cleared = [];
     try {
-        keep = await stillSensitive({ stories: flagged, meter });
+        keep = await stillSensitive({ stories: flagged, meter, model: OVERVIEW_MODEL });
         for (const s of flagged) if (!keep.has(s.id)) cleared.push(s);
-        const ids = cleared.flatMap((s) => s.items.filter((i) => i.kind === 'video').map((i) => videoIdOf(i.url)));
+        // Videos whose details were deleted under the first rule come back
+        // from YouTube; the ones kept sealed are already back (openSeals).
+        const ids = cleared.flatMap((s) =>
+            s.items.filter((i) => i.kind === 'video' && !i.videoId).map((i) => videoIdOf(i.url)),
+        );
         details = await videoDetails([...new Set(ids.filter(Boolean))], ytKey);
     } catch (err) {
         log(`Sensitive recheck failed: ${err.message}`, 'WARN');
@@ -210,7 +222,35 @@ export async function recheckSensitive(state, meter, log, ytKey) {
         }
         log(`No longer sensitive under the narrower rule: ${s.title}`);
     }
-    state.sensitiveRule = 2;
+    state.sensitiveRule = SENSITIVE_RULE_VERSION;
+}
+
+// Bumped to check every flagged story again (3: the writer's flags were
+// taken at their word until a story about fans attacked abroad lost its
+// videos; now a focused check confirms them, and the old ones are rechecked).
+const SENSITIVE_RULE_VERSION = 3;
+
+// A story the writer thinks is about a child or a victim of sexual or
+// domestic violence is hidden only when a second, focused check with the
+// stronger model agrees. If that check cannot run, it is hidden all the
+// same: hiding by mistake costs nothing for good (the data is sealed, not
+// deleted), showing by mistake could.
+export async function confirmSensitive(state, meter, canSpend, log) {
+    const asked = state.stories.filter((s) => s.sensitiveAsked);
+    if (!asked.length) return;
+    let keep = null;
+    if (canSpend()) {
+        try {
+            keep = await stillSensitive({ stories: asked, meter, model: OVERVIEW_MODEL });
+        } catch (err) {
+            log(`Sensitive check failed: ${err.message}`, 'WARN');
+        }
+    }
+    for (const s of asked) {
+        delete s.sensitiveAsked;
+        if (!keep || keep.has(s.id)) s.sensitive = true;
+        else log(`Not sensitive after all: ${s.title}`);
+    }
 }
 
 // ─── Parliament ─────────────────────────────────────────────────────────
