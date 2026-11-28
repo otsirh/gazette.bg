@@ -12,7 +12,12 @@
 // outlet behind them. A named person answers for it, but no editor checks it.
 // partisan: a party's or politician's own channel. First-hand for what they
 // say, but what they say is their position, so it never confirms a story.
-// A source is added only with a working feed and a reason for its weight.
+// A source is added only with a working feed and a reason for its weight,
+// and only if its site lets AI use its content: robots.txt must not shut out
+// Anthropic's agents (ClaudeBot, anthropic-ai, Claude-User) nor say
+// ai-input=no. update.js checks this every day and skips a source that
+// changes its mind. Removed for that reason (Nov 2026): Дневник, Капитал,
+// Novinite, Plovdiv24, Varna24, Frognews, Блиц, and BGNES's channel.
 // viaBulgaria: the site turns away addresses outside Bulgaria (GitHub's
 // servers are in the US), so in Actions it is read through the Mac mini.
 
@@ -180,27 +185,6 @@ export const SOURCES = [
 
     // 3 — editorial outlets with a known owner and signed articles
     {
-        id: 'dnevnik',
-        name: 'Дневник',
-        home: 'https://www.dnevnik.bg',
-        feed: 'https://www.dnevnik.bg/rss/',
-        kind: 'article',
-        tier: 3,
-        why: 'Икономедиа; подписани материали, публикувана собственост.',
-        aliases: ['Дневник', 'dnevnik.bg'],
-    },
-    {
-        id: 'capital',
-        viaBulgaria: true,
-        name: 'Капитал',
-        home: 'https://www.capital.bg',
-        feed: 'https://www.capital.bg/rss/',
-        kind: 'article',
-        tier: 3,
-        why: 'Икономедиа; подписани материали, публикувана собственост.',
-        aliases: ['Капитал', 'capital.bg'],
-    },
-    {
         id: 'mediapool',
         viaBulgaria: true,
         name: 'Медиапул',
@@ -299,7 +283,7 @@ export const SOURCES = [
         feed: yt('UC4NwHyV2nUhKF3xV4wqAyxQ'),
         kind: 'video',
         tier: 3,
-        why: 'Българската редакция на Радио Свободна Европа; финансира се от Конгреса на САЩ.',
+        why: 'Българската редакция на Радио Свободна Европа.',
         aliases: ['Свободна Европа', 'Радио Свободна Европа'],
     },
     {
@@ -381,17 +365,6 @@ export const SOURCES = [
         tier: 3,
         why: 'Национален новинарски сайт с редакция.',
         aliases: ['Dnes.bg'],
-    },
-    {
-        id: 'novinite',
-        viaBulgaria: true,
-        name: 'Novinite.bg',
-        home: 'https://www.novinite.bg',
-        feed: 'https://www.novinite.bg/rss',
-        kind: 'article',
-        tier: 3,
-        why: 'Национален новинарски сайт с редакция.',
-        aliases: ['Novinite.bg', 'Новините'],
     },
     {
         id: 'telegraph',
@@ -495,16 +468,6 @@ export const SOURCES = [
         aliases: [],
     },
     {
-        id: 'capital-yt',
-        name: 'Капитал (видео)',
-        home: 'https://www.youtube.com/channel/UCWYcKnwwEd_Tx7cKBjnq3Mg',
-        feed: yt('UCWYcKnwwEd_Tx7cKBjnq3Mg'),
-        kind: 'video',
-        tier: 3,
-        why: 'Интервютата и разговорите на „Капитал“.',
-        aliases: [],
-    },
-    {
         id: 'evrokom-yt',
         name: 'Евроком (видео)',
         home: 'https://www.youtube.com/channel/UCYRY_SSdXPpeV8oxI96Q51w',
@@ -531,19 +494,8 @@ export const SOURCES = [
         feed: yt('UCFFwtNtz1XH20tg8DW2-oJQ'),
         kind: 'video',
         tier: 3,
-        why: 'Телевизия с лиценз от СЕМ, свързана с партия „Атака“.',
+        why: 'Телевизия с лиценз от СЕМ.',
         aliases: ['Алфа', 'ТВ „Алфа“'],
-    },
-
-    {
-        id: 'bgnes-yt',
-        name: 'BGNES (видео)',
-        home: 'https://www.youtube.com/channel/UCNkRuL_6Jqtwx8yfTJx0yfQ',
-        feed: yt('UCNkRuL_6Jqtwx8yfTJx0yfQ'),
-        kind: 'video',
-        tier: 3,
-        why: 'Каналът на информационна агенция BGNES. Сайтът ѝ не разрешава AI да го чете, затова ползваме само YouTube.',
-        aliases: ['BGNES', 'БГНЕС'],
     },
 
     // 3 — independent authors: a known person, no outlet behind them
@@ -852,7 +804,7 @@ export const SOURCES = [
         kind: 'article',
         tier: 3,
         independent: true,
-        why: 'Малък онлайн вестник, свързан с Иван Бакалов.',
+        why: 'Онлайн издание.',
         aliases: ['e-vestnik', 'Е-вестник'],
     },
     {
@@ -939,35 +891,14 @@ export const SOURCES = [
         aliases: ['Novetika'],
     },
     {
-        id: 'blitz',
-        viaBulgaria: true,
-        name: 'Блиц',
-        home: 'https://blitz.bg',
-        feed: 'https://blitz.bg/rss',
-        kind: 'article',
-        tier: 4,
-        why: 'Голям таблоиден сайт; много материали са без подпис.',
-        aliases: ['Блиц', 'Blitz'],
-    },
-    {
         id: 'pogled',
         name: 'Поглед.инфо',
         home: 'https://pogled.info',
         feed: 'https://pogled.info/rss',
         kind: 'article',
         tier: 4,
-        why: 'Много от материалите са преводи и препечатки, често от руски медии.',
+        why: 'Не сме проверили собствеността и авторите.',
         aliases: ['Поглед', 'Поглед.инфо', 'pogled.info'],
-    },
-    {
-        id: 'frognews',
-        name: 'Frognews',
-        home: 'https://frognews.bg',
-        feed: 'https://frognews.bg/rss.xml',
-        kind: 'article',
-        tier: 4,
-        why: 'Материалите обикновено са без подпис на автор.',
-        aliases: ['Frognews', 'Фрогнюз'],
     },
     {
         id: 'petel',
@@ -996,7 +927,7 @@ export const SOURCES = [
         feed: 'https://www.alfa.bg/rss',
         kind: 'article',
         tier: 4,
-        why: 'Сайтът на ТВ „Алфа“, свързана с партия „Атака“; не сме проверили авторите.',
+        why: 'Сайтът на ТВ „Алфа“. Не сме проверили собствеността и авторите.',
         aliases: ['Alfa.bg'],
     },
     {
@@ -1008,26 +939,6 @@ export const SOURCES = [
         tier: 4,
         why: 'Регионален сайт, Варна. Не сме проверили собствеността и авторите.',
         aliases: ['Moreto.net'],
-    },
-    {
-        id: 'varna24',
-        name: 'Varna24',
-        home: 'https://www.varna24.bg',
-        feed: 'https://www.varna24.bg/rss.php',
-        kind: 'article',
-        tier: 4,
-        why: 'Регионален сайт, Варна. Не сме проверили собствеността и авторите.',
-        aliases: ['Varna24'],
-    },
-    {
-        id: 'plovdiv24',
-        name: 'Plovdiv24',
-        home: 'https://www.plovdiv24.bg',
-        feed: 'https://www.plovdiv24.bg/rss.php',
-        kind: 'article',
-        tier: 4,
-        why: 'Регионален сайт, Пловдив. Не сме проверили собствеността и авторите.',
-        aliases: ['Plovdiv24'],
     },
     {
         id: 'kmeta',

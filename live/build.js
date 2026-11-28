@@ -22,10 +22,14 @@ const HERE = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.join(HERE, '..');
 export const OUT_DIR = path.join(ROOT, 'dist-live');
 export const SITE_ORIGIN = 'https://live.gazette.bg';
+// Where readers ask for a correction or a removal (GitHub variable LIVE_CONTACT).
+const CONTACT = /^[^\s@<>"]+@[^\s@<>"]+\.[a-z]{2,}$/i.test(process.env.LIVE_CONTACT ?? '')
+    ? process.env.LIVE_CONTACT
+    : '';
 const HOUR = 3600 * 1000;
 
 // Bumped by hand when style.css or live.js change, so browsers fetch them anew.
-const ASSET_VERSION = '10';
+const ASSET_VERSION = '11';
 
 const esc = (s) =>
     String(s ?? '')
@@ -253,7 +257,7 @@ function footer() {
         <div class="footer-brand"><span class="live-dot" aria-hidden="true"></span> live.gazette.bg</div>
         <ul class="legend">${KIND_ORDER.map((k) => `<li><i class="kd k-${k}"></i>${esc(KINDS[k].long)}</li>`).join('')}</ul>
         <p>Историите, обобщенията и хронологиите се съставят автоматично с изкуствен интелект (Claude на Anthropic) от ${SOURCES.length} източника и може да съдържат грешки. Всяко твърдение води към материала, от който е взето.</p>
-        <p><a href="/sources/">Източници и как се оценяват</a> · <a href="/media/">Досие на медиите</a></p>
+        <p><a href="/about/">За сайта, поправки и поверителност</a> · <a href="/sources/">Източници и как се оценяват</a> · <a href="/media/">Досие на медиите</a></p>
     </div>
 </footer>`;
 }
@@ -873,6 +877,7 @@ ${topbar(state, now)}
     <div class="card-top">${tempBadge(r)}${chips(r, now)}</div>
     <h1>${esc(s.title)}</h1>
     ${s.summary ? `<p class="lede">${esc(s.summary)}</p>` : ''}
+    <p class="ai-note">Обобщено автоматично с изкуствен интелект от ${plural(s.items.length, 'материал', 'материала')} на ${plural(r.trust.outlets, 'медия', 'медии')}. Всяко твърдение води към материала, от който е взето — проверявай там. <a href="/about/">Как работи</a></p>
     <div class="actions">
         <button type="button" class="btn" data-share data-share-title="${esc(s.title)}" data-share-url="${url}">${ICONS.share} Сподели</button>
         ${nav}
@@ -1021,6 +1026,49 @@ ${footer()}
 `;
 }
 
+// ─── About, corrections, privacy ────────────────────────────────────────
+
+function aboutPage(state, now) {
+    const contact = CONTACT
+        ? `<p>Ако нещо в историите е невярно, назовава човек, който не бива да бъде назован, или е ваше съдържание, което искате да махнем, пишете на <a href="mailto:${esc(CONTACT)}">${esc(CONTACT)}</a> с връзката към страницата. Проверяваме веднага; невярното поправяме или махаме.</p>`
+        : '<p>Ако нещо в историите е невярно, назовава човек, който не бива да бъде назован, или е ваше съдържание, което искате да махнем, пишете ни — адресът за връзка ще бъде тук скоро.</p>';
+    return `${head({
+        title: 'За сайта — live.gazette.bg',
+        description: 'Какво е live.gazette.bg, как работи, поправки, авторски права и поверителност.',
+        canonical: `${SITE_ORIGIN}/about/`,
+        image: `${SITE_ORIGIN}/og/home.png?v=${state.updatedAt}`,
+    })}
+<body class="about" data-version="${state.updatedAt}">
+${topbar(state, now)}
+<main class="wrap narrow">
+<a class="back" href="/">← Всичко, което се случва сега</a>
+<header class="story-head"><h1>За сайта</h1>
+<p class="lede">live.gazette.bg показва какво се случва в България сега: новините от ${SOURCES.length} източника, подредени по това колко се говори за тях, с първоизточника, хронологията и видеата.</p></header>
+<div class="prose panel">
+<h2 class="panel-title">Как работи</h2>
+<p>На всеки 10 минути сайтът чете публичните емисии (RSS) на медиите и YouTube каналите от <a href="/sources/">списъка с източници</a>. Изкуствен интелект (Claude на Anthropic) подрежда материалите в истории и пише кратко обобщение, хронология и кой какво е казал. Нищо не е писано от човек и нищо не е платено.</p>
+<p>Текстовете са <b>автоматични и може да съдържат грешки</b>. Затова всяко твърдение води към материала, от който е взето, и показваме колко и какви медии потвърждават всяка история.</p>
+</div>
+<div class="prose panel">
+<h2 class="panel-title">Поправки и премахване</h2>
+${contact}
+</div>
+<div class="prose panel">
+<h2 class="panel-title">Авторски права</h2>
+<p>Правата върху материалите, заглавията, видеата и логата принадлежат на техните собственици. Показваме само заглавие и връзка към оригинала, а видеата — чрез официалния плейър на YouTube; не публикуваме текстове на статии. Обобщенията са наши, по фактите от няколко източника.</p>
+<p>Четем само сайтове, които позволяват съдържанието им да се ползва от изкуствен интелект: всеки ден проверяваме файла robots.txt на всеки източник и спираме да четем сайт, който откаже.</p>
+</div>
+<div class="prose panel">
+<h2 class="panel-title">Поверителност</h2>
+<p>Сайтът не използва бисквитки, реклами, анализи на посещенията или проследяване и не събира лични данни. Кои истории сте видели и дали сте затворили обясненията, се пазят само в браузъра ви (localStorage) и не се изпращат никъде. Видео от YouTube се зарежда едва когато го пуснете; тогава важат правилата на YouTube.</p>
+</div>
+</main>
+${footer()}
+</body>
+</html>
+`;
+}
+
 // ─── Output ─────────────────────────────────────────────────────────────
 
 const HEADERS = `/*
@@ -1114,13 +1162,14 @@ export async function buildSite(state, { now = Date.now(), outDir = OUT_DIR, ima
             );
         }
     }
-    const urls = ['/', '/sources/', '/media/', ...ranked.map((r) => `/s/${r.story.id}/`)];
+    const urls = ['/', '/about/', '/sources/', '/media/', ...ranked.map((r) => `/s/${r.story.id}/`)];
     write(
         path.join(outDir, 'sitemap.xml'),
         `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${urls.map((u) => `<url><loc>${SITE_ORIGIN}${u}</loc></url>`).join('\n')}\n</urlset>\n`,
     );
     write(path.join(outDir, 'sources', 'index.html'), sourcesPage(state, now));
     write(path.join(outDir, 'media', 'index.html'), mediaPage(state, now));
+    write(path.join(outDir, 'about', 'index.html'), aboutPage(state, now));
     write(path.join(outDir, 'state.json'), JSON.stringify(state));
     write(path.join(outDir, 'version.json'), JSON.stringify({ updatedAt: state.updatedAt }));
     write(path.join(outDir, '_headers'), HEADERS);
