@@ -1,0 +1,52 @@
+name: Recheck blocked sources
+
+# Once a week: do the sources we want but cannot read (live/watchlist.js)
+# let us read them now? Checked from GitHub's servers, where the update runs.
+# For each one that does, an issue is opened (once) so it can be added to
+# live/sources.js. The full table is in the run's summary.
+on:
+  workflow_dispatch: {}
+  schedule:
+    - cron: '17 6 * * 1' # Mondays, 08:17 Sofia time in winter
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  recheck:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - run: npm ci --ignore-scripts
+
+      - name: Check the watchlist
+        env:
+          YOUTUBE_API_KEY: ${{ secrets.YOUTUBE_API_KEY }}
+        run: node live/scripts/recheck-watchlist.js ready.json >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Open an issue for each source that can be read now
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          node -e '
+            for (const r of JSON.parse(require("fs").readFileSync("ready.json", "utf8")))
+              console.log(JSON.stringify(r));
+          ' | while read -r line; do
+            name=$(jq -r .name <<<"$line")
+            title="Източникът „$name“ вече може да се чете"
+            if gh issue list --repo "$GITHUB_REPOSITORY" --state open --search "\"$title\" in:title" --json number --jq 'length' | grep -qv '^0$'; then
+              echo "Already open: $title"; continue
+            fi
+            body=$(jq -r '"Седмичната проверка (live/watchlist.js) показва, че **\(.name)** (`\(.id)`) вече позволява да го четем.\n\nПреди: \(.why). Сега: \(.note)\n\nСледва: провери условията му за ползване, после го премести от WANTED в live/watchlist.js в live/sources.js."' <<<"$line")
+            gh issue create --repo "$GITHUB_REPOSITORY" --title "$title" --body "$body"
+          done

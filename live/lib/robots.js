@@ -17,13 +17,16 @@ export function parseRobots(text) {
         const key = line.slice(0, i).trim().toLowerCase();
         const val = line.slice(i + 1).trim();
         if (key === 'user-agent') {
-            if (!cur || cur.rules.length) {
-                cur = { agents: [], rules: [] };
+            // Consecutive user-agent lines share a group; any other line
+            // (a rule, Crawl-delay, Sitemap) ends the list of agents.
+            if (!cur || cur.closed) {
+                cur = { agents: [], rules: [], closed: false };
                 groups.push(cur);
             }
             cur.agents.push(val);
-        } else if ((key === 'disallow' || key === 'allow') && cur) {
-            cur.rules.push([key, val]);
+        } else {
+            if (cur) cur.closed = true;
+            if ((key === 'disallow' || key === 'allow') && cur) cur.rules.push([key, val]);
         }
     }
     return groups;
