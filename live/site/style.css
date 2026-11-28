@@ -1330,13 +1330,13 @@ button {
 .voice-src a,
 .tl-src a,
 .item-list a,
-.node a {
+.relay a {
     color: var(--link);
 }
 .voice-src a:hover,
 .tl-src a:hover,
 .item-list a:hover,
-.node a:hover {
+.relay a:hover {
     text-decoration: underline;
 }
 .voice-more {
@@ -1359,120 +1359,82 @@ button {
     margin-right: 4px;
 }
 
-/* Spread chart */
-.spread-scroll {
-    overflow-x: auto;
-    margin: 0 -6px;
-    padding: 0 6px;
-}
-.spread-svg {
-    display: block;
-    width: 100%;
-    min-width: 640px;
-    height: auto;
-    font-family: var(--font);
-}
-.sp-lane line {
-    stroke: var(--line);
-    stroke-width: 1;
-}
-.sp-label {
-    font-size: 11.5px;
-    font-weight: 600;
-    fill: var(--text-2);
-}
-.kt-first {
-    fill: var(--k-first);
-}
-.kt-partisan {
-    fill: var(--k-partisan);
-}
-.kt-independent {
-    fill: var(--k-independent);
-}
-.sp-tick {
-    font-size: 11px;
-    fill: var(--muted);
-}
-.sp-link {
-    fill: none;
-    stroke: var(--muted);
-    stroke-width: 1.3;
-    opacity: 0.55;
-}
-.sp-link-origin {
-    stroke: var(--k-first);
-    stroke-dasharray: 3 3;
-    opacity: 0.4;
-}
-.sp-dot {
-    stroke: var(--surface);
-    stroke-width: 2;
-    transition: r 0.15s;
-}
-.sp-dot.sp-video {
-    stroke: var(--hot);
-    stroke-width: 2.5;
-}
-.spread-svg a:hover .sp-dot {
-    r: 8;
-}
-.sp-origin rect {
-    fill: var(--k-first);
-}
-.tree-details {
-    margin-top: 12px;
-}
-.tree-details summary,
+/* Who reported it first, and who followed */
 .all-items summary {
     cursor: pointer;
     color: var(--link);
     font-weight: 600;
     font-size: 14px;
 }
-.tree ul {
+.relay-sum {
+    margin: -4px 0 14px;
+    color: var(--text-2);
+    font-size: 15px;
+}
+.relay {
     list-style: none;
     margin: 0;
     padding: 0;
 }
-.tree {
-    margin-top: 12px;
+.relay-row {
+    display: grid;
+    grid-template-columns: 150px minmax(0, 1fr);
+    gap: 4px 16px;
+    padding: 11px 0;
+    border-top: 1px solid var(--line);
 }
-.tree ul ul {
-    margin-left: 6px;
-    padding-left: 14px;
-    border-left: 2px solid var(--line);
+.relay-row:first-child {
+    border-top: 0;
 }
-.tree li {
-    margin: 0 0 12px;
-}
-.tree ul ul li {
-    margin-top: 10px;
-}
-.node {
+.relay-when {
     display: flex;
     flex-direction: column;
-    gap: 1px;
-    font-size: 14px;
-    line-height: 1.38;
+    font-size: 13px;
+    color: var(--muted);
 }
-.node-src {
+.relay-when b {
+    color: var(--text);
+    font-weight: 700;
+    font-size: 14px;
+}
+.relay-first .relay-when b {
+    color: var(--hot);
+}
+.relay-body {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    font-size: 14.5px;
+    line-height: 1.4;
+}
+.relay-src {
     display: flex;
     align-items: center;
     font-weight: 650;
-    font-size: 13.5px;
 }
-.node-src time {
-    font-weight: 400;
-    color: var(--muted);
+.relay-video {
     margin-left: 6px;
-}
-.node-how {
+    color: var(--hot);
     font-size: 12.5px;
+    font-weight: 700;
+}
+.relay-how,
+.relay-more {
+    font-size: 13px;
     color: var(--muted);
 }
-.origin > .node .node-src {
-    color: var(--k-first);
+.relay-rest {
+    margin-top: 10px;
+}
+@media (max-width: 560px) {
+    .relay-row {
+        grid-template-columns: minmax(0, 1fr);
+    }
+    .relay-when {
+        flex-direction: row;
+        gap: 8px;
+        align-items: baseline;
+    }
 }
 
 /* Timeline */
@@ -2184,7 +2146,6 @@ button {
 }
 
 .all-items summary::before,
-.tree-details summary::before,
 .headlines summary::before,
 .voice-more summary::before,
 .more summary::before,
@@ -2192,21 +2153,18 @@ button {
     content: "▸ ";
 }
 .all-items[open] summary::before,
-.tree-details[open] summary::before,
 .headlines[open] summary::before,
 .voice-more[open] summary::before,
 .more[open] summary::before,
 .context details[open] summary::before {
     content: "▾ ";
 }
-.tree-details summary,
 .headlines summary,
 .voice-more summary,
 .more summary,
 .context summary {
     list-style: none;
 }
-.tree-details summary::-webkit-details-marker,
 .headlines summary::-webkit-details-marker,
 .voice-more summary::-webkit-details-marker,
 .more summary::-webkit-details-marker,
@@ -2359,7 +2317,7 @@ button {
 .voice-src a,
 .tl-src a,
 .item-list a,
-.node a,
+.relay a,
 .prose a,
 .footer a,
 .context a,

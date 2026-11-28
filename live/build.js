@@ -15,8 +15,8 @@ import { isWebUrl } from './lib/feeds.js';
 import { homeImage, iconPng, storyImage } from './lib/og.js';
 import { MAP, OUTLINE, placeOf } from './lib/places.js';
 import { inElectionSilence, loadPolicy, POLL, silenceFilter } from './lib/policy.js';
-import { addContributions, lastAt, originOf, rankStories, sparkline, spreadTree } from './lib/stories.js';
-import { outletOf, SOURCE_BY_ID, SOURCES, tierOf } from './sources.js';
+import { addContributions, lastAt, originOf, rankStories, sparkline } from './lib/stories.js';
+import { outletOf, SOURCE_BY_ID, SOURCES, sourceIdForName, tierOf } from './sources.js';
 
 const require = createRequire(import.meta.url);
 const HERE = path.dirname(fileURLToPath(import.meta.url));
@@ -33,7 +33,7 @@ const CONTACT = /^[^\s@<>"]+@[^\s@<>"]+\.[a-z]{2,}$/i.test(process.env.LIVE_CONT
 const HOUR = 3600 * 1000;
 
 // Bumped by hand when style.css or live.js change, so browsers fetch them anew.
-const ASSET_VERSION = '17';
+const ASSET_VERSION = '18';
 
 const esc = (s) =>
     String(s ?? '')
@@ -694,120 +694,68 @@ function actorsBlock(story, now) {
 </section>`;
 }
 
-const isOriginCite = (it) => (it.citesKind === 'institution' || it.citesKind === 'person') && it.cites;
+// How long after the first report: "15 мин", "4 ч и 40 мин", "2 дни".
+export function afterFirst(ms) {
+    const min = Math.round(ms / 60000);
+    if (min < 1) return 'веднага';
+    if (min < 60) return `след ${min} мин`;
+    const h = Math.floor(min / 60);
+    const m = min % 60;
+    if (h < 24) return `след ${h} ч${m ? ` и ${m} мин` : ''}`;
+    const d = Math.round(h / 24);
+    return `след ${d} ${d === 1 ? 'ден' : 'дни'}`;
+}
 
-// The spread as a picture: time runs left to right, each outlet has its own
-// lane, and a line joins an item to the earlier one it cites. The first-hand
-// sources (institutions, people) sit in a lane of their own on top.
-export function spreadSvg(story, now) {
+// Where an item says it got the news from, in plain words.
+function howItKnows(it) {
+    if (SOURCE_BY_ID.get(it.source)?.partisan) return 'собственият канал на партията';
+    if (tierOf(it.source) === 1) return 'официално съобщение';
+    // An outlet naming itself ("според Медиапул" in Медиапул) is its own report.
+    const cited = it.citesSource ?? (it.citesKind === 'media' ? sourceIdForName(it.cites) : null);
+    const self =
+        (cited && outletOf(cited) === outletOf(it.source)) ||
+        (it.cites && it.cites.trim().toLowerCase() === displayName(it.source).toLowerCase());
+    if (self) return 'собствен материал';
+    if (it.citesSource) return `по материал на ${sourceLabel(it.citesSource)}`;
+    if (it.cites && it.citesKind === 'person') return `по думите на ${esc(it.cites)}`;
+    if (it.cites && it.citesKind === 'institution') return `по съобщение на ${esc(it.cites)}`;
+    if (it.cites && it.citesKind === 'media') return `по ${esc(it.cites)}`;
+    if (it.citesKind === 'own') return 'собствен материал';
+    return '';
+}
+
+const RELAY_SHOWN = 8;
+
+// Who reported the story first and who followed, one row per source in the
+// order they first reported it: when, how long after the first, where they
+// say they got it, and their headline.
+export function relayBlock(story, now) {
     const items = [...story.items].sort((a, b) => a.at - b.at);
-    if (items.length < 2) return '';
-    const lanes = [];
-    const laneOf = new Map();
-    if (items.some(isOriginCite)) lanes.push({ label: 'Първоизточник', kind: 'first' });
+    const firsts = [];
+    const count = new Map();
     for (const it of items) {
         const o = outletOf(it.source);
-        if (!laneOf.has(o) && lanes.length < 18) {
-            laneOf.set(o, lanes.length);
-            const name = SOURCE_BY_ID.get(it.source)?.name.replace(/ \(видео\)$/, '') ?? o;
-            lanes.push({ label: name, kind: kindOf(it.source) });
-        }
+        if (!count.has(o)) firsts.push(it);
+        count.set(o, (count.get(o) ?? 0) + 1);
     }
-    const t0 = items[0].at;
-    const t1 = Math.max(items.at(-1).at, t0 + HOUR);
-    const LABEL = 150;
-    const W = 860;
-    const ROW = 26;
-    const TOP = 30;
-    const H = TOP + lanes.length * ROW + 12;
-    const x = (t) => LABEL + 14 + ((t - t0) / (t1 - t0)) * (W - LABEL - 30);
-    const y = (lane) => TOP + lane * ROW + ROW / 2;
-    const f = (n) => n.toFixed(1);
-    const pos = new Map();
-    const origins = new Map();
-    const marks = [];
-    const links = [];
-    for (const it of items) {
-        const lane = laneOf.get(outletOf(it.source));
-        if (lane === undefined) continue;
-        const p = { x: x(it.at), y: y(lane) };
-        pos.set(it.id, p);
-        if (isOriginCite(it)) {
-            const key = it.cites.toLowerCase();
-            if (!origins.has(key)) {
-                const op = { x: x(it.at), y: y(0) };
-                origins.set(key, op);
-                marks.push(
-                    `<g class="sp-origin"><title>${esc(it.cites)} — първоизточник</title><rect x="${f(op.x - 5)}" y="${f(op.y - 5)}" width="10" height="10" rx="2" transform="rotate(45 ${f(op.x)} ${f(op.y)})"/></g>`,
-                );
-            }
-            const op = origins.get(key);
-            const my = (op.y + p.y) / 2;
-            links.push(
-                `<path class="sp-link sp-link-origin" d="M${f(op.x)} ${f(op.y)} C ${f(op.x)} ${f(my)}, ${f(p.x)} ${f(my)}, ${f(p.x)} ${f(p.y)}"/>`,
-            );
-        } else if (it.citesSource) {
-            const parent = items.find(
-                (j) => outletOf(j.source) === outletOf(it.citesSource) && j.at <= it.at && pos.has(j.id),
-            );
-            if (parent) {
-                const pp = pos.get(parent.id);
-                const mx = (pp.x + p.x) / 2;
-                links.push(
-                    `<path class="sp-link" d="M${f(pp.x)} ${f(pp.y)} C ${f(mx)} ${f(pp.y)}, ${f(mx)} ${f(p.y)}, ${f(p.x)} ${f(p.y)}"/>`,
-                );
-            }
-        }
-        const label = `${displayName(it.source)} · ${when(it.at, now)} — ${itemTitle(it)}`;
-        marks.push(
-            `<a href="${href(it.url)}" target="_blank" rel="noopener"><title>${esc(label)}</title><circle class="sp-dot k-${kindOf(it.source)}${it.kind === 'video' ? ' sp-video' : ''}" cx="${f(p.x)}" cy="${f(p.y)}" r="${it.id === items[0].id ? 7 : 5}"/></a>`,
-        );
-    }
-    const laneEls = lanes
-        .map((l, i) => {
-            const label = l.label.length > 20 ? `${l.label.slice(0, 19)}…` : l.label;
-            return `<g class="sp-lane"><line x1="${LABEL}" x2="${W - 8}" y1="${y(i)}" y2="${y(i)}"/><text x="${LABEL - 10}" y="${y(i) + 4}" text-anchor="end" class="sp-label kt-${l.kind}">${esc(label)}</text></g>`;
-        })
-        .join('');
-    const ticks = [0, 1 / 3, 2 / 3, 1]
-        .map((fr) => {
-            const t = t0 + fr * (t1 - t0);
-            const anchor = fr === 0 ? 'start' : fr === 1 ? 'end' : 'middle';
-            return `<text class="sp-tick" x="${f(x(t))}" y="16" text-anchor="${anchor}">${esc(when(t, now))}</text>`;
-        })
-        .join('');
-    return `<div class="spread-scroll"><svg class="spread-svg" viewBox="0 0 ${W} ${H}" role="group" aria-label="Как се разпространи новината във времето, медия по медия">${ticks}${laneEls}${links.join('')}${marks.join('')}</svg></div>`;
-}
-
-function treeHtml(nodes, now) {
-    if (!nodes.length) return '';
-    return `<ul>${nodes
-        .map((n) => {
-            const kids = treeHtml(n.children, now);
-            if (!n.item) {
-                const kind = n.kind === 'person' ? 'говори пряко' : 'официален източник';
-                return `<li class="origin"><span class="node"><span class="node-src">◆ ${esc(n.name)}</span><span class="node-how">${kind}</span></span>${kids}</li>`;
-            }
-            const it = n.item;
-            const how = it.citesSource
-                ? `цитира ${sourceLabel(it.citesSource)}`
-                : it.citesKind === 'own'
-                  ? 'собствен материал'
-                  : it.cites && it.citesKind === 'media'
-                    ? `цитира ${esc(it.cites)}`
-                    : '';
-            return `<li><span class="node"><span class="node-src">${srcMark(it.source)}${sourceLabel(it.source)}${it.kind === 'video' ? ' ▶' : ''} ${timeEl(it.at, now)}</span>${how ? `<span class="node-how">${how}</span>` : ''}${ext(it.url, esc(itemTitle(it)))}</span>${kids}</li>`;
-        })
-        .join('')}</ul>`;
-}
-
-function spreadBlock(story, now) {
-    const svg = spreadSvg(story, now);
-    if (!svg) return '';
+    if (firsts.length < 2) return '';
+    const t0 = firsts[0].at;
+    const row = (it, i) => {
+        const more = count.get(outletOf(it.source)) - 1;
+        const how = howItKnows(it);
+        return `<li class="relay-row${i === 0 ? ' relay-first' : ''}">
+    <span class="relay-when">${i === 0 ? '<b>Първи</b>' : `<b>${afterFirst(it.at - t0)}</b>`}${timeEl(it.at, now)}</span>
+    <span class="relay-body"><span class="relay-src">${srcMark(it.source)}${sourceLabel(it.source)}${it.kind === 'video' ? ' <span class="relay-video">▶ видео</span>' : ''}</span>${how ? `<span class="relay-how">${how}</span>` : ''}${ext(it.url, esc(itemTitle(it)))}${more ? `<span class="relay-more">и още ${plural(more, 'материал', 'материала')} по-късно</span>` : ''}</span>
+</li>`;
+    };
+    const shown = firsts.slice(0, RELAY_SHOWN).map(row).join('');
+    const rest = firsts.slice(RELAY_SHOWN);
+    const span = afterFirst(firsts.at(-1).at - t0).replace(/^след /, '');
     return `<section class="panel" aria-labelledby="spread">
-    <h2 id="spread" class="panel-title">Как тръгна и как се разнесе <span>всяка точка е материал; линията води към този, когото цитира</span></h2>
-    ${svg}
-    ${story.items.length <= LIST_MAX ? `<details class="tree-details"><summary>Като дърво, с всички заглавия</summary><div class="tree">${treeHtml(spreadTree(story), now)}</div></details>` : ''}
+    <h2 id="spread" class="panel-title">Кой я съобщи пръв <span>и кой след него</span></h2>
+    <p class="relay-sum">${firsts.length} ${firsts.length === 1 ? 'източник' : 'източника'} съобщиха новината ${span === 'веднага' ? 'почти едновременно' : `в рамките на ${span}`}.</p>
+    <ol class="relay">${shown}</ol>
+    ${rest.length ? `<details class="more relay-rest"><summary>Още ${rest.length} ${rest.length === 1 ? 'източник' : 'източника'}</summary><ol class="relay">${rest.map((it, i) => row(it, i + RELAY_SHOWN)).join('')}</ol></details>` : ''}
 </section>`;
 }
 
@@ -922,14 +870,14 @@ function storyPage(state, r, ranked, now) {
         videos: videoBlock(s, now),
         framing: framingBlock(s, now),
         voices: actorsBlock(s, now),
-        spread: spreadBlock(s, now),
+        spread: relayBlock(s, now),
         timeline: timelineBlock(s),
     };
     const nav = [
         ['videos', `▶ ${plural(videos, 'видео', 'видеа')}`],
         ['framing', 'Как го представят'],
         ['voices', 'Кой какво казва'],
-        ['spread', 'Разпространение'],
+        ['spread', 'Кой пръв'],
         ['timeline', 'Хронология'],
     ]
         .filter(([id]) => blocks[id] && (id !== 'timeline' || s.timeline.length))
