@@ -1,6 +1,7 @@
 // Reading RSS and Atom feeds (YouTube's channel feeds are Atom) without a
 // parser dependency: the feeds we read are small and regular, and every value
 // taken from them is treated as text, never markup.
+import { execFile } from 'node:child_process';
 import { createHash } from 'node:crypto';
 
 export const USER_AGENT = 'Mozilla/5.0 (compatible; live.gazette.bg/1.0; +https://live.gazette.bg)';
@@ -98,16 +99,9 @@ export function isOffTopic(entry) {
     return OFF_TOPIC_CATEGORY.test(entry.category ?? '');
 }
 
-export async function fetchText(url, { timeoutMs = 15000, accept = '*/*' } = {}) {
-    const res = await fetch(url, {
-        headers: { 'User-Agent': USER_AGENT, Accept: accept, 'Accept-Language': 'bg,en;q=0.5' },
-        redirect: 'follow',
-        signal: AbortSignal.timeout(timeoutMs),
-    });
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    const buf = new Uint8Array(await res.arrayBuffer());
+function decode(buf, contentType) {
     // Most Bulgarian sites are UTF-8; a few older ones still send cp1251.
-    const declared = (res.headers.get('content-type') ?? '').match(/charset=([\w-]+)/i)?.[1];
+    const declared = (contentType ?? '').match(/charset=([\w-]+)/i)?.[1];
     const head = new TextDecoder('latin1').decode(buf.slice(0, 2048));
     const inDoc = head.match(/encoding="([\w-]+)"|charset=["']?([\w-]+)/i);
     const charset = (declared || inDoc?.[1] || inDoc?.[2] || 'utf-8').toLowerCase();
@@ -116,6 +110,39 @@ export async function fetchText(url, { timeoutMs = 15000, accept = '*/*' } = {})
     } catch {
         return new TextDecoder('utf-8').decode(buf);
     }
+}
+
+// Through a SOCKS5 proxy, which Node's fetch cannot use: curl can, and is on
+// every runner. The status and type come after the body, on a line of their own.
+function fetchViaProxy(url, { timeoutMs, accept, proxy }) {
+    const { host } = new URL(proxy);
+    const args = ['-sS', '-L', '--max-time', String(Math.ceil(timeoutMs / 1000)), '--socks5-hostname', host];
+    args.push('-A', USER_AGENT, '-H', `Accept: ${accept}`, '-H', 'Accept-Language: bg,en;q=0.5');
+    args.push('-w', '\n%{http_code} %{content_type}', '--', url);
+    return new Promise((resolve, reject) => {
+        execFile('curl', args, { encoding: 'buffer', maxBuffer: 32 * 1024 * 1024 }, (err, stdout) => {
+            if (err) return reject(new Error(`via proxy: ${String(err.message).split('\n')[0]}`));
+            const cut = stdout.lastIndexOf(10);
+            const [code, ...type] = stdout
+                .subarray(cut + 1)
+                .toString('latin1')
+                .split(' ');
+            if (code !== '200') return reject(new Error(`HTTP ${code} via proxy`));
+            resolve(decode(new Uint8Array(stdout.subarray(0, cut)), type.join(' ')));
+        });
+    });
+}
+
+// `proxy` (socks5://host:port) is used when given; otherwise a direct fetch.
+export async function fetchText(url, { timeoutMs = 15000, accept = '*/*', proxy = null } = {}) {
+    if (proxy) return fetchViaProxy(url, { timeoutMs, accept, proxy });
+    const res = await fetch(url, {
+        headers: { 'User-Agent': USER_AGENT, Accept: accept, 'Accept-Language': 'bg,en;q=0.5' },
+        redirect: 'follow',
+        signal: AbortSignal.timeout(timeoutMs),
+    });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    return decode(new Uint8Array(await res.arrayBuffer()), res.headers.get('content-type'));
 }
 
 // Runs fn over items, at most `limit` at a time.

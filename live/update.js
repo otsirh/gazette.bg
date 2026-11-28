@@ -13,6 +13,9 @@ import { createHash } from 'node:crypto';
 //   LIVE_MONTHLY_BUDGET   US$ a month the updates may spend (default 40)
 //   LIVE_RUN_BUDGET       US$ one update may spend (default 1.5)
 //   LIVE_NO_AI=1          read feeds and rebuild, without calling Claude
+//   LIVE_PROXY            socks5://host:port in Bulgaria, for the sources
+//                         marked viaBulgaria; set by the workflow only when
+//                         the Mac mini answers. Without it they go direct.
 import fs from 'node:fs';
 import path from 'node:path';
 import { createLogger, isMain } from '../scripts/lib/cli.js';
@@ -36,6 +39,7 @@ const MAX_TRIES = 3;
 const SEEN_TTL = 4 * 24 * HOUR;
 
 const sourceName = (id) => SOURCE_BY_ID.get(id)?.name ?? id;
+const proxyFor = (sourceId) => (SOURCE_BY_ID.get(sourceId)?.viaBulgaria && process.env.LIVE_PROXY) || null;
 
 export function emptyState() {
     return {
@@ -69,7 +73,10 @@ async function loadState() {
 async function readFeeds(state, now) {
     const results = await mapLimit(SOURCES, 8, async (source) => {
         try {
-            const xml = await fetchText(source.feed, { accept: 'application/rss+xml, application/atom+xml, text/xml' });
+            const xml = await fetchText(source.feed, {
+                accept: 'application/rss+xml, application/atom+xml, text/xml',
+                proxy: proxyFor(source.id),
+            });
             const entries = parseFeed(xml, now);
             state.sources[source.id] = { ok: true, at: now, count: entries.length };
             return entries.map((e) => ({ ...e, source: source.id, kind: source.kind }));
@@ -219,7 +226,12 @@ export async function update({ now = Date.now() } = {}) {
             4,
             async (it) => {
                 try {
-                    texts.set(it.id, articleText(await fetchText(it.url, { timeoutMs: 12000, accept: 'text/html' })));
+                    const page = await fetchText(it.url, {
+                        timeoutMs: 12000,
+                        accept: 'text/html',
+                        proxy: proxyFor(it.source),
+                    });
+                    texts.set(it.id, articleText(page));
                 } catch {
                     // The feed's own excerpt stands in.
                 }
@@ -271,7 +283,7 @@ export async function update({ now = Date.now() } = {}) {
     );
 
     if (!process.env.LIVE_STATE_URL) fs.writeFileSync(LOCAL_STATE, JSON.stringify(state));
-    buildSite(state, { now });
+    await buildSite(state, { now });
     log(`Built ${OUT_DIR} with ${rankStories(state.stories, now).length} stories on the page.`);
     return state;
 }
@@ -294,6 +306,7 @@ export function applyWrite(story, pending, result, now) {
         if (!refs.length || !e.what?.trim()) continue;
         story.timeline.push({
             at: Math.min(...refs.map((r) => r.at)),
+            actor: (e.actor ?? '').trim().slice(0, 60),
             who: (e.who ?? '').trim().slice(0, 120),
             what: e.what.trim().slice(0, 400),
             items: refs.map((r) => r.id),
