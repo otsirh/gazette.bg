@@ -16,8 +16,9 @@ import { isWebUrl } from './lib/feeds.js';
 import { homeImage, iconPng, storyImage } from './lib/og.js';
 import { placeOf } from './lib/places.js';
 import { inElectionSilence, isPollStory, loadPolicy, POLL, silenceFilter } from './lib/policy.js';
+import { axisTicks, buckets, contributors, dayStats, flowOf, heatCurve, outletCounts } from './lib/pulse.js';
 import { publicState } from './lib/seal.js';
-import { IMPORTANT, lastAt, rankStories, scoreStories, sparkline, storyWeight } from './lib/stories.js';
+import { heatAt, LEVELS, lastAt, newsClock, rankStories, scoreStories, sparkline, WALL_CLOCK } from './lib/stories.js';
 import { outletOf, SOURCE_BY_ID, SOURCES, tierOf } from './sources.js';
 
 const require = createRequire(import.meta.url);
@@ -35,7 +36,7 @@ const CONTACT = /^[^\s@<>"]+@[^\s@<>"]+\.[a-z]{2,}$/i.test(process.env.LIVE_CONT
 const HOUR = 3600 * 1000;
 
 // Bumped by hand when style.css or live.js change, so browsers fetch them anew.
-const ASSET_VERSION = '38';
+const ASSET_VERSION = '41';
 
 const shortHash = (t) => createHash('sha1').update(String(t)).digest('base64url').slice(0, 8);
 
@@ -94,7 +95,7 @@ const plural = (n, one, many) => `${n} ${n === 1 ? one : many}`;
 
 // Every text the model writes is marked as such where it begins (AI Act,
 // Art. 50(4); the Commission's guidelines ask for it on each output, not
-// once per site): a tag on each card and page, and the words in front of
+// once per site): a tag on each topic and page, and the words in front of
 // every summary that travels on its own (RSS, search and share previews).
 const AI_TAG =
     '<span class="ai-tag" title="Написано автоматично от изкуствен интелект"><span aria-hidden="true">ИИ</span><span class="sr-only">Написано от изкуствен интелект:</span></span>';
@@ -106,32 +107,42 @@ const KINDS = {
     first: {
         one: 'от първа ръка',
         many: 'от първа ръка',
+        label: 'От първа ръка',
         title: 'От първа ръка',
         long: 'От първа ръка – самата институция или човекът казват това',
     },
     public: {
         one: 'обществена медия',
         many: 'обществени медии',
+        label: 'Обществени медии',
         long: 'Обществена медия или агенция (БНТ, БНР, БТА)',
     },
-    editorial: { one: 'частна медия', many: 'частни медии', long: 'Частна медия с редакция и известен собственик' },
+    editorial: {
+        one: 'частна медия',
+        many: 'частни медии',
+        label: 'Частни медии',
+        long: 'Частна медия с редакция и известен собственик',
+    },
     independent: {
         one: 'автор на своя страница',
         many: 'автори на свои страници',
-        long: 'Автор на своя страница – известен човек, без редакция',
+        label: 'Автори на свои страници',
+        long: 'Журналист на своя страница или малка редакция',
     },
     partisan: {
         one: 'канал на партия',
         many: 'канала на партии',
+        label: 'Канали на партии',
         title: 'Канали на партии',
         long: 'Канал на партия – мнението на партията, не проверен факт',
     },
-    // Tier 4. Every source has a known owner (SOURCES-POLICY.md, rule 2), so
-    // this says only what anyone can check on the page: the items are
-    // mostly unsigned. Never a judgment of the outlet.
     unverified: {
+        // Tier 4. Every source has a known owner (SOURCES-POLICY.md, rule 2),
+        // so this says only what anyone can check on the page: the items are
+        // mostly unsigned. Never a judgment of the outlet.
         one: 'медия без подписи',
         many: 'медии без подписи',
+        label: 'Медии без подписани материали',
         title: 'Медии без подписани материали',
         long: 'Медия с известен собственик, чиито материали обикновено не са подписани',
     },
@@ -214,21 +225,6 @@ const TREND = {
     steady: { sym: '●', label: 'пишат все така' },
     down: { sym: '▼', label: 'пишат все по-малко' },
 };
-
-function sparkSvg(counts) {
-    const w = 120;
-    const h = 28;
-    const max = Math.max(1, ...counts);
-    const step = w / counts.length;
-    const bars = counts
-        .map((c, i) => {
-            if (!c) return '';
-            const bh = Math.max(2, (c / max) * (h - 2));
-            return `<rect x="${(i * step).toFixed(1)}" y="${(h - bh).toFixed(1)}" width="${(step - 1.4).toFixed(1)}" height="${bh.toFixed(1)}" rx="1"/>`;
-        })
-        .join('');
-    return `<svg class="spark" viewBox="0 0 ${w} ${h}" preserveAspectRatio="none" role="img" aria-label="Колко се пише за историята през последните 48 часа">${bars}</svg>`;
-}
 
 function tempBadge(r) {
     return `<span class="temp heat-${r.level.id}" title="Колко медии пишат за новината сега (градусите не са времето навън)"><b>${tempOf(r.heat)}°</b></span>`;
@@ -323,133 +319,212 @@ function footer() {
 }
 
 // ─── Front page ─────────────────────────────────────────────────────────
+//
+// Read top to bottom, it answers: what is happening (the numbers of the
+// day), how the news comes in and where it goes (the flow), which topics are
+// hot and why (the board), and where it all comes from (the outlets).
 
 // data-step: when the story last gained a step in its timeline, a real new
 // development; a new article retelling what is known does not count.
 function cardData(r) {
     const s = r.story;
     const step = Math.max(0, ...s.timeline.map((e) => e.at));
-    return `data-story="${esc(s.id)}" data-first="${Math.min(...s.items.map((i) => i.at))}" data-last="${lastAt(s)}" data-step="${step}" data-weight="${storyWeight(s) ?? ''}" data-level="${r.level.id}" data-trust="${r.trust.id}" data-video="${videosOf(s).length ? 1 : 0}"`;
+    return `data-story="${esc(s.id)}" data-first="${Math.min(...s.items.map((i) => i.at))}" data-last="${lastAt(s)}" data-step="${step}" data-level="${r.level.id}" data-trust="${r.trust.id}" data-video="${videosOf(s).length ? 1 : 0}"`;
 }
 
-const WEIGHT_LABEL = (w) => (w >= IMPORTANT ? 'Голяма' : w >= 3 ? 'Средна' : 'Малка');
-
-function weightStat(s) {
-    const w = storyWeight(s);
-    if (w === null) return '';
-    return stat(
-        'Тежест',
-        `<span class="stat-weight${w >= IMPORTANT ? ' big' : ''}">${WEIGHT_LABEL(w)}</span><small>${s.weight.why ? `${esc(s.weight.why)} · ` : ''}колко засяга хората, не колко се пише</small>`,
-    );
-}
-
-// Why an important story matters, in a line under its summary.
-function whyLine(s) {
-    const w = storyWeight(s);
-    if (w === null || w < IMPORTANT || !s.weight.why) return '';
-    return `<span class="card-why"><span aria-hidden="true">⚖</span> ${esc(s.weight.why)}</span>`;
-}
-
-function cardMeta(r) {
-    const s = r.story;
-    const videos = videosOf(s).length;
-    return [
-        `<span>${plural(r.trust.outlets, 'медия', 'медии')}</span>`,
-        videos ? `<span class="has-video">▶ ${plural(videos, 'видео', 'видеа')}</span>` : '',
-    ]
-        .filter(Boolean)
-        .join('');
-}
-
-// Which hot cards take the whole row in the two-column grid: the first, every
-// card with a video (it lies on its side), and a text card with no text card
-// next to it. Two text cards share a row, so no card is stretched to match a
-// taller neighbour. live.js does the same after a filter hides cards.
-export function wideCards(hasVideo) {
-    const wide = hasVideo.map(() => true);
-    for (let i = 1; i < hasVideo.length; i++) {
-        if (hasVideo[i] || i + 1 >= hasVideo.length || hasVideo[i + 1]) continue;
-        wide[i] = wide[i + 1] = false;
-        i++;
+// The day in one sentence: how much came in, from how many, into how many
+// topics, and how many of them are hot.
+function heroBlock(state, main, now) {
+    const d = dayStats(state.stories, now);
+    const shown = main.filter((r) => r.level.id !== 'cool').length;
+    const hot = main.filter((r) => r.level.id === 'hot').length;
+    let topics = '';
+    if (shown === 1) topics = ` Сега се говори най-много за <b>една тема</b>${hot ? ' и тя е гореща' : ''}.`;
+    else if (shown > 1) {
+        topics = ` Сега се говори най-много за <b>${shown} теми</b>`;
+        if (hot === shown) topics += ' и всички са горещи';
+        else if (hot === 1) topics += ' – <b>една</b> от тях е гореща';
+        else if (hot > 1) topics += ` – <b>${hot}</b> от тях са горещи`;
+        topics += '.';
     }
-    return wide;
+    return `<section class="hero" aria-labelledby="hero-title">
+    <h1 id="hero-title" class="hero-title">Какво се случва в България сега</h1>
+    ${
+        d.items
+            ? `<p class="hero-sub">За последните 24 часа: <b>${plural(d.items, 'публикация', 'публикации')}</b> от <b>${plural(d.outlets, 'източник', 'източника')}</b>.${topics} Последната публикация дойде ${timeEl(d.last, now, true)}.</p>`
+            : ''
+    }
+</section>`;
 }
 
-function storyCard(r, now, { big = false, wide = false } = {}) {
+// How the news comes in: the newest items on the left, each line running to
+// the topic it joined on the right. A dot travels along every line, so the
+// page shows what it does: new items keep coming and gather into topics.
+const FLOW_ROWS = 8;
+const FLOW_TOPICS = 5;
+
+function flowBlock(main, now) {
+    const { top, latest } = flowOf(main, now, { rows: FLOW_ROWS, topics: FLOW_TOPICS });
+    if (!latest.length) return '';
+    // The other topics on the board below; an item may also go to a quieter
+    // one that is not on it.
+    const others = main.filter((r) => r.level.id !== 'cool').length - top.length;
+    const otherNode = others > 0 || latest.some((x) => x.topic < 0);
+    const nodes = top.length + (otherNode ? 1 : 0);
+    const y = (i, n) => (((i + 0.5) * 100) / n).toFixed(2);
+    const levelOfTopic = (t) => (t < 0 ? 'other' : top[t].level.id);
+    const lines = latest
+        .map((x, i) => {
+            const y0 = y(i, latest.length);
+            const y1 = y(x.topic < 0 ? top.length : x.topic, nodes);
+            return `M0 ${y0} C55 ${y0} 45 ${y1} 100 ${y1}`;
+        })
+        .map((d, i) => ({ d, lvl: levelOfTopic(latest[i].topic) }));
+    const svg = `<svg class="flow-lines" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">${lines
+        .map(
+            ({ d, lvl }) => `<path class="fl fl-${lvl}" d="${d}" pathLength="100" vector-effect="non-scaling-stroke"/>`,
+        )
+        .join('')}${lines
+        .map(
+            ({ d, lvl }, i) =>
+                `<path class="fd fl-${lvl}" d="${d}" pathLength="100" vector-effect="non-scaling-stroke" style="animation-delay:${(i * 0.9).toFixed(1)}s"/>`,
+        )
+        .join('')}</svg>`;
+    const inRows = latest
+        .map(
+            ({ item: it, story, topic }) =>
+                `<li class="fi fl-${levelOfTopic(topic)}"><a href="${href(it.url)}" rel="noopener" target="_blank"><span class="fi-meta">${srcMark(it.source)}<b>${sourceLabel(it.source)}</b>${it.kind === 'video' ? ' ▶' : ''}<span class="fi-time"> · ${timeEl(it.at, now, true)}</span></span><span class="fi-title">${esc(it.title?.trim() ? itemTitle(it) : story.title)}</span></a></li>`,
+        )
+        .join('');
+    const topicRows = top
+        .map((r) => {
+            const lastHour = r.story.items.filter((i) => i.at <= now && now - i.at < HOUR).length;
+            return `<li class="fn heat-${r.level.id}"><a href="/s/${esc(r.story.id)}/"><span class="fn-temp">${tempOf(r.heat)}°</span><span class="fn-text"><span class="fn-title">${esc(r.story.title)}</span>${lastHour ? `<span class="fn-in">+${plural(lastHour, 'нова', 'нови')} за час</span>` : ''}</span></a></li>`;
+        })
+        .join('');
+    const other = otherNode
+        ? `<li class="fn fn-other"><a href="${others > 0 ? '#topics' : '/'}"><span class="fn-text"><span class="fn-title">Други теми</span>${others > 0 ? `<span class="fn-in">още ${plural(others, 'тема', 'теми')} по-долу</span>` : ''}</span></a></li>`
+        : '';
+    return `<section class="flow" aria-labelledby="flow-title" style="--rows:${latest.length};--nodes:${nodes}">
+    <h2 id="flow-title" class="sec-title"><span class="live-dot" aria-hidden="true"></span>Как влизат новините <span>отляво: най-новите публикации; отдясно: темата, в която отиде всяка</span></h2>
+    <div class="flow-grid">
+        <ol class="flow-in" aria-label="Най-новите публикации">${inRows}</ol>
+        ${svg}
+        <ol class="flow-topics" aria-label="Темите, в които отиват">${topicRows}${other}</ol>
+    </div>
+</section>`;
+}
+
+// A day in 24 bars, one an hour, the last one this hour. Every story on the
+// board uses the same scale, so a taller bar is really more.
+function hourBars(counts, max) {
+    const w = 240;
+    const h = 40;
+    const step = w / counts.length;
+    const bars = counts
+        .map((c, i) => {
+            if (!c) return '';
+            const bh = Math.max(2, (c / max) * h);
+            return `<rect${i === counts.length - 1 ? ' class="now"' : ''} x="${(i * step + 0.7).toFixed(1)}" y="${(h - bh).toFixed(1)}" width="${(step - 1.4).toFixed(1)}" height="${bh.toFixed(1)}"/>`;
+        })
+        .join('');
+    const label = `Публикации по часове за последните 24 часа; за последния час: ${counts.at(-1)}`;
+    return `<svg class="bars" viewBox="0 0 ${w} ${h}" preserveAspectRatio="none" role="img" aria-label="${esc(label)}"><line x1="0" x2="${w}" y1="${h - 0.5}" y2="${h - 0.5}"/>${bars}</svg>`;
+}
+
+// Who carries the story: the icons of the outlets that make it hot, most
+// first.
+function outletIcons(r, now, clock, max = 8) {
+    const list = contributors(r.story, now, clock);
+    const more = list.length - max;
+    return `<span class="topic-src" role="img" aria-label="${esc(`Пишат: ${list.map((c) => displayName(c.source)).join(', ')}`)}">${list
+        .slice(0, max)
+        .map((c) => srcMark(c.source))
+        .join('')}${more > 0 ? `<span class="more-n">+${more}</span>` : ''}</span>`;
+}
+
+function topicRow(r, now, clock, max, { summary = false } = {}) {
     const s = r.story;
-    const video = big ? videosOf(s)[0] : null;
-    return `<li class="card heat-${r.level.id}${big ? ' big' : ''}${wide ? ' wide' : ''}${video ? ' with-video' : ''}" ${cardData(r)}>
-    <a class="card-link" href="/s/${esc(s.id)}/">
-        ${video ? `<span class="card-thumb">${videoFace(video)}</span>` : ''}
-        <span class="card-body">
-            <span class="card-top">${AI_TAG}${tempBadge(r)}${cardTrend(r)}<span class="ago">${timeEl(lastAt(s), now, true)}</span></span>
-            <h3 class="card-title">${esc(s.title)}</h3>
-            ${s.summary ? `<span class="card-summary">${esc(s.summary)}</span>` : ''}
-            ${whyLine(s)}
-            <span class="card-foot"><span class="meta">${cardMeta(r)}</span></span>
+    const counts = sparkline(s, now, 24, HOUR);
+    const lastHour = counts.at(-1);
+    const vids = videosOf(s).length;
+    const temp = tempOf(r.heat);
+    const why = [
+        `<b>${plural(r.trust.outlets, 'медия', 'медии')}</b>`,
+        lastHour ? `<b>+${plural(lastHour, 'нова', 'нови')}</b> за последния час` : '',
+        vids ? `▶ ${plural(vids, 'видео', 'видеа')}` : '',
+    ].filter(Boolean);
+    return `<li class="topic heat-${r.level.id}" ${cardData(r)}>
+    <a class="topic-link" href="/s/${esc(s.id)}/">
+        <span class="therm" style="--t:${temp}" title="Колко се пише за темата сега (градусите не са времето навън)"><b>${temp}°</b><i aria-hidden="true"><i></i></i></span>
+        <span class="topic-body">
+            <span class="topic-top">${AI_TAG}${cardTrend(r)}<span class="ago">${timeEl(lastAt(s), now, true)}</span></span>
+            <h3 class="topic-title">${esc(s.title)}</h3>
+            ${summary && s.summary ? `<span class="topic-summary">${esc(s.summary)}</span>` : ''}
+            <span class="topic-why">${why.join('<span class="sep"> · </span>')}</span>
+        </span>
+        <span class="topic-chart">
+            ${hourBars(counts, max)}
+            <span class="topic-axis" aria-hidden="true"><span>преди 24 ч</span><span>сега</span></span>
+            ${outletIcons(r, now, clock)}
         </span>
     </a>
 </li>`;
 }
 
-function justIn(ranked, now) {
-    // Each line opens the outlet's own article, in a new tab. An item
-    // without its own headline (a protected story) shows the story's.
-    const latest = ranked
-        .filter((r) => r.trust.outlets >= 2 || r.trust.firstHand)
-        .flatMap((r) => r.story.items.map((it) => ({ it, r })))
-        .sort((a, b) => b.it.at - a.it.at)
-        .slice(0, 14);
-    if (!latest.length) return '';
-    return `<section class="rail-box" aria-labelledby="justin">
-    <h2 id="justin" class="rail-title"><span class="live-dot" aria-hidden="true"></span>Току-що</h2>
-    <ol class="justin">${latest
+// The same scale for every row on a page.
+const barsMax = (rows, now) => Math.max(1, ...rows.map((r) => Math.max(...sparkline(r.story, now, 24, HOUR))));
+
+function boardBlock(main, now, clock) {
+    const hot = main.filter((r) => r.level.id === 'hot');
+    const warm = main.filter((r) => r.level.id === 'warm');
+    const max = barsMax([...hot, ...warm], now);
+    const groups = [];
+    if (hot.length) {
+        groups.push(`<section class="board" aria-labelledby="topics"><h2 id="topics" class="sec-title t-hot">Горещите теми <span>градусите растат с всяка медия, която пише по темата, и падат, когато спрат да пишат; всяко стълбче е един час</span></h2>
+<ol class="topics">${hot.map((r) => topicRow(r, now, clock, max, { summary: true })).join('')}</ol></section>`);
+    }
+    if (warm.length) {
+        groups.push(`<section class="board" aria-labelledby="${hot.length ? 'g-warm' : 'topics'}"><h2 id="${hot.length ? 'g-warm' : 'topics'}" class="sec-title t-warm">Още теми <span>пише се за тях, но не колкото за горещите</span></h2>
+<ol class="topics topics-small">${warm.map((r) => topicRow(r, now, clock, max)).join('')}</ol></section>`);
+    }
+    return groups.length
+        ? `<div class="feed">${groups.join('\n')}</div>`
+        : '<p class="empty">Все още няма събрани теми. Първото обновяване идва до 10 минути.</p>';
+}
+
+// Where it all comes from: the outlets that published the most in the last
+// day, each with how many items. Plain counts, no judgement of the outlets.
+const ORIGIN_MAX = 24;
+
+function originsBlock(stories, now) {
+    const outlets = outletCounts(stories, now);
+    if (!outlets.length) return '';
+    const total = outlets.reduce((a, o) => a + o.count, 0);
+    const top = outlets.slice(0, ORIGIN_MAX);
+    const max = top[0].count;
+    return `<section class="origins" aria-labelledby="origins">
+    <h2 id="origins" class="sec-title">Откъде идва информацията <span>${plural(total, 'публикация', 'публикации')} от ${plural(outlets.length, 'източник', 'източника')} за последните 24 часа; тук са тези, които публикуваха най-много</span></h2>
+    <ol class="outlets">${top
         .map(
-            ({ it, r }) =>
-                `<li><a href="${href(it.url)}" rel="noopener" target="_blank"><span class="ji-meta">${srcMark(it.source)}${sourceLabel(it.source)}${it.kind === 'video' ? ' ▶' : ''} · ${timeEl(it.at, now, true)}</span><span class="ji-title">${it.title?.trim() ? esc(itemTitle(it)) : `${AI_TAG}${esc(r.story.title)}`}</span></a></li>`,
+            (o) =>
+                `<li>${srcMark(o.source)}<span class="o-name">${sourceLabel(o.source)}</span><span class="o-bar"><i style="width:${((o.count / max) * 100).toFixed(1)}%"></i></span><b class="o-n">${o.count}</b></li>`,
         )
         .join('')}</ol>
+    <p class="origins-more"><a href="/sources/">Всички ${SOURCES.length} източника и как ги подбираме →</a></p>
 </section>`;
 }
 
 const isMain = (r) => r.trust.outlets >= 2 || r.trust.firstHand;
 
-function frontPage(state, ranked, now) {
+function frontPage(state, ranked, now, clock) {
     const main = ranked.filter(isMain);
-    const hot = main.filter((r) => r.level.id === 'hot');
-    // Important, and not among the loudest: what a page ordered by noise
-    // would bury. Shown once, here, and not again lower down.
-    const quiet = main
-        .filter((r) => r.level.id !== 'hot' && (storyWeight(r.story) ?? 0) >= IMPORTANT)
-        .sort((a, b) => storyWeight(b.story) - storyWeight(a.story) || b.heat - a.heat)
-        .slice(0, 6);
-    const inQuiet = new Set(quiet.map((r) => r.story.id));
-    const warm = main.filter((r) => r.level.id === 'warm' && !inQuiet.has(r.story.id));
-    const groups = [];
-    if (hot.length) {
-        groups.push(`<section class="group" aria-labelledby="g-hot"><h2 id="g-hot" class="group-title t-hot">Горещо <span>за това се пише най-много сега; градусите показват колко медии пишат, а не времето навън</span></h2>
-<ol class="cards cards-big">${(() => {
-            const wide = wideCards(hot.map((r) => videosOf(r.story).length > 0));
-            return hot.map((r, i) => storyCard(r, now, { big: true, wide: wide[i] })).join('');
-        })()}</ol></section>`);
-    }
-    if (quiet.length) {
-        groups.push(`<section class="group" aria-labelledby="g-quiet"><h2 id="g-quiet" class="group-title t-weight">Тихо, но важно <span>засяга много хора, а се пише малко</span></h2>
-<ol class="cards">${quiet.map((r) => storyCard(r, now)).join('')}</ol></section>`);
-    }
-    if (warm.length) {
-        groups.push(`<section class="group" aria-labelledby="g-warm"><h2 id="g-warm" class="group-title t-warm">Още новини <span>пише се за тях, но не колкото за горещите</span></h2>
-<ol class="cards">${warm.map((r) => storyCard(r, now)).join('')}</ol></section>`);
-    }
-    const body = groups.length
-        ? groups.join('\n')
-        : '<p class="empty">Все още няма събрани истории. Първото обновяване идва до 10 минути.</p>';
     const top = main[0];
     return `${head({
         title: 'Какво се случва в България сега — live.gazette.bg',
         description: top
-            ? `Сега най-горещо: ${top.story.title} (заглавие от изкуствен интелект). Всички актуални новини, подредени по това колко се говори за тях, с първоизточника и видеата.`
-            : 'Актуалните новини в България, подредени по това колко се говори за тях, с първоизточника и видеата.',
+            ? `Сега най-горещо: ${top.story.title} (заглавие от изкуствен интелект). Всички актуални теми, подредени по това колко се говори за тях, с първоизточника и видеата.`
+            : 'Актуалните теми в България, подредени по това колко се говори за тях, с първоизточника и видеата.',
         canonical: `${SITE_ORIGIN}/`,
         image: `${SITE_ORIGIN}/og/home.png?v=${state.updatedAt}`,
         ld: {
@@ -474,17 +549,12 @@ function frontPage(state, ranked, now) {
 ${topbar(state, now)}
 <main id="main" class="wrap">
 ${state.silence ? '<p class="silence">Изборен ден: до края на гласуването не показваме социологически проучвания и партийни канали (Изборен кодекс, чл. 182 и 205).</p>' : ''}
-<h1 class="sr-only">Какво се случва в България сега</h1>
-<p class="ai-note home-ai">Заглавията и обобщенията на историите са написани автоматично от изкуствен интелект, без човешка редакция, и може да има грешки. Всяко твърдение води към публикацията, от която е взето. <a href="/about/">Как работи</a></p>
+${heroBlock(state, main, now)}
+<p class="ai-note home-ai">Темите, заглавията и обобщенията им са написани автоматично от изкуствен интелект, без човешка редакция, и може да има грешки. Всяко твърдение води към публикацията, от която е взето. <a href="/about/">Как работи</a></p>
 <div class="since" data-since hidden></div>
-<div class="layout">
-    <div class="feed">
-        ${body}
-    </div>
-    <aside class="rail">
-        ${justIn(ranked, now)}
-    </aside>
-</div>
+${flowBlock(main, now)}
+${boardBlock(main, now, clock)}
+${originsBlock(state.stories, now)}
 </main>
 ${footer()}
 </body>
@@ -535,15 +605,209 @@ function sourcesBlock(story, now) {
 </section>`;
 }
 
-function stat(label, value) {
-    return `<div class="stat"><dt>${label}</dt><dd>${value}</dd></div>`;
+// Why the story is as hot as it is, in numbers anyone reads: how many
+// outlets, how many items, how many in the last hour, how it changed, and
+// who adds the most.
+const WHY_TITLE = { hot: 'Защо е гореща', warm: 'Защо се говори за нея', cool: 'Колко се говори за нея' };
+
+function whyBlock(r, ranked, now, clock) {
+    const s = r.story;
+    const items = s.items.filter((i) => i.at <= now);
+    const lastHour = items.filter((i) => now - i.at < HOUR).length;
+    const vids = s.sensitive ? 0 : videosOf(s).length;
+    const temp = tempOf(r.heat);
+    const tiles = [
+        [r.trust.outlets, r.trust.outlets === 1 ? 'медия пише по темата' : 'медии пишат по темата'],
+        [items.length, items.length === 1 ? 'публикация общо' : 'публикации общо'],
+        [`+${lastHour}`, 'за последния час'],
+        ...(vids ? [[vids, vids === 1 ? 'видео' : 'видеа']] : []),
+    ];
+    const first = Math.min(...items.map((i) => i.at));
+    let change;
+    if (r.trend === 'new') {
+        change = `Темата е нова: първата публикация дойде ${timeEl(first, now, true)}.`;
+    } else {
+        const before = tempOf(heatAt(s, now - 3 * HOUR, clock));
+        const how = { up: 'пишат все повече', down: 'пишат все по-малко', steady: 'пишат все така' }[r.trend];
+        change = `Преди 3 часа беше <b>${before}°</b>, сега е <b>${temp}°</b>: ${how}.`;
+    }
+    const lead =
+        ranked[0]?.story.id === s.id && r.level.id === 'hot'
+            ? '<p class="why-lead">Това е най-горещата тема в момента.</p>'
+            : '';
+    const list = contributors(s, now, clock);
+    const top = list.slice(0, 8);
+    const maxShare = top[0]?.share || 1;
+    const rest = list.length - top.length;
+    return `<section class="panel why" aria-labelledby="why">
+    <h2 id="why" class="panel-title">${WHY_TITLE[r.level.id]}</h2>
+    ${lead}
+    <ul class="why-tiles">${tiles.map(([n, label]) => `<li><b>${n}</b><span>${label}</span></li>`).join('')}</ul>
+    <p class="why-change${r.trend === 'up' ? ' up' : ''}">${change}</p>
+    ${growthChart(s, now, clock)}
+    <div class="contrib">
+        <h3 class="sub-title">Кой вдига градусите <span>всяка медия, която пише, добавя градуси; най-много тежат новите публикации</span></h3>
+        <ol class="contrib-list">${top
+            .map(
+                (c) =>
+                    `<li>${srcMark(c.source)}<span class="c-name">${sourceLabel(c.source)}</span><span class="c-bar"><i style="width:${Math.max(2, (c.share / maxShare) * 100).toFixed(1)}%"></i></span><span class="c-n">${plural(c.count, 'публикация', 'публикации')}</span></li>`,
+            )
+            .join('')}</ol>
+        ${rest > 0 ? `<p class="quiet small">И още ${plural(rest, 'медия', 'медии')}.</p>` : ''}
+    </div>
+    <p class="why-trust">Може ли да се вярва: <span class="trust trust-${r.trust.id}">${esc(r.trust.label)}</span>${coverageBar(s, { legend: true })}</p>
+</section>`;
 }
 
-function moreBlock(r, ranked, now) {
+// How the story caught fire, from its first item to now: its degrees as a
+// line, and under it how many items came out.
+const fmtAxisDay = sofia({ day: 'numeric', month: 'long' });
+
+function growthChart(s, now, clock) {
+    const items = s.items.filter((i) => i.at <= now);
+    if (!items.length) return '';
+    const curve = heatCurve(s, now, clock, 120);
+    const start = curve[0].at;
+    const span = now - start;
+    const x = (t) => ((t - start) / span) * 1000;
+    const temps = curve.map((p) => tempOf(p.heat));
+    const pts = curve.map((p, k) => `${x(p.at).toFixed(1)} ${(100 - temps[k]).toFixed(1)}`);
+    const line = `M${pts.join(' L')}`;
+    const area = `${line} L1000 100 L0 100 Z`;
+    let peak = 0;
+    for (let k = 1; k < temps.length; k++) if (temps[k] >= temps[peak]) peak = k;
+    // Bars: about one every half hour, between 12 and 72 of them.
+    const n = Math.max(12, Math.min(72, Math.round(span / (HOUR / 2))));
+    const bs = buckets(items, start, now, n);
+    const bmax = Math.max(1, ...bs);
+    const bw = 1000 / n;
+    const bars = bs
+        .map((c, k) => {
+            if (!c) return '';
+            const h = Math.max(2, (c / bmax) * 58);
+            return `<rect x="${(k * bw + bw * 0.12).toFixed(1)}" y="${(60 - h).toFixed(1)}" width="${(bw * 0.76).toFixed(1)}" height="${h.toFixed(1)}"/>`;
+        })
+        .join('');
+    const pct = (t) => `${((x(t) / 1000) * 100).toFixed(2)}%`;
+    const { ticks, step } = axisTicks(start, now, 5);
+    const tickLabel = (t) =>
+        step >= 24 * HOUR || fmtClock.format(t) === '00:00' ? fmtAxisDay.format(t) : fmtClock.format(t);
+    const axis = ticks
+        .filter((t) => x(t) > 70 && x(t) < 930)
+        .map((t) => `<span style="left:${pct(t)}">${esc(tickLabel(t))}</span>`)
+        .join('');
+    // The peak is named when it was clearly hotter than now; near the
+    // start it takes the start's place, near now it would say the same.
+    const peakX = x(curve[peak].at);
+    const showPeak = temps[peak] > temps.at(-1) + 3 && peakX < 780;
+    const peakLabel = `<b>Най-горещо: ${temps[peak]}°</b>${esc(when(curve[peak].at, now))}`;
+    const marks = [
+        showPeak && peakX <= 220
+            ? `<span class="gm gm-start">${peakLabel}</span>`
+            : `<span class="gm gm-start"><b>Начало</b>${esc(when(start, now))}</span>`,
+        showPeak && peakX > 220
+            ? `<span class="gm gm-peak" style="left:${pct(curve[peak].at)}">${peakLabel}</span>`
+            : '',
+        `<span class="gm gm-now"><b>Сега: ${temps.at(-1)}°</b>${esc(fmtClock.format(now))}</span>`,
+    ].join('');
+    const dots = [...(showPeak ? [[peakX, temps[peak], 'peak']] : []), [1000, temps.at(-1), 'now']]
+        .map(([px, t, c]) => `<i class="gp gp-${c}" style="left:${(px / 10).toFixed(2)}%;top:${100 - t}%"></i>`)
+        .join('');
+    return `<figure class="growth">
+    <figcaption class="sub-title">Как се разгоря <span>от първата публикация до сега</span></figcaption>
+    <div class="growth-marks">${marks}</div>
+    <div class="growth-plot" role="img" aria-label="${esc(`Градусите на темата от ${when(start, now)} до сега; най-много ${temps[peak]}°, сега ${temps.at(-1)}°`)}">
+        <svg class="growth-heat heat-${tempLevel(temps.at(-1))}" viewBox="0 0 1000 100" preserveAspectRatio="none" aria-hidden="true"><path class="ga" d="${area}"/><path class="gl" d="${line}" vector-effect="non-scaling-stroke"/></svg>
+        ${dots}
+    </div>
+    <svg class="growth-bars heat-${tempLevel(temps.at(-1))}" viewBox="0 0 1000 60" preserveAspectRatio="none" role="img" aria-label="${esc(`Колко публикации излизаха във времето: ${plural(items.length, 'публикация', 'публикации')} общо`)}">${bars}</svg>
+    <div class="growth-axis" aria-hidden="true">${axis}</div>
+    <p class="growth-key small"><span class="gk"><i class="gk-line"></i>градуси: колко се пише сега</span><span class="gk"><i class="gk-bar"></i>публикации: колко излизаха</span></p>
+</figure>`;
+}
+
+// The colour of a temperature, the way the levels colour a story.
+const tempLevel = (t) => (t >= tempOf(LEVELS[0].min) ? 'hot' : t >= tempOf(LEVELS[1].min) ? 'warm' : 'cool');
+
+// A quote from the parliament's verbatim record: where it is, and the
+// sitting's video.
+function recordLinks(e) {
+    const parts = [ext(e.url, `🏛 ${esc(e.label || 'Стенограма')}`)];
+    if (e.video) parts.push(ext(e.video, '▶ запис на заседанието'));
+    return parts.join(' ');
+}
+
+const capFirst = (t) => String(t).replace(/^(\p{Ll})/u, (c) => c.toUpperCase());
+const fmtLongDay = sofia({ weekday: 'long', day: 'numeric', month: 'long' });
+
+function dayLabel(ms, now) {
+    const k = dayKey.format(ms);
+    if (k === dayKey.format(now)) return 'Днес';
+    if (k === dayKey.format(now - 24 * HOUR)) return 'Вчера';
+    return capFirst(fmtLongDay.format(ms));
+}
+
+// How the story unfolded, from the first item to now, oldest first. A long
+// one keeps its start and its newest steps in view; the middle opens on a tap.
+const TL_HEAD = 4;
+const TL_TAIL = 8;
+
+function timelineBlock(r, now) {
+    const s = r.story;
+    const items = s.items.filter((i) => i.at <= now);
+    if (!items.length) return '';
+    const byId = new Map(s.items.map((i) => [i.id, i]));
+    const first = [...items].sort((a, b) => a.at - b.at)[0];
+    const steps = [...s.timeline].filter((e) => e.at <= now).sort((a, b) => a.at - b.at);
+    const srcLink = (i) =>
+        ext(i.url, `${srcMark(i.source)}${sourceLabel(i.source)}${i.kind === 'video' && !s.sensitive ? ' ▶' : ''}`);
+    const entries = [
+        {
+            at: first.at,
+            html: `<b class="tl-who">Първата публикация</b>${first.title ? `<span class="tl-what">${ext(first.url, esc(first.title))}</span>` : ''}<span class="tl-src">${srcLink(first)}</span>`,
+            cls: 'tl-start',
+        },
+        ...steps.map((e) => {
+            const refs = (e.items ?? []).map((id) => byId.get(id)).filter(Boolean);
+            const links = e.source === 'parliament' ? recordLinks(e) : refs.map(srcLink).join('');
+            return {
+                at: e.at,
+                html: `<b class="tl-who">${esc(capFirst(e.who || e.actor || ''))}</b><span class="tl-what">${esc(capFirst(e.what ?? ''))}</span>${e.quote ? `<q class="quote">${esc(e.quote)}</q>` : ''}${links ? `<span class="tl-src">${links}</span>` : ''}`,
+                cls: '',
+            };
+        }),
+    ];
+    // Each part repeats the day it starts in, so a reader never loses the date.
+    const render = (list) => {
+        let day = '';
+        return list
+            .map((e) => {
+                const k = dayKey.format(e.at);
+                const sep = k !== day ? `<li class="tl-day">${esc(dayLabel(e.at, now))}</li>` : '';
+                day = k;
+                return `${sep}<li class="tl-step${e.cls ? ` ${e.cls}` : ''}"><time datetime="${new Date(e.at).toISOString()}">${esc(fmtClock.format(e.at))}</time><div class="tl-body">${e.html}</div></li>`;
+            })
+            .join('');
+    };
+    const fold = entries.length > TL_HEAD + TL_TAIL + 2;
+    const head = fold ? entries.slice(0, TL_HEAD) : entries;
+    const middle = fold ? entries.slice(TL_HEAD, -TL_TAIL) : [];
+    const tail = fold ? entries.slice(-TL_TAIL) : [];
+    const nowRow = `<li class="tl-step tl-now"><time>${esc(fmtClock.format(now))}</time><div class="tl-body"><b class="tl-who">Сега: ${tempOf(r.heat)}°</b><span class="tl-what">${plural(items.length, 'публикация', 'публикации')} от ${plural(r.trust.outlets, 'медия', 'медии')} досега</span></div></li>`;
+    return `<section class="panel tl-panel" aria-labelledby="timeline">
+    <h2 id="timeline" class="panel-title">Хронология <span>как се разви темата, от началото до сега; часът е на публикацията, която го съобщава</span></h2>
+    <ol class="tl">${render(head)}</ol>
+    ${fold ? `<details class="tl-fold"><summary>Покажи още ${plural(middle.length, 'стъпка', 'стъпки')}</summary><ol class="tl">${render(middle)}</ol></details><ol class="tl">${render(tail)}</ol>` : ''}
+    <ol class="tl tl-end">${nowRow}</ol>
+</section>`;
+}
+
+function moreBlock(r, ranked, now, clock) {
     const others = ranked.filter((o) => o.story.id !== r.story.id && isMain(o)).slice(0, 4);
     if (!others.length) return '';
-    return `<section class="group more-stories" aria-labelledby="more"><h2 id="more" class="group-title t-hot">Още за това се пише сега</h2>
-<ol class="cards">${others.map((o) => storyCard(o, now)).join('')}</ol></section>`;
+    const max = barsMax(others, now);
+    return `<section class="board more-stories" aria-labelledby="more"><h2 id="more" class="sec-title t-hot">Още за това се пише сега</h2>
+<ol class="topics topics-small">${others.map((o) => topicRow(o, now, clock, max)).join('')}</ol></section>`;
 }
 
 // Answers from people or parties a story names (Изборен кодекс чл. 188, and
@@ -562,13 +826,21 @@ function repliesBlock(story) {
 // A cold story (no longer on the front page) keeps its page while it is in
 // the state, so a link someone shared still works; it is not indexed, and it
 // borrows the site's picture, since its own is no longer made.
-function storyPage(state, r, ranked, now, { cold = false } = {}) {
+//
+// The page goes from why it is hot, to how it unfolded, to the videos and
+// the articles themselves; the chips at the top jump to each.
+function storyPage(state, r, ranked, now, { cold = false, clock = WALL_CLOCK } = {}) {
     const s = r.story;
     const url = `${SITE_ORIGIN}/s/${s.id}/`;
-    const blocks = {
-        videos: videoBlock(s, now),
-    };
+    const videos = videoBlock(s, now);
+    const articles = s.items.filter((i) => i.kind !== 'video').length;
     const image = cold ? `${SITE_ORIGIN}/og/home.png` : `${SITE_ORIGIN}/og/${s.id}.png`;
+    const jump = [
+        `<a href="#why">${WHY_TITLE[r.level.id]}</a>`,
+        '<a href="#timeline">Хронология</a>',
+        videos ? `<a href="#videos">▶ ${plural(videosOf(s).length, 'видео', 'видеа')}</a>` : '',
+        articles ? `<a href="#articles">${plural(articles, 'статия', 'статии')}</a>` : '',
+    ].join('');
     return `${head({
         title: `${s.title} — live.gazette.bg`,
         description: aiText(s.summary || s.title),
@@ -594,7 +866,7 @@ function storyPage(state, r, ranked, now, { cold = false } = {}) {
     })}
 <body class="story heat-${r.level.id}" data-version="${state.updatedAt}" ${cardData(r)}>
 ${topbar(state, now)}
-<main id="main" class="wrap">
+<main id="main" class="wrap narrow">
 <a class="back" href="/">← Всичко, което се случва сега</a>
 ${cold ? '<p class="cold-note">Тази новина изстина: за нея вече почти не се пише и я няма на началната страница. Страницата остава, за да работят споделените линкове.</p>' : ''}
 <header class="story-head">
@@ -602,16 +874,14 @@ ${cold ? '<p class="cold-note">Тази новина изстина: за нея
     <p class="ai-note ai-top">${AI_TAG}Заглавието и всичко на тази страница освен заглавията на медиите е написано автоматично от изкуствен интелект по ${plural(s.items.length, 'публикация', 'публикации')} на ${plural(r.trust.outlets, 'медия', 'медии')}, без човешка редакция. Може да има грешки: всяко твърдение води към публикацията, от която е взето, проверявай там. <a href="/about/">Как работи</a></p>
     <h1>${esc(s.title)}</h1>
     ${s.summary ? `<p class="lede">${esc(s.summary)}</p>` : ''}
-    <dl class="stats">
-        ${stat('Може ли да се вярва', `<span class="trust trust-${r.trust.id}">${esc(r.trust.label)}</span>${coverageBar(s, { legend: true })}`)}
-        ${weightStat(s)}
-        ${stat('Колко се пише', `<span class="stat-temp heat-${r.level.id}">${tempOf(r.heat)}°</span>${sparkSvg(sparkline(s, now))}<small>колкото повече медии пишат сега, толкова повече градуса; стълбчетата са последните 48 часа</small>`)}
-    </dl>
+    <nav class="jump" aria-label="На тази страница">${jump}</nav>
 </header>
-${blocks.videos}
+${whyBlock(r, ranked, now, clock)}
+${timelineBlock(r, now)}
+${videos}
 ${sourcesBlock(s, now)}
 ${repliesBlock(s)}
-${moreBlock(r, ranked, now)}
+${moreBlock(r, ranked, now, clock)}
 </main>
 ${footer()}
 </body>
@@ -687,7 +957,7 @@ function sourcesPage(state, now) {
             .map((s) => {
                 const st = state.sources?.[s.id];
                 const status = st && !st.ok ? ' <span class="down">не отговаря в момента</span>' : '';
-                return `<li>${srcMark(s.id)}${ext(s.home, `<b>${sourceLabel(s.id)}</b>`)}${s.kind === 'video' ? ' <span class="yt-tag">YouTube</span>' : ''}${status} — ${esc(s.why)}</li>`;
+                return `<li>${srcMark(s.id)}${ext(s.home, `<b>${sourceLabel(s.id)}</b>`)}${s.kind === 'video' ? ' <span class="yt-tag">YouTube</span>' : ''}${status}</li>`;
             })
             .join('');
         return `<section class="panel"><h2 class="panel-title"><i class="kd k-${k}"></i>${esc(KINDS[k].long)} <span>${list.length}</span></h2><ul class="item-list">${rows}</ul></section>`;
@@ -703,10 +973,10 @@ ${topbar(state, now)}
 <main id="main" class="wrap narrow">
 <a class="back" href="/">← Всичко, което се случва сега</a>
 <header class="story-head"><h1>Източници и как се оценяват</h1>
-<p class="lede">Четем ${SOURCES.length} източника от всички страни: медии, телевизии, независими автори, институции и партии. Колкото повече гледни точки, толкова по-ясна картина.</p></header>
+<p class="lede">Четем ${SOURCES.length} източника от всички страни: медии, телевизии, независими автори, институции и партии.</p></header>
 <div class="prose panel">
 <p><b>Тежестта на източника</b> идва от проверими неща, не от политическата му линия: дали говори самата институция или човек, дали медията отговаря по закон за точността си, дали има известен собственик и подписани материали.</p>
-<p><b>Независимите автори</b> са журналисти, коментатори и малки екипи без медия зад тях: известен човек отговаря за казаното, но няма редакция, която да го проверява. Тежат малко по-малко от редакционните медии.</p>
+<p><b>Независимите автори</b> са журналисти и малки редакции без голяма медия зад тях: известен човек отговаря за казаното, но няма голяма редакция, която да го проверява. Тежат малко по-малко от редакционните медии. Канал или блог на човек, който не работи като журналист, не четем.</p>
 <p><b>Медиите без подписи</b> имат известен собственик, но материалите им обикновено не са подписани. Тежат по-малко. Това казва само какво се вижда на страниците им, не е оценка на медията.</p>
 <p><b>Партийните канали</b> са първоизточник за това какво казват политиците, но казаното е тяхна позиция. Затова сами никога не потвърждават история.</p>
 <p><b>„Потвърдено“</b> значи: има първоизточник (институцията говори сама или медия съобщава какво е обявила) и още една медия, която пише от свое име, или поне три такива медии, сред които агенция или обществена медия. Медия, която само преразказва друга („според БТА“), разпространява новината, но не я потвърждава; интервю е мнение, не потвърден факт. Ако източниците си противоречат за съществен факт, историята не е „Потвърдено“, докато спорът не се разреши.</p>
@@ -751,7 +1021,7 @@ ${operator}
 <h2 class="panel-title">Как работи</h2>
 <p>На всеки 10 минути през деня и на всеки 30 през нощта сайтът чете публичните емисии (RSS) на медиите и YouTube каналите от <a href="/sources/">списъка с източници</a>. Изкуствен интелект (Claude на Anthropic) подрежда материалите в истории и пише кратко обобщение. <b>Текстовете са генерирани от изкуствен интелект, без човешка редакция, и може да съдържат грешки.</b> Затова всяко твърдение води към материала, от който е взето, и показваме колко и какви медии потвърждават всяка история.</p>
 <p>Правилата, които изкуственият интелект спазва: всяко твърдение има източник; никой не се представя за виновен без окончателна присъда; не се назовават деца, пострадали, свидетели и заподозрени, които не са публични личности; не се цитират числа от социологически проучвания. При история, която засяга дете или пострадал от сексуално или домашно насилие, не показваме заглавията и видеата на медиите. В деня преди изборите и в изборния ден не показваме проучвания и партийни канали (Изборен кодекс, чл. 182 и 205).</p>
-<p>„Тежестта“ на източниците е автоматична статистика по проверими признаци, а не оценка на медиите. Описанията на това как медиите представят една история казват само какво подчертават заглавията им.</p>
+<p>„Тежестта“ на източниците е автоматична статистика по проверими признаци, а не оценка на медиите.</p>
 </div>
 <div class="prose panel">
 <h2 class="panel-title">Поправки, премахване и отговор</h2>
@@ -913,7 +1183,8 @@ export async function buildSite(state, { now = Date.now(), outDir = OUT_DIR, ima
         };
     }
     const ranked = rankStories(state.stories, now);
-    write(path.join(outDir, 'index.html'), frontPage(state, ranked, now));
+    const clock = newsClock(state.stories, now);
+    write(path.join(outDir, 'index.html'), frontPage(state, ranked, now, clock));
     // Every story in the state has a page, the cold ones too; then every
     // remembered one. An address, once shared, keeps working.
     const shown = new Set(ranked.map((r) => r.story.id));
@@ -923,7 +1194,7 @@ export async function buildSite(state, { now = Date.now(), outDir = OUT_DIR, ima
         built.add(r.story.id);
         write(
             path.join(outDir, 's', r.story.id, 'index.html'),
-            storyPage(state, r, ranked, now, { cold: !shown.has(r.story.id) }),
+            storyPage(state, r, ranked, now, { cold: !shown.has(r.story.id), clock }),
         );
         // A story merged into this one keeps its address: it points here.
         for (const alias of r.story.aliases ?? []) {

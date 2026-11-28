@@ -3,7 +3,8 @@
 //
 // - Times tick ("преди 3 мин").
 // - New updates slide in: a bar offers them, a tap swaps the page in place,
-//   so the reader keeps their scroll and never sees a reload.
+//   so the reader keeps their scroll and never sees a reload. Items that
+//   came in since fly into the flow at the top.
 // - A returning reader who asks for it sees what changed since their last
 //   visit, marked on the cards. Nothing is kept on the device until they
 //   switch it on (ЗЕТ чл. 4а: storage only for a service explicitly asked
@@ -145,8 +146,20 @@ function sinceBar({ fresh, updated }) {
 
 const version = () => document.body.dataset.version;
 
+// The newest item the flow showed, so the next update can mark what is new.
+const newestInFlow = () =>
+    Math.max(0, ...[...document.querySelectorAll('.fi time[data-ts]')].map((t) => Number(t.dataset.ts)));
+
+function markArrivals(since) {
+    if (!since) return;
+    for (const t of document.querySelectorAll('.fi time[data-ts]')) {
+        if (Number(t.dataset.ts) > since) t.closest('.fi')?.classList.add('arrive');
+    }
+}
+
 async function swapIn() {
     const scroll = scrollY;
+    const before = newestInFlow();
     const res = await fetch(location.pathname, { cache: 'no-store' });
     // The page is gone or the network failed: keep what the reader is
     // reading rather than throw them onto an error page.
@@ -167,6 +180,7 @@ async function swapIn() {
     document.body.dataset.version = doc.body.dataset.version;
     document.title = doc.title;
     decorate();
+    markArrivals(before);
     scrollTo({ top: scroll });
     toast('Ето най-новото');
 }
@@ -201,8 +215,6 @@ async function checkForUpdate() {
     }
 }
 
-// ─── What is new in a story for you ──────────────────────────────────────
-
 // ─── Keyboard: J and K move between stories, Enter opens ────────────────
 
 document.addEventListener('keydown', (e) => {
@@ -223,8 +235,6 @@ document.addEventListener('keydown', (e) => {
 });
 
 // ─── Wiring ─────────────────────────────────────────────────────────────
-
-// ─── The river of the day ───────────────────────────────────────────────
 
 function decorate() {
     tick();

@@ -60,7 +60,8 @@ export function newsClock(stories, now) {
     return (t) => (QUIET_SHARE * t) / HOUR + ((1 - QUIET_SHARE) * before(t)) / rate;
 }
 
-export function heatAt(story, at, clock = WALL_CLOCK) {
+// How much each outlet adds to the story's heat at a moment: outlet → heat.
+export function heatByOutlet(story, at, clock = WALL_CLOCK) {
     const byOutlet = new Map();
     for (const item of story.items) {
         if (item.at > at) continue;
@@ -69,35 +70,29 @@ export function heatAt(story, at, clock = WALL_CLOCK) {
         byOutlet.get(outlet).push(item);
     }
     const nowT = clock(at);
-    let heat = 0;
-    for (const items of byOutlet.values()) {
+    const out = new Map();
+    for (const [outlet, items] of byOutlet) {
         // The outlet's newest item counts in full: it says the outlet is on
         // the story now.
         items.sort((a, b) => b.at - a.at);
+        let heat = 0;
         items.forEach((item, k) => {
             const w = weightOf(item.source) * (k === 0 ? 1 : REPEAT_WEIGHT / k);
             heat += w * 0.5 ** ((nowT - clock(item.at)) / (HALF_LIFE / HOUR));
         });
+        out.set(outlet, heat);
     }
+    return out;
+}
+
+export function heatAt(story, at, clock = WALL_CLOCK) {
+    let heat = 0;
+    for (const h of heatByOutlet(story, at, clock).values()) heat += h;
     return heat;
 }
 
 export function levelOf(heat) {
     return LEVELS.find((l) => heat >= l.min);
-}
-
-// How much a story weighs for people, not how loud it is: whom it reaches,
-// how much public money, whether a binding rule was decided, how long it
-// lasts (lib/ai.js classifyWeights). 0–9; IMPORTANT and above is shown as
-// important even when little is written about it.
-const SCOPE = { person: 0, local: 1, region: 2, country: 3 };
-const MONEY = { none: 0, small: 1, large: 2, huge: 3 };
-export const IMPORTANT = 5;
-
-export function storyWeight(story) {
-    const w = story.weight;
-    if (!w) return null;
-    return (SCOPE[w.scope] ?? 0) + (MONEY[w.money] ?? 0) + (w.rules ? 2 : 0) + (w.lasting ? 1 : 0);
 }
 
 // Rising, falling or steady: heat now against heat three hours ago. A story

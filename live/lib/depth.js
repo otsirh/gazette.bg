@@ -2,15 +2,7 @@
 // happens, what came before it, how each side tells it, what was said about
 // it in parliament, and the outlets' track record once it is over.
 
-import { createHash } from 'node:crypto';
-import {
-    classifyPlaces,
-    classifyWeights,
-    findSameStories,
-    OVERVIEW_MODEL,
-    parliamentQuotes,
-    stillSensitive,
-} from './ai.js';
+import { classifyPlaces, findSameStories, OVERVIEW_MODEL, parliamentQuotes, stillSensitive } from './ai.js';
 import { fetchText, toText } from './feeds.js';
 import { rankStories } from './stories.js';
 import { clip, tidy } from './text.js';
@@ -90,26 +82,6 @@ export function pastFor(state, story, now, items = []) {
         .sort((a, b) => b.score - a.score || b.p.at - a.p.at)
         .slice(0, 25)
         .map((x) => x.p);
-}
-
-// The weight is read again whenever a story's title or summary changes;
-// at most 60 stories an update, in one cheap call.
-const textKey = (s) => createHash('sha1').update(`${s.title}|${s.summary}`).digest('base64url').slice(0, 10);
-
-export async function fillWeights(state, meter, log, proof = []) {
-    const due = state.stories.filter((s) => s.summary && s.weight?.of !== textKey(s)).slice(0, 60);
-    if (!due.length) return;
-    try {
-        const weights = await classifyWeights({ stories: due, meter });
-        for (const s of due) {
-            const w = weights.get(s.id);
-            if (!w) continue;
-            s.weight = { ...w, why: clip(tidy(w.why), 100), of: textKey(s) };
-            proof.push([s.weight, 'why']);
-        }
-    } catch (err) {
-        log(`Weights failed: ${err.message}`, 'WARN');
-    }
 }
 
 export async function fillPlaces(state, meter, log) {

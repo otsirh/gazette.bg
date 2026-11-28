@@ -25,7 +25,6 @@ import { clusterItems, OVERVIEW_MODEL, proofread, rewordSummary, writeStory } fr
 import {
     confirmSensitive,
     fillPlaces,
-    fillWeights,
     mergeSame,
     pastFor,
     readParliament,
@@ -521,12 +520,13 @@ export async function update({ now = Date.now() } = {}) {
     await confirmSensitive(state, meter, canSpend, log);
     if (canSpend()) await recheckSensitive(state, meter, log, process.env.YOUTUBE_API_KEY);
     if (canSpend()) await fillPlaces(state, meter, log);
-    if (canSpend()) await fillWeights(state, meter, log, proof);
     await readParliament(state, now, meter, canSpend, log, proof);
 
     // The overview at the top of the page is gone (the list below says the
     // same); an old one is not kept.
     state.overview = null;
+    // Nor is a story's weight: how much it matters is our judgement, not a fact.
+    for (const s of state.stories) delete s.weight;
 
     applyBlocklist(state, policy);
 
