@@ -75,6 +75,8 @@ export function applyBlocklist(state, policy) {
         s.items = s.items.filter((i) => !items.has(i.url) && !outlets.has(i.source));
     }
     state.stories = state.stories.filter((s) => s.items.length);
+    // A remembered story has a page too: a blocked one has none.
+    state.memory = (state.memory ?? []).filter((m) => !stories.has(m.id));
     const names = b.names.filter((n) => n.trim().length >= 3);
     if (!names.length) return;
     const re = new RegExp(names.map(escapeRe).join('|'), 'gi');
@@ -99,11 +101,43 @@ export function applyBlocklist(state, policy) {
                 a.label = scrub(a.label);
                 a.summary = scrub(a.summary);
             }
-            s.framing.missing = scrub(s.framing.missing);
         }
     }
     for (const l of state.overview?.lines ?? []) l.text = scrub(l.text);
     state.memory = (state.memory ?? []).map((m) => ({ ...m, title: scrub(m.title), summary: scrub(m.summary) }));
+}
+
+// The quotes in a text that no source says word for word. A quote is what
+// stands in „…“ or "…" and has at least four words; a shorter one is a name
+// („Топлофикация София“). An ellipsis inside marks a cut, so each part is
+// looked for on its own. Case, punctuation and spacing do not matter.
+const squash = (t) =>
+    String(t ?? '')
+        .toLowerCase()
+        .split(/[^\p{L}\d]+/u)
+        .filter(Boolean)
+        .join(' ');
+
+export function unverifiedQuotes(text, sources) {
+    const quotes = [...String(text ?? '').matchAll(/„([^“”"]+)[“”"]|"([^"]+)"/g)].map((m) => m[1] ?? m[2]);
+    const long = quotes.filter((q) => squash(q).split(' ').length >= 4);
+    if (!long.length) return [];
+    const haystack = ` ${sources.map(squash).join(' | ')} `;
+    return long.filter((q) =>
+        q
+            .split(/…|\.\.\./)
+            .map(squash)
+            .filter(Boolean)
+            .some((part) => !haystack.includes(` ${part} `)),
+    );
+}
+
+// A text with every unverified quote turned into plain words: the marks go,
+// the words stay, and nothing on the page claims to be said word for word.
+export function unquote(text, quotes) {
+    let t = String(text ?? '');
+    for (const q of quotes) t = t.replace(new RegExp(`[„"]${escapeRe(q)}[“”"]`, 'g'), q);
+    return t;
 }
 
 // Twelve words in a row taken from a source, outside a quote, is copying.

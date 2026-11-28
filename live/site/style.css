@@ -1189,6 +1189,15 @@ button {
     }
 }
 
+.cold-note {
+    margin: 10px 0 0;
+    padding: 10px 14px;
+    border-radius: 12px;
+    background: var(--surface-2);
+    color: var(--text-2);
+    font-size: 14.5px;
+}
+
 .disputed {
     margin: 14px 0 0;
     padding: 12px 15px;
@@ -1797,13 +1806,6 @@ button {
 .src-chip:hover {
     color: var(--text);
     box-shadow: inset 0 0 0 1px var(--muted);
-}
-.missing {
-    margin: 14px 0 0;
-    padding: 10px 14px;
-    border-radius: 12px;
-    background: var(--warm-wash);
-    font-size: 14.5px;
 }
 .headlines {
     margin-top: 14px;

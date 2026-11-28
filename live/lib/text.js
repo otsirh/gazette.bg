@@ -58,7 +58,22 @@ export function tidy(text) {
     // A range of numbers takes an en dash without spaces: "5–10".
     t = t.replace(/(?<![\d.,–-])(\d{1,4})-(\d{1,4})(?![\d-])/g, '$1–$2');
     t = t.replace(/ {2,}/g, ' ');
+    t = cliticsAfterVerb(t);
     return t;
+}
+
+// A sentence never begins with a short pronoun or "се"/"си": "се прибраха"
+// is "прибраха се", "му е било отказано" is "било му е отказано". The page
+// starts a timeline step with a capital, which makes the mistake glaring.
+// Only when the next word is lower case: "Си Дзинпин" is a name.
+const CLITIC_START = /^((?:(?:се|си|го|ги|му|ѝ|им|ме)\s+){1,2}(?:(?:е|са|съм|сме|сте)\s+)?)(\p{Ll}[\p{L}-]*)/u;
+
+function cliticsAfterVerb(t) {
+    const upper = /^\p{Lu}/u.test(t);
+    const m = (upper ? t[0].toLowerCase() + t.slice(1) : t).match(CLITIC_START);
+    if (!m) return t;
+    const verb = upper ? m[2][0].toUpperCase() + m[2].slice(1) : m[2];
+    return `${verb} ${m[1].trim().toLowerCase()}${t.slice(m[0].length)}`;
 }
 
 const UNIT_DECIMAL =
@@ -89,7 +104,6 @@ export function aiTexts(state) {
         for (const f of ['title', 'summary', 'disputed']) add(s, f);
         add(s.context, 'background');
         for (const a of s.framing?.angles ?? []) for (const f of ['label', 'summary']) add(a, f);
-        add(s.framing, 'missing');
         for (const e of s.timeline ?? []) for (const f of ['actor', 'who', 'what']) add(e, f);
         for (const i of s.items ?? []) add(i, 'cites');
     }

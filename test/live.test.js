@@ -7,7 +7,7 @@ import { buildSite, wideCards } from '../live/build.js';
 import { articleText, isOffTopic, parseFeed, toText } from '../live/lib/feeds.js';
 import { HALF_LIFE, heatAt, rankStories, spreadTree, trendOf, trustOf } from '../live/lib/stories.js';
 import { sourceIdForName } from '../live/sources.js';
-import { applyWrite } from '../live/update.js';
+import { applyWrite, checkQuotes } from '../live/update.js';
 
 const HOUR = 3600 * 1000;
 const NOW = Date.parse('2026-11-28T12:00:00Z');
@@ -598,4 +598,158 @@ test('at most MAX_HOT stories are hot', async () => {
 test('tidy: the percent sign sits right after the number', async () => {
     const { tidy } = await import('../live/lib/text.js');
     assert.equal(tidy('около 40 % от нарушенията'), 'около 40% от нарушенията');
+});
+
+test('tidy: a sentence never begins with „се“, „си“, „му“…, but a name stays', async () => {
+    const { tidy } = await import('../live/lib/text.js');
+    assert.equal(tidy('се прибраха в България'), 'прибраха се в България');
+    assert.equal(tidy('Се ударили челно'), 'Ударили се челно');
+    assert.equal(tidy('се е прибрал вкъщи'), 'прибрал се е вкъщи');
+    assert.equal(tidy('му се обади министърът'), 'обади му се министърът');
+    assert.equal(tidy('Си Дзинпин заяви'), 'Си Дзинпин заяви');
+    assert.equal(tidy('ще следи за нарушения'), 'ще следи за нарушения');
+});
+
+test('a quote no source says word for word is caught; a name in quotes is not a quote', async () => {
+    const { unverifiedQuotes, unquote } = await import('../live/lib/policy.js');
+    const sources = ['Министърът заяви: „Няма да подам оставка, докато не приключи проверката“, каза той.'];
+    assert.deepEqual(unverifiedQuotes('заяви, че „няма да подам оставка, докато не приключи проверката“', sources), []);
+    assert.deepEqual(unverifiedQuotes('каза „няма да подам оставка … приключи проверката“', sources), []);
+    assert.deepEqual(unverifiedQuotes('работи в „Топлофикация София“', sources), []);
+    const made = 'заяви: „Ще подам оставка утре сутринта“';
+    const loose = unverifiedQuotes(made, sources);
+    assert.deepEqual(loose, ['Ще подам оставка утре сутринта']);
+    assert.equal(unquote(made, loose), 'заяви: Ще подам оставка утре сутринта');
+});
+
+test('trust: retelling another outlet, an interview or a dispute does not confirm', () => {
+    // Three outlets, but two only retell BTA: one outlet knows it for itself.
+    const retold = story([
+        item('a', 'bta', 1),
+        item('b', 'sega', 1, { cites: 'БТА', citesKind: 'media' }),
+        item('c', 'mediapool', 1, { cites: 'БТА', citesKind: 'media' }),
+    ]);
+    assert.equal(trustOf(retold).id, 'several');
+    assert.equal(trustOf(retold).independent, 1);
+    // A person speaking in an interview is a view, not a first-hand fact.
+    const interview = story([
+        item('a', 'mediapool', 1, { cites: 'проф. Иванов', citesKind: 'person' }),
+        item('b', 'sega', 1),
+    ]);
+    assert.equal(trustOf(interview).id, 'several');
+    // Sources that contradict each other: never "Потвърдено".
+    const confirmed = story([item('a', 'bta', 1), item('b', 'sega', 1), item('c', 'mediapool', 1)]);
+    assert.equal(trustOf(confirmed).id, 'confirmed');
+    assert.equal(trustOf({ ...confirmed, disputed: 'Кой е виновен' }).id, 'several');
+});
+
+test('a sensitive story: headlines hidden on the page, sealed in the state, opened again', async () => {
+    const { openSeals } = await import('../live/lib/seal.js');
+    const before = process.env.LIVE_SEAL_KEY;
+    process.env.LIVE_SEAL_KEY = 'test-key';
+    try {
+        const out = fs.mkdtempSync(path.join(os.tmpdir(), 'live-'));
+        const s = story(
+            [
+                item('a', 'mediapool', 1, { title: 'Детето Иван е в болница' }),
+                item('b', 'bnt-yt', 1, { title: 'Видео за Иван', videoId: 'abcDEF12345' }),
+                item('c', 'sega', 1, { title: 'Иван е добре' }),
+            ],
+            { id: 'sens1234', sensitive: true, summary: 'Дете е в болница.' },
+        );
+        const state = { updatedAt: NOW, stories: [s], sources: {} };
+        await buildSite(state, { now: NOW, outDir: out, images: false });
+        const page = fs.readFileSync(path.join(out, 's', 'sens1234', 'index.html'), 'utf8');
+        const published = fs.readFileSync(path.join(out, 'state.json'), 'utf8');
+        for (const text of [page, published]) {
+            assert.ok(!text.includes('Иван'), 'no headline names the child');
+            assert.ok(!text.includes('abcDEF12345'), 'no video');
+        }
+        assert.equal(s.items[0].title, 'Детето Иван е в болница', 'the state in memory is untouched');
+        const back = JSON.parse(published);
+        openSeals(back);
+        assert.equal(back.stories[0].items[0].title, 'Детето Иван е в болница');
+        assert.equal(back.stories[0].items[1].videoId, 'abcDEF12345');
+        // Another key cannot open it, and keeps it sealed rather than lose it.
+        const again = JSON.parse(published);
+        process.env.LIVE_SEAL_KEY = 'another-key';
+        openSeals(again);
+        assert.equal(again.stories[0].items[0].title, '');
+        assert.ok(again.stories[0].items[0].sealed);
+        fs.rmSync(out, { recursive: true, force: true });
+    } finally {
+        if (before === undefined) delete process.env.LIVE_SEAL_KEY;
+        else process.env.LIVE_SEAL_KEY = before;
+    }
+});
+
+test('a cold story and a remembered one keep their pages; „Никой не казва“ is gone', async () => {
+    const out = fs.mkdtempSync(path.join(os.tmpdir(), 'live-'));
+    const hot = story([item('a', 'bta', 1), item('b', 'sega', 1), item('c', 'mediapool', 1)], {
+        id: 'hot12345',
+        framing: { angles: [{ label: 'Ъгъл', summary: 'Обяснение', items: ['a'] }], missing: 'Нищо', at: NOW },
+    });
+    const cold = story([item('d', 'bta', 60)], { id: 'cold1234', title: 'Стара история' });
+    const state = {
+        updatedAt: NOW,
+        stories: [hot, cold],
+        sources: {},
+        memory: [{ id: 'gone1234', title: 'Забравена история', summary: 'Какво беше.', at: NOW - 80 * HOUR }],
+    };
+    await buildSite(state, { now: NOW, outDir: out, images: false });
+    const coldPage = fs.readFileSync(path.join(out, 's', 'cold1234', 'index.html'), 'utf8');
+    assert.match(coldPage, /Тази история изстина/);
+    assert.match(coldPage, /<meta name="robots" content="noindex"/);
+    const gonePage = fs.readFileSync(path.join(out, 's', 'gone1234', 'index.html'), 'utf8');
+    assert.match(gonePage, /Забравена история/);
+    assert.match(gonePage, /Вече не се следи/);
+    const hotPage = fs.readFileSync(path.join(out, 's', 'hot12345', 'index.html'), 'utf8');
+    assert.ok(!hotPage.includes('Никой не казва'));
+    assert.ok(!hotPage.includes('noindex'));
+    assert.ok(!fs.readFileSync(path.join(out, 'sitemap.xml'), 'utf8').includes('cold1234'));
+    fs.rmSync(out, { recursive: true, force: true });
+});
+
+test('a blocked story leaves the memory too, so it gets no page', async () => {
+    const { applyBlocklist } = await import('../live/lib/policy.js');
+    const state = {
+        stories: [],
+        memory: [
+            { id: 'blok1234', title: 'Блокирана', summary: '', at: NOW },
+            { id: 'keep1234', title: 'Остава', summary: '', at: NOW },
+        ],
+    };
+    applyBlocklist(state, { blocklist: { stories: ['blok1234'], items: [], outlets: [], names: [] } });
+    assert.deepEqual(
+        state.memory.map((m) => m.id),
+        ['keep1234'],
+    );
+});
+
+test('merging a sensitive story into another keeps its items hidden', async () => {
+    const { mergeInto } = await import('../live/lib/depth.js');
+    const keep = story([item('a', 'bta', 1)], { id: 'keep1234' });
+    const other = story([item('b', 'sega', 1)], { id: 'sens1234', sensitive: true });
+    mergeInto(keep, [other]);
+    assert.equal(keep.sensitive, true);
+});
+
+test('the writer unquotes every quote no source has, in the summary and in each step', () => {
+    const sources = ['Премиерът каза: „Бюджетът ще бъде приет до края на годината“.'];
+    const result = {
+        title: 'Бюджетът',
+        summary: 'Премиерът обеща: „Бюджетът ще бъде приет до края на годината“.',
+        disputed: '',
+        background: '',
+        events: [
+            { what: 'заяви: „Няма да има нови данъци догодина“' },
+            { what: 'обеща „бюджетът ще бъде приет до края на годината“' },
+        ],
+    };
+    const loose = checkQuotes(result, story([]), sources);
+    assert.deepEqual(loose, ['Няма да има нови данъци догодина']);
+    assert.equal(result.summary, 'Премиерът обеща: „Бюджетът ще бъде приет до края на годината“.');
+    assert.equal(result.events.length, 2, 'no step is dropped');
+    assert.equal(result.events[0].what, 'заяви: Няма да има нови данъци догодина');
+    assert.equal(result.events[1].what, 'обеща „бюджетът ще бъде приет до края на годината“');
 });

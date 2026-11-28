@@ -209,10 +209,9 @@ const version = () => document.body.dataset.version;
 async function swapIn() {
     const scroll = scrollY;
     const res = await fetch(location.pathname, { cache: 'no-store' });
-    if (!res.ok) {
-        location.reload();
-        return;
-    }
+    // The page is gone or the network failed: keep what the reader is
+    // reading rather than throw them onto an error page.
+    if (!res.ok) return;
     const doc = new DOMParser().parseFromString(await res.text(), 'text/html');
     const main = doc.querySelector('main');
     if (!main) {

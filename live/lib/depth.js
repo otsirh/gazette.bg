@@ -59,28 +59,38 @@ const KIND_LABEL = (id) => {
     return ['първоизточник', 'първоизточник', 'обществена медия', 'редакционна медия', 'непроверен'][tierOf(id)];
 };
 
+// One headline per outlet, the earliest: the first take is the framing.
+// An item whose headline is not known (or hidden) says nothing about it.
+function framingLines(story) {
+    const seen = new Set();
+    const lines = [];
+    for (const it of [...story.items].sort((a, b) => a.at - b.at)) {
+        if (!it.title?.trim()) continue;
+        const o = outletOf(it.source);
+        if (seen.has(o)) continue;
+        seen.add(o);
+        lines.push({
+            item: it,
+            sourceName: SOURCE_BY_ID.get(it.source)?.name ?? it.source,
+            kindLabel: KIND_LABEL(it.source),
+        });
+    }
+    return lines;
+}
+
 // How each side tells it: for the busiest stories, again once two more
-// outlets have joined since the last look.
+// outlets have joined since the last look. Never for a story about a child
+// or a victim: its headlines are not shown, so they are not compared either.
 export async function frameStories(state, now, meter, canSpend, log, proof = []) {
     const due = rankStories(state.stories, now)
-        .filter((r) => r.trust.outlets >= 4)
+        .filter((r) => !r.story.sensitive && r.trust.outlets >= 4)
         .filter((r) => !r.story.framing || r.trust.outlets - r.story.framing.outlets >= 2)
+        .map((r) => ({ ...r, lines: framingLines(r.story) }))
+        .filter((r) => r.lines.length >= 4)
         .slice(0, 5);
     for (const r of due) {
         if (!canSpend()) return;
-        // One headline per outlet, the earliest: the first take is the framing.
-        const seen = new Set();
-        const lines = [];
-        for (const it of [...r.story.items].sort((a, b) => a.at - b.at)) {
-            const o = outletOf(it.source);
-            if (seen.has(o)) continue;
-            seen.add(o);
-            lines.push({
-                item: it,
-                sourceName: SOURCE_BY_ID.get(it.source)?.name ?? it.source,
-                kindLabel: KIND_LABEL(it.source),
-            });
-        }
+        const lines = r.lines;
         try {
             const framing = await frameStory({ story: r.story, lines: lines.slice(0, 60), meter });
             for (const a of framing.angles) {
@@ -88,9 +98,7 @@ export async function frameStories(state, now, meter, canSpend, log, proof = [])
                 a.summary = tidy(a.summary);
                 proof.push([a, 'label'], [a, 'summary']);
             }
-            framing.missing = tidy(framing.missing);
             r.story.framing = { ...framing, outlets: r.trust.outlets, at: now };
-            proof.push([r.story.framing, 'missing']);
         } catch (err) {
             log(`Framing ${r.story.id} failed: ${err.message}`, 'WARN');
         }
@@ -120,6 +128,8 @@ export function mergeInto(keep, others) {
         keep.aliases = [...new Set([...(keep.aliases ?? []), o.id, ...(o.aliases ?? [])])];
         keep.context ??= o.context;
         if (!keep.place && o.place) keep.place = o.place;
+        // A sensitive story's items stay hidden in whatever story they join.
+        if (o.sensitive) keep.sensitive = true;
     }
     keep.timeline.sort((a, b) => a.at - b.at);
     if (keep.timeline.length > 80) keep.timeline = keep.timeline.slice(-80);

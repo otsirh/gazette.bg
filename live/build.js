@@ -14,8 +14,9 @@ import { isMain as isMainModule } from '../scripts/lib/cli.js';
 import { isWebUrl } from './lib/feeds.js';
 import { homeImage, iconPng, storyImage } from './lib/og.js';
 import { MAP, OUTLINE, placeOf } from './lib/places.js';
-import { inElectionSilence, loadPolicy, POLL, silenceFilter } from './lib/policy.js';
-import { lastAt, originOf, rankStories, sparkline } from './lib/stories.js';
+import { inElectionSilence, isPollStory, loadPolicy, POLL, silenceFilter } from './lib/policy.js';
+import { publicState } from './lib/seal.js';
+import { lastAt, originOf, rankStories, scoreStories, sparkline } from './lib/stories.js';
 import { outletOf, SOURCE_BY_ID, SOURCES, tierOf } from './sources.js';
 
 const require = createRequire(import.meta.url);
@@ -33,7 +34,7 @@ const CONTACT = /^[^\s@<>"]+@[^\s@<>"]+\.[a-z]{2,}$/i.test(process.env.LIVE_CONT
 const HOUR = 3600 * 1000;
 
 // Bumped by hand when style.css or live.js change, so browsers fetch them anew.
-const ASSET_VERSION = '23';
+const ASSET_VERSION = '24';
 
 const esc = (s) =>
     String(s ?? '')
@@ -50,6 +51,7 @@ const sofia = (opts) => new Intl.DateTimeFormat('bg-BG', { timeZone: 'Europe/Sof
 const fmtClock = sofia({ hour: '2-digit', minute: '2-digit' });
 const fmtDay = sofia({ day: 'numeric', month: 'short' });
 const fmtLongDay = sofia({ weekday: 'long', day: 'numeric', month: 'long' });
+const fmtDate = sofia({ day: 'numeric', month: 'long', year: 'numeric' });
 const dayKey = sofia({ year: 'numeric', month: '2-digit', day: '2-digit' });
 
 export function relTime(ms, now) {
@@ -242,7 +244,7 @@ const ICONS = {
 // JSON inside <script>: a "<" in a headline must not end the element.
 const jsonLd = (data) => `<script type="application/ld+json">${JSON.stringify(data).replace(/</g, '\\u003c')}</script>`;
 
-function head({ title, description, canonical, image, ld = null }) {
+function head({ title, description, canonical, image, ld = null, noindex = false }) {
     return `<!DOCTYPE html>
 <html lang="bg">
 <head>
@@ -250,7 +252,7 @@ function head({ title, description, canonical, image, ld = null }) {
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
     <title>${esc(title)}</title>
     <meta name="description" content="${esc(description)}" />
-    <link rel="canonical" href="${esc(canonical)}" />
+    <link rel="canonical" href="${esc(canonical)}" />${noindex ? '\n    <meta name="robots" content="noindex" />' : ''}
     <meta property="og:type" content="website" />
     <meta property="og:site_name" content="live.gazette.bg" />
     <meta property="og:title" content="${esc(title)}" />
@@ -622,7 +624,8 @@ function contextBlock(story, now) {
 
 function framingBlock(story, now) {
     const f = story.framing;
-    if (!f?.angles?.length) return '';
+    // A story about a child or a victim shows no headlines, so no angles either.
+    if (story.sensitive || !f?.angles?.length) return '';
     const byId = new Map(story.items.map((i) => [i.id, i]));
     const angles = f.angles
         .map((a) => {
@@ -662,7 +665,6 @@ function framingBlock(story, now) {
     return `<section class="panel" aria-labelledby="framing">
     <h2 id="framing" class="panel-title">Как го представят <span>една и съща новина, различни ъгли</span></h2>
     <ul class="angles">${angles}</ul>
-    ${f.missing ? `<p class="missing"><b>Никой не казва:</b> ${esc(f.missing)}</p>` : ''}
     <details class="headlines"><summary>Заглавията един до друг (${firsts.length})</summary><div class="hl-grid">${byKind}</div></details>
     <p class="quiet small">Описанието е автоматично, по заглавията; ${timeEl(f.at, now, true)}.</p>
 </section>`;
@@ -801,7 +803,10 @@ function repliesBlock(story) {
 </section>`;
 }
 
-function storyPage(state, r, ranked, now) {
+// A cold story (no longer on the front page) keeps its page while it is in
+// the state, so a link someone shared still works; it is not indexed, and it
+// borrows the site's picture, since its own is no longer made.
+function storyPage(state, r, ranked, now, { cold = false } = {}) {
     const s = r.story;
     const origin = originOf(s);
     const videos = videosOf(s).length;
@@ -828,10 +833,12 @@ function storyPage(state, r, ranked, now) {
               `${esc(origin.name)}<small>${timeEl(origin.at, now)}${origin.via && sourceLabel(origin.via) !== esc(origin.name) ? ` · по материал на ${sourceLabel(origin.via)}` : ''}${origin.words ? ` · по думите на ${esc(origin.words)}` : ''}</small>`,
           )
         : '';
+    const image = cold ? `${SITE_ORIGIN}/og/home.png` : `${SITE_ORIGIN}/og/${s.id}.png`;
     return `${head({
         title: `${s.title} — live.gazette.bg`,
         description: s.summary || s.title,
         canonical: url,
+        noindex: cold,
         ld: {
             '@context': 'https://schema.org',
             '@type': 'NewsArticle',
@@ -841,18 +848,19 @@ function storyPage(state, r, ranked, now) {
             dateModified: new Date(lastAt(s)).toISOString(),
             inLanguage: 'bg',
             mainEntityOfPage: url,
-            image: [`${SITE_ORIGIN}/og/${s.id}.png`],
+            image: [image],
             author: { '@type': 'Organization', name: 'live.gazette.bg', url: `${SITE_ORIGIN}/about/` },
             publisher: { '@type': 'Organization', name: 'live.gazette.bg', url: `${SITE_ORIGIN}/` },
             isBasedOn: s.items.slice(0, 30).map((i) => i.url),
             ...(placeOf(s.place) ? { contentLocation: { '@type': 'Place', name: placeOf(s.place).name } } : {}),
         },
-        image: `${SITE_ORIGIN}/og/${s.id}.png?v=${tempOf(r.heat)}-${r.trust.outlets}`,
+        image: cold ? image : `${image}?v=${tempOf(r.heat)}-${r.trust.outlets}`,
     })}
 <body class="story heat-${r.level.id}" data-version="${state.updatedAt}" ${cardData(r)}>
 ${topbar(state, now)}
 <main id="main" class="wrap">
 <a class="back" href="/">← Всичко, което се случва сега</a>
+${cold ? '<p class="cold-note">Тази история изстина: за нея вече почти не се пише и я няма на началната страница. Страницата остава, за да работят споделените линкове.</p>' : ''}
 <header class="story-head">
     <div class="card-top">${tempBadge(r)}${chips(r, now)}</div>
     <h1>${esc(s.title)}</h1>
@@ -864,7 +872,7 @@ ${topbar(state, now)}
         ${nav}
     </div>
     <dl class="stats">
-        ${stat('Достоверност', `<span class="trust trust-${r.trust.id}">${esc(r.trust.label)}</span>${coverageBar(s, { legend: true })}`)}
+        ${stat('Потвърждение', `<span class="trust trust-${r.trust.id}">${esc(r.trust.label)}</span>${coverageBar(s, { legend: true })}`)}
         ${originStat}
         ${stat('Медии', `${r.trust.outlets}<small>${plural(s.items.length, 'материал', 'материала')}${videos ? `, ${plural(videos, 'видео', 'видеа')}` : ''}</small>`)}
         ${stat('Нажеженост', `<span class="stat-temp heat-${r.level.id}">${tempOf(r.heat)}°</span>${sparkSvg(sparkline(s, now))}<small>колко се пише, последни 48 ч</small>`)}
@@ -879,6 +887,36 @@ ${repliesBlock(s)}
 ${blocks.timeline}
 ${sourcesBlock(s, now)}
 ${moreBlock(r, ranked, now)}
+</main>
+${footer()}
+</body>
+</html>
+`;
+}
+
+// A story that has left the state is remembered for a while with its title
+// and summary only: its address shows that much, so a shared link never
+// ends in "not found" while the site still knows what it was.
+function memoryPage(state, m, ranked, now) {
+    const url = `${SITE_ORIGIN}/s/${m.id}/`;
+    return `${head({
+        title: `${m.title} — live.gazette.bg`,
+        description: m.summary || m.title,
+        canonical: url,
+        image: `${SITE_ORIGIN}/og/home.png`,
+        noindex: true,
+    })}
+<body class="story" data-version="${state.updatedAt}">
+${topbar(state, now)}
+<main id="main" class="wrap">
+<a class="back" href="/">← Всичко, което се случва сега</a>
+<p class="cold-note">Тази история е от ${esc(fmtDate.format(m.at))}. Вече не се следи и подробностите ѝ не се пазят: тук е само обобщението ѝ.</p>
+<header class="story-head">
+    <h1>${esc(m.title)}</h1>
+    ${m.summary ? `<p class="lede">${esc(m.summary)}</p>` : ''}
+    <p class="ai-note">Обобщено автоматично с изкуствен интелект. <a href="/about/">Как работи</a></p>
+</header>
+${moreBlock({ story: { id: m.id } }, ranked, now)}
 </main>
 ${footer()}
 </body>
@@ -917,7 +955,7 @@ ${topbar(state, now)}
 <p><b>Тежестта на източника</b> идва от проверими неща, не от политическата му линия: дали говори самата институция или човек, дали медията отговаря по закон за точността си, дали има известен собственик и подписани материали.</p>
 <p><b>Независимите автори</b> са журналисти, коментатори и малки екипи без медия зад тях: известен човек отговаря за казаното, но няма редакция, която да го проверява. Тежат малко по-малко от редакционните медии.</p>
 <p><b>Партийните канали</b> са първоизточник за това какво казват политиците, но казаното е тяхна позиция. Затова сами никога не потвърждават история.</p>
-<p><b>„Потвърдено“</b> значи: има първоизточник (институция или човек говорят сами) и още една медия, или поне три отделни медии, сред които агенция или обществена медия. „Противоречия“ значи, че източниците си противоречат за съществен факт.</p>
+<p><b>„Потвърдено“</b> значи: има първоизточник (институцията говори сама или медия съобщава какво е обявила) и още една медия, която пише от свое име, или поне три такива медии, сред които агенция или обществена медия. Медия, която само преразказва друга („според БТА“), разпространява новината, но не я потвърждава; интервю е мнение, не потвърден факт. „Противоречия“ значи, че източниците си противоречат за съществен факт – тогава историята не е „Потвърдено“, докато спорът не се разреши.</p>
 <p><b>Кого четем.</b> Източник влиза, ако го позволява законът (robots.txt, условията за ползване), ако някой отговаря за него (известен собственик или автор с име), ако редовно пише за България и ако е активен. Не четем източник, за който независима проверка е установила дезинформация или разпространение на санкционирани медии, нито такъв, който системно използва език на омразата, обиди, внушения без доказателства, клюки или скрита реклама. Политическата позиция, шумните заглавия и малката аудитория не са причина да махнем някого — те влияят само на тежестта му.</p>
 <p><b>Нажежеността</b> (°) расте с всяка медия, която пише по историята; още материали от същата медия добавят все по-малко, така че шумът на една медия не прави история гореща. Пада наполовина за около 6 часа новини: през деня — за около 6 часа, а нощем, когато почти никой не пише, часовникът почти спира. Горещи са най-много 10 истории наведнъж. Щом за една история спре да се пише, тя изстива и изчезва.</p>
 </div>
@@ -1099,6 +1137,9 @@ export async function buildSite(state, { now = Date.now(), outDir = OUT_DIR, ima
     fs.rmSync(outDir, { recursive: true, force: true });
     const policy = loadPolicy();
     REPLIES = policy.replies;
+    // A sensitive story's headlines, pictures and videos are never on a page,
+    // and the published state carries them sealed.
+    state = publicState(state);
     // Election silence: the pages show no polls and no party channels.
     if (inElectionSilence(policy, now)) {
         state = {
@@ -1113,8 +1154,17 @@ export async function buildSite(state, { now = Date.now(), outDir = OUT_DIR, ima
     }
     const ranked = rankStories(state.stories, now);
     write(path.join(outDir, 'index.html'), frontPage(state, ranked, now));
-    for (const r of ranked) {
-        write(path.join(outDir, 's', r.story.id, 'index.html'), storyPage(state, r, ranked, now));
+    // Every story in the state has a page, the cold ones too; then every
+    // remembered one. An address, once shared, keeps working.
+    const shown = new Set(ranked.map((r) => r.story.id));
+    const cold = scoreStories(state.stories, now).filter((r) => !shown.has(r.story.id));
+    const built = new Set();
+    for (const r of [...ranked, ...cold]) {
+        built.add(r.story.id);
+        write(
+            path.join(outDir, 's', r.story.id, 'index.html'),
+            storyPage(state, r, ranked, now, { cold: !shown.has(r.story.id) }),
+        );
         // A story merged into this one keeps its address: it points here.
         for (const alias of r.story.aliases ?? []) {
             if (!/^[a-z0-9]{4,16}$/.test(alias)) continue;
@@ -1124,6 +1174,14 @@ export async function buildSite(state, { now = Date.now(), outDir = OUT_DIR, ima
                 `<!DOCTYPE html><html lang="bg"><head><meta charset="UTF-8"><meta http-equiv="refresh" content="0; url=${to}"><link rel="canonical" href="${SITE_ORIGIN}${to}"><meta name="robots" content="noindex"><title>${esc(r.story.title)}</title></head><body><a href="${to}">${esc(r.story.title)}</a></body></html>\n`,
             );
         }
+    }
+    for (const r of [...ranked, ...cold]) for (const a of r.story.aliases ?? []) built.add(a);
+    for (const m of state.memory ?? []) {
+        if (built.has(m.id) || !/^[a-z0-9]{4,16}$/.test(m.id) || !m.title) continue;
+        // During an election silence, nothing about polls, here either.
+        if (state.silence && isPollStory(m)) continue;
+        built.add(m.id);
+        write(path.join(outDir, 's', m.id, 'index.html'), memoryPage(state, m, ranked, now));
     }
     const urls = ['/', '/about/', '/corrections/', '/sources/', ...ranked.map((r) => `/s/${r.story.id}/`)];
     write(
